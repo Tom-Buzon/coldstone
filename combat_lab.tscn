@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b8gddryw6v5k4"]
+
+[ext_resource type="Script" uid="uid://dy6dpo4nomlxl" path="res://scripts/main.gd" id="1_main"]
+
+[node name="UALNativeCombatLab" type="Node3D" unique_id=1311111773]
+script = ExtResource("1_main")

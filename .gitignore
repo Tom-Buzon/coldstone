@@ -1,0 +1,72 @@
+# ============================================================
+# GODOT
+# ============================================================
+
+# Godot generated cache
+.godot/
+
+# Legacy Godot cache
+.import/
+
+# ============================================================
+# HOPLITE - DOWNLOADED / GENERATED ASSETS
+# ============================================================
+
+# Raw downloaded files - recreated by SETUP_ASSETS.bat
+_downloads/
+
+# Runtime assets - recreated by SETUP_ASSETS.bat
+assets/runtime/
+
+# Generated asset verification/report
+ASSET_REPORT.txt
+
+# ============================================================
+# BUILD / EXPORT
+# ============================================================
+
+build/
+builds/
+dist/
+export/
+exports/
+
+*.exe
+*.pck
+*.apk
+*.aab
+
+# ============================================================
+# TEMP / LOGS
+# ============================================================
+
+*.log
+*.tmp
+*.temp
+*.bak
+*.old
+
+# ============================================================
+# WINDOWS
+# ============================================================
+
+Thumbs.db
+Desktop.ini
+
+# ============================================================
+# IDE
+# ============================================================
+
+.vs/
+.idea/
+
+# Keep .vscode by default if project settings are useful.
+# Uncomment if you want it local only:
+# .vscode/
+
+# ============================================================
+# IMPORTANT GODOT FILES TO KEEP
+# ============================================================
+
+# Do NOT ignore *.uid
+# Do NOT globally ignore *.import
