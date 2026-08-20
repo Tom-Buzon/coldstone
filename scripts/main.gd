@@ -5,6 +5,15 @@ const AthenianScript = preload("res://scripts/enemy/athenian_enemy.gd")
 
 var player: HopliteUALNativePlayer
 var debug_label: Label
+var debug_panel: ColorRect
+var debug_title: Label
+var debug_help: Label
+var debug_overlay_visible: bool = false
+var debug_world_labels: Array[Label3D] = []
+
+var health_bar_fill: ColorRect
+var health_bar_label: Label
+const HEALTH_BAR_WIDTH: float = 286.0
 
 func _ready() -> void:
 	_build_environment()
@@ -16,8 +25,42 @@ func _ready() -> void:
 	_build_training_ground()
 
 func _process(_delta: float) -> void:
-	if debug_label != null and player != null:
+	if player == null:
+		return
+	_update_player_health_bar()
+	if debug_overlay_visible and debug_label != null:
 		debug_label.text = player.debug_text
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		var key: InputEventKey = event as InputEventKey
+		if key.keycode == KEY_I:
+			_set_debug_overlay_visible(not debug_overlay_visible)
+			get_viewport().set_input_as_handled()
+
+func _set_debug_overlay_visible(enabled: bool) -> void:
+	debug_overlay_visible = enabled
+	if debug_panel != null:
+		debug_panel.visible = enabled
+	if debug_title != null:
+		debug_title.visible = enabled
+	if debug_help != null:
+		debug_help.visible = enabled
+	if debug_label != null:
+		debug_label.visible = enabled
+	for label: Label3D in debug_world_labels:
+		if is_instance_valid(label):
+			label.visible = enabled
+	if player != null:
+		player.set_combat_debug_visible(enabled)
+
+func _update_player_health_bar() -> void:
+	if player == null or health_bar_fill == null or health_bar_label == null:
+		return
+	var maximum: float = maxf(player.max_health, 1.0)
+	var ratio: float = clampf(player.health / maximum, 0.0, 1.0)
+	health_bar_fill.size.x = HEALTH_BAR_WIDTH * ratio
+	health_bar_label.text = "SPARTAN   %.0f / %.0f" % [player.health, player.max_health]
 
 func _build_environment() -> void:
 	var world_environment: WorldEnvironment = WorldEnvironment.new()
@@ -118,7 +161,9 @@ func _add_world_label(text_value: String, position_value: Vector3) -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 34
 	label.modulate = Color(0.82, 0.90, 1.0)
+	label.visible = debug_overlay_visible
 	add_child(label)
+	debug_world_labels.append(label)
 
 func _add_box(node_name: String, size: Vector3, position: Vector3, color: Color, collision_enabled: bool) -> void:
 	var body: StaticBody3D = StaticBody3D.new()
@@ -253,26 +298,60 @@ func _on_slide_slash_contact(target: Node) -> void:
 func _build_ui() -> void:
 	var layer: CanvasLayer = CanvasLayer.new()
 	add_child(layer)
-	var panel: ColorRect = ColorRect.new()
-	panel.position = Vector2(14, 14)
-	panel.size = Vector2(1235, 214)
-	panel.color = Color(0.025, 0.025, 0.035, 0.86)
-	layer.add_child(panel)
 
-	var title: Label = Label.new()
-	title.position = Vector2(28, 24)
-	title.text = "PROJECT HOPLITE — V0.0.5 COMBAT FEEL / INJURY AI"
-	title.add_theme_font_size_override("font_size", 23)
-	layer.add_child(title)
+	# Clean game HUD: this is the only UI visible by default.
+	var health_background: ColorRect = ColorRect.new()
+	health_background.position = Vector2(18, 18)
+	health_background.size = Vector2(302, 34)
+	health_background.color = Color(0.025, 0.02, 0.025, 0.90)
+	layer.add_child(health_background)
 
-	var help: Label = Label.new()
-	help.position = Vector2(28, 56)
-	help.text = "ZQSD/WASD = mouvement • SPACE x2 = NinjaJump • SPACE obstacle = vault/mantle • SHIFT = dash • CTRL = slide\nLMB/J = light rapide • RMB/K = heavy • A/molette = 360 • H = debug combat • regarder haut/bas = incline les coups\nIA: 1 jambe = marche lente • 2 jambes = crawl • bras droit = désarmé • mort = chute au sol"
-	help.add_theme_font_size_override("font_size", 14)
-	layer.add_child(help)
+	var health_track: ColorRect = ColorRect.new()
+	health_track.position = Vector2(8, 8)
+	health_track.size = Vector2(HEALTH_BAR_WIDTH, 18)
+	health_track.color = Color(0.16, 0.045, 0.045, 0.96)
+	health_background.add_child(health_track)
+
+	health_bar_fill = ColorRect.new()
+	health_bar_fill.position = Vector2(8, 8)
+	health_bar_fill.size = Vector2(HEALTH_BAR_WIDTH, 18)
+	health_bar_fill.color = Color(0.72, 0.055, 0.035, 1.0)
+	health_background.add_child(health_bar_fill)
+
+	health_bar_label = Label.new()
+	health_bar_label.position = Vector2(12, 5)
+	health_bar_label.size = Vector2(278, 24)
+	health_bar_label.text = "SPARTAN"
+	health_bar_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	health_bar_label.add_theme_font_size_override("font_size", 14)
+	health_background.add_child(health_bar_label)
+
+	# Laboratory diagnostics. Hidden by default; I reveals this entire layer AND
+	# enables the former H anatomy/sword debug at the same time.
+	debug_panel = ColorRect.new()
+	debug_panel.position = Vector2(14, 64)
+	debug_panel.size = Vector2(1235, 214)
+	debug_panel.color = Color(0.025, 0.025, 0.035, 0.86)
+	debug_panel.visible = debug_overlay_visible
+	layer.add_child(debug_panel)
+
+	debug_title = Label.new()
+	debug_title.position = Vector2(28, 74)
+	debug_title.text = "PROJECT HOPLITE — V0.0.9 CLEAN HUD / I DIAGNOSTICS"
+	debug_title.add_theme_font_size_override("font_size", 23)
+	debug_title.visible = debug_overlay_visible
+	layer.add_child(debug_title)
+
+	debug_help = Label.new()
+	debug_help.position = Vector2(28, 106)
+	debug_help.text = "ZQSD/WASD = mouvement • SPACE x2 = NinjaJump • SPACE obstacle = vault/mantle • SHIFT = dash • CTRL = slide\nLMB/J = light rapide • RMB/K = heavy • A/molette = 360 • I = diagnostics complets + hitboxes/lame • regarder haut/bas = incline les coups\nIA: 1 jambe = marche lente • 2 jambes = crawl • bras droit = désarmé • mort = Death01"
+	debug_help.add_theme_font_size_override("font_size", 14)
+	debug_help.visible = debug_overlay_visible
+	layer.add_child(debug_help)
 
 	debug_label = Label.new()
-	debug_label.position = Vector2(28, 136)
+	debug_label.position = Vector2(28, 186)
 	debug_label.text = "Starting UAL motion/combat lab..."
 	debug_label.add_theme_font_size_override("font_size", 13)
+	debug_label.visible = debug_overlay_visible
 	layer.add_child(debug_label)

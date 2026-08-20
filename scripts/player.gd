@@ -222,8 +222,8 @@ func _load_ual1_mannequin() -> void:
 	if not animation_driver.configure(mannequin_scene, skeleton, animation_player):
 		resource_error = "Native UAL animation setup failed. Check Output."
 	else:
-		print("[HOPLITE LAB V0.0.5] fast lights + vertical sword aim + injury AI ACTIVE")
-		print("[HOPLITE LAB V0.0.4] right hand=", right_hand_bone, " left hand=", left_hand_bone)
+		print("[HOPLITE LAB V0.0.9] clean HUD + I diagnostics + combat feel ACTIVE")
+		print("[HOPLITE LAB V0.0.9] right hand=", right_hand_bone, " left hand=", left_hand_bone)
 
 func _missing_marker() -> void:
 	var label: Label3D = Label3D.new()
@@ -436,8 +436,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				shield_visible = not shield_visible
 				if shield_attachment != null:
 					shield_attachment.visible = shield_visible
-			KEY_H:
-				_toggle_combat_debug()
 			KEY_PAGEUP:
 				if animation_driver != null:
 					animation_driver.preview_next()
@@ -1061,8 +1059,8 @@ func _attack_vertical_pitch() -> float:
 			return clampf(asin(clampf(forward.y, -1.0, 1.0)) * 0.92, -0.82, 0.58)
 	return clampf(camera_pitch_value * 0.92, -0.82, 0.58)
 
-func _toggle_combat_debug() -> void:
-	combat_debug_visible = not combat_debug_visible
+func set_combat_debug_visible(enabled: bool) -> void:
+	combat_debug_visible = enabled
 	if debug_blade_mesh != null:
 		debug_blade_mesh.visible = combat_debug_visible
 	if debug_sweep_mesh_instance != null:
@@ -1070,7 +1068,7 @@ func _toggle_combat_debug() -> void:
 	for enemy: Node in get_tree().get_nodes_in_group("enemy"):
 		if enemy.has_method("set_combat_debug_visible"):
 			enemy.call("set_combat_debug_visible", combat_debug_visible)
-	print("[COMBAT DEBUG] H = ", combat_debug_visible)
+	print("[COMBAT DEBUG] I = ", combat_debug_visible)
 
 func _build_weapon_debug_visuals() -> void:
 	var scene: Node = get_tree().current_scene
@@ -1803,6 +1801,6 @@ func _update_debug_text() -> void:
 	var movement_state: String = "PARKOUR:" + String(parkour_kind) + ("+SLIDE" if parkour_slide_queued else "") if parkour_active else ("SLIDE_ARMED" if slide_armed else String(_combat_context()).to_upper())
 	var slide_y: float = visual_root.position.y if visual_root != null else 0.0
 	var combat_debug: String = "ON" if combat_debug_visible else "OFF"
-	debug_text = "V0.0.5  HP=%.0f/%.0f  STATE=%s  speed=%.2f  slideY=%.2f  comboLights=%d  charge=%d%%\n%s\nH combatDebug=%s • bladeSpeed=%.2f • selected=%s • candidates=%s\nAimAssist=%.0fdeg/%.1fm • swordPitch=%.0fdeg • whole-blade sweep • parkourProbe=%s" % [health, max_health, movement_state, Vector2(velocity.x, velocity.z).length(), slide_y, combo_light_count, charge_pct, status, combat_debug, debug_last_blade_speed, String(debug_last_zone), debug_last_candidates, aim_assist_max_correction_degrees, aim_assist_max_distance, rad_to_deg(_attack_vertical_pitch()), parkour_debug_reason]
+	debug_text = "V0.0.9  HP=%.0f/%.0f  STATE=%s  speed=%.2f  slideY=%.2f  comboLights=%d  charge=%d%%\n%s\nI diagnostics=%s • bladeSpeed=%.2f • selected=%s • candidates=%s\nAimAssist=%.0fdeg/%.1fm • swordPitch=%.0fdeg • whole-blade sweep • parkourProbe=%s" % [health, max_health, movement_state, Vector2(velocity.x, velocity.z).length(), slide_y, combo_light_count, charge_pct, status, combat_debug, debug_last_blade_speed, String(debug_last_zone), debug_last_candidates, aim_assist_max_correction_degrees, aim_assist_max_distance, rad_to_deg(_attack_vertical_pitch()), parkour_debug_reason]
 	if resource_error != "":
 		debug_text += "\nERROR: " + resource_error

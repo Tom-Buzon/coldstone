@@ -380,6 +380,7 @@ func _load_mannequin() -> void:
     status_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
     status_label.font_size = 32
     status_label.modulate = Color(1.0, 0.86, 0.20) if is_miniboss else Color(0.75, 0.86, 1.0)
+    status_label.visible = combat_debug_visible
     add_child(status_label)
 
     if not anatomy.debug_missing_bones.is_empty():
@@ -644,6 +645,8 @@ func _update_status_label() -> void:
 
 func set_combat_debug_visible(enabled: bool) -> void:
     combat_debug_visible = enabled
+    if status_label != null:
+        status_label.visible = enabled
     if anatomy != null:
         anatomy.set_debug_visible(enabled)
 
