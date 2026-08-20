@@ -8,6 +8,7 @@ var blend_weight: float = 0.0
 var full_body: bool = false
 var hips_influence: float = 0.0
 var configured: bool = false
+var attack_aim_pitch: float = 0.0
 
 # This bridge intentionally copies rotations only. Positional/root tracks are
 # excluded so donor animations can never move the visible character away from
@@ -82,6 +83,20 @@ func set_attack_weight(value: float, use_full_body: bool = false, hips_weight: f
     full_body = use_full_body
     hips_influence = clampf(hips_weight, 0.0, 1.0)
 
+func set_attack_aim_pitch(value: float) -> void:
+    attack_aim_pitch = clampf(value, -0.90, 0.65)
+
+func _aim_pitch_factor(role: String) -> float:
+    # Distribute camera pitch instead of rotating the whole mannequin. Several
+    # spine bones may map to the same semantic role, so each receives only a
+    # fraction; chest/neck finish the arc and the feet stay planted.
+    match role:
+        "spine": return 0.18
+        "chest": return 0.30
+        "neck": return 0.08
+        "shoulder": return 0.04
+        _: return 0.0
+
 func _process_modification_with_delta(_delta: float) -> void:
     if not configured or source_skeleton == null or blend_weight <= 0.0001:
         return
@@ -105,7 +120,12 @@ func _process_modification_with_delta(_delta: float) -> void:
             continue
         var base_q: Quaternion = target.get_bone_pose_rotation(target_idx)
         var source_q: Quaternion = source_skeleton.get_bone_pose_rotation(source_idx)
-        target.set_bone_pose_rotation(target_idx, base_q.slerp(source_q, role_weight))
+        var result_q: Quaternion = base_q.slerp(source_q, role_weight)
+        var pitch_factor: float = _aim_pitch_factor(role)
+        if pitch_factor > 0.0 and absf(attack_aim_pitch) > 0.0001:
+            var aim_q := Quaternion(Vector3.RIGHT, attack_aim_pitch * pitch_factor * blend_weight)
+            result_q = result_q * aim_q
+        target.set_bone_pose_rotation(target_idx, result_q)
 
 func _normalize_bone_name(raw: String) -> String:
     var s: String = raw.to_lower().strip_edges()

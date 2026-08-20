@@ -137,7 +137,7 @@ func configure(visible_scene: Node, skeleton: Skeleton3D, player: AnimationPlaye
 	if not _build_locomotion_tree():
 		return false
 	configured = true
-	print("[UAL NATIVE V2.12] READY - mobile heavy charge + exact UAL2 movement")
+	print("[UAL NATIVE V0.0.5] READY - fast buffered lights + vertical attack aim")
 	print("[UAL NATIVE V2.12] slots: ", slot_debug())
 	_print_variant_summary()
 	return true
@@ -219,6 +219,10 @@ func set_locomotion(normalized_speed: float) -> void:
 	speed_blend = clampf(normalized_speed, 0.0, 1.0)
 	animation_tree.set("parameters/Locomotion/blend_position", speed_blend)
 
+func set_attack_aim_pitch(pitch_radians: float) -> void:
+	if pose_bridge != null:
+		pose_bridge.set_attack_aim_pitch(pitch_radians)
+
 func play_attack_variant(slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false) -> bool:
 	if not configured:
 		return false
@@ -245,7 +249,10 @@ func request_attack_variant(slot: StringName, context: StringName, force_full_bo
 	var hips_value: float = hips_weight if hips_weight >= 0.0 else float(profile.get("hips", 0.35))
 	if attack_timer <= 0.0 and not charge_active:
 		return _start_attack_clip(slot, context, clip, full_body_value, speed_value, blend_value, hips_value, 0.0, fast)
-	if attack_queue.size() >= 2:
+	# Three buffered attacks is enough for very fast clicking without storing a
+	# long autopilot combo. Earlier versions only kept two and could visibly drop
+	# a click when the player tapped faster than the authored chain point.
+	if attack_queue.size() >= 3:
 		return false
 	attack_queue.append({
 		"slot": slot,
@@ -519,9 +526,9 @@ func _finish_attack() -> void:
 func _attack_profile(slot: StringName, context: StringName, fast: bool = false) -> Dictionary:
 	var result: Dictionary
 	match slot:
-		&"light1": result = {"speed": 1.23, "blend": 0.055, "blend_in": 0.04, "blend_out": 0.07, "chain": 0.43, "hips": 0.30, "full_body": false}
-		&"light2": result = {"speed": 1.28, "blend": 0.05, "blend_in": 0.035, "blend_out": 0.07, "chain": 0.42, "hips": 0.38, "full_body": false}
-		&"light3": result = {"speed": 1.16, "blend": 0.055, "blend_in": 0.04, "blend_out": 0.09, "chain": 0.64, "hips": 0.52, "full_body": false}
+		&"light1": result = {"speed": 1.55, "blend": 0.040, "blend_in": 0.028, "blend_out": 0.055, "chain": 0.30, "hips": 0.30, "full_body": false}
+		&"light2": result = {"speed": 1.62, "blend": 0.038, "blend_in": 0.026, "blend_out": 0.052, "chain": 0.28, "hips": 0.38, "full_body": false}
+		&"light3": result = {"speed": 1.48, "blend": 0.042, "blend_in": 0.030, "blend_out": 0.065, "chain": 0.40, "hips": 0.52, "full_body": false}
 		&"heavy": result = {"speed": 0.92, "blend": 0.085, "blend_in": 0.055, "blend_out": 0.12, "chain": 0.78, "hips": 0.64, "full_body": false}
 		&"spin360": result = {"speed": 1.08, "blend": 0.06, "blend_in": 0.04, "blend_out": 0.08, "chain": 0.78, "hips": 1.0, "full_body": true}
 		_: result = {"speed": 1.0, "blend": 0.06, "blend_in": 0.05, "blend_out": 0.10, "chain": 0.58, "hips": 0.40, "full_body": false}

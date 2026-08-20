@@ -1,19 +1,19 @@
 extends Node3D
 
 const PlayerScript = preload("res://scripts/player.gd")
+const AthenianScript = preload("res://scripts/enemy/athenian_enemy.gd")
 
 var player: HopliteUALNativePlayer
 var debug_label: Label
 
 func _ready() -> void:
 	_build_environment()
-	_build_training_ground()
 	_build_ui()
 	player = PlayerScript.new() as HopliteUALNativePlayer
 	player.name = "SpartanUALNativeTest"
 	player.position = Vector3(0.0, 0.05, 12.0)
 	add_child(player)
-	player.slide_slash_contact.connect(_on_slide_slash_contact)
+	_build_training_ground()
 
 func _process(_delta: float) -> void:
 	if debug_label != null and player != null:
@@ -67,17 +67,58 @@ func _build_training_ground() -> void:
 	_add_box("StaggerWallC", Vector3(4.0, 2.35, 1.0), Vector3(15.0, 1.175, -18.0), Color(0.42, 0.26, 0.15), true)
 
 	# Large combat pad with spaced targets for idle/run/dash/air attack testing.
-	_add_box("CombatPad", Vector3(32, 0.08, 32), Vector3(18, 0.04, 15), Color(0.21, 0.115, 0.075), false)
-	var dummy_positions: Array[Vector3] = [
-		Vector3(10,0,8), Vector3(14,0,7), Vector3(18,0,8), Vector3(22,0,7), Vector3(26,0,9),
-		Vector3(12,0,14), Vector3(18,0,14), Vector3(24,0,14),
-		Vector3(11,0,21), Vector3(16,0,22), Vector3(21,0,21), Vector3(27,0,22)
+	_add_box("CombatPad", Vector3(50, 0.08, 40), Vector3(21, 0.04, 14), Color(0.21, 0.115, 0.075), false)
+	# V0.0.2: actual blue UAL1 Athenians with bone-following anatomy hitboxes.
+	# Keep the first batch small while validating localization / sever thresholds.
+	var enemy_positions: Array[Vector3] = [
+		Vector3(10, 0.05, 8),
+		Vector3(15, 0.05, 7),
+		Vector3(20, 0.05, 8),
+		Vector3(25, 0.05, 7),
+		Vector3(18, 0.05, 15)
 	]
-	for p: Vector3 in dummy_positions:
-		_add_dummy(p)
+	for p: Vector3 in enemy_positions:
+		_add_athenian(p)
+	_add_world_label("PRECISION TARGETS", Vector3(18.0, 2.75, 5.3))
+
+	# V0.0.3: second five-man pack deliberately compressed to validate cleave,
+	# spin, dash and slide attacks against several anatomy Areas at once.
+	var tight_group_positions: Array[Vector3] = [
+		Vector3(22.3, 0.05, 21.0),
+		Vector3(23.45, 0.05, 21.0),
+		Vector3(24.60, 0.05, 21.0),
+		Vector3(22.90, 0.05, 22.05),
+		Vector3(24.05, 0.05, 22.05)
+	]
+	for p: Vector3 in tight_group_positions:
+		_add_athenian(p)
+	_add_world_label("GROUP DAMAGE TEST", Vector3(23.45, 2.75, 19.3))
+
+	# V0.0.5: live AI squad. Spawn the yellow miniboss first so the five blue
+	# guards can receive a stable boss reference before entering the tree.
+	var miniboss = _add_athenian(Vector3(40.0, 0.05, 12.0), true, true, null, 0)
+	var ai_group_positions: Array[Vector3] = [
+		Vector3(37.4, 0.05, 9.8),
+		Vector3(40.0, 0.05, 9.0),
+		Vector3(42.6, 0.05, 9.8),
+		Vector3(38.3, 0.05, 14.7),
+		Vector3(41.7, 0.05, 14.7)
+	]
+	for i: int in range(ai_group_positions.size()):
+		_add_athenian(ai_group_positions[i], true, false, miniboss, i)
+	_add_world_label("AI SQUAD + YELLOW MINIBOSS", Vector3(40.0, 3.0, 7.0))
 
 	for i: int in range(10):
 		_add_column(Vector3(-22.0 + i * 5.0, 0.0, -40.0))
+
+func _add_world_label(text_value: String, position_value: Vector3) -> void:
+	var label := Label3D.new()
+	label.text = text_value
+	label.position = position_value
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 34
+	label.modulate = Color(0.82, 0.90, 1.0)
+	add_child(label)
 
 func _add_box(node_name: String, size: Vector3, position: Vector3, color: Color, collision_enabled: bool) -> void:
 	var body: StaticBody3D = StaticBody3D.new()
@@ -139,6 +180,22 @@ func _add_column(position: Vector3) -> void:
 	top.position.y = 4.62
 	top.material_override = mat
 	root.add_child(top)
+
+func _add_athenian(position: Vector3, ai_enabled: bool = false, miniboss: bool = false, boss_ref: Node3D = null, guard_index: int = 0):
+	var enemy = AthenianScript.new() as HopliteAthenianEnemy
+	enemy.position = position
+	enemy.name = ("AthenianMiniboss" if miniboss else "Athenian_%02d" % get_tree().get_nodes_in_group("enemy").size())
+	enemy.ai_enabled = ai_enabled
+	enemy.is_miniboss = miniboss
+	enemy.ai_player = player
+	enemy.ai_miniboss = boss_ref
+	enemy.ai_guard_index = guard_index
+	if miniboss:
+		enemy.base_color = Color(0.90, 0.62, 0.035)
+		enemy.max_health = 460.0
+		enemy.ai_attack_damage = 34.0
+	add_child(enemy)
+	return enemy
 
 func _add_dummy(position: Vector3) -> void:
 	var root: Node3D = Node3D.new()
@@ -204,13 +261,13 @@ func _build_ui() -> void:
 
 	var title: Label = Label.new()
 	title.position = Vector2(28, 24)
-	title.text = "PROJECT HOPLITE — UAL MOTION + COMBAT LAB V2.9"
+	title.text = "PROJECT HOPLITE — V0.0.5 COMBAT FEEL / INJURY AI"
 	title.add_theme_font_size_override("font_size", 23)
 	layer.add_child(title)
 
 	var help: Label = Label.new()
 	help.position = Vector2(28, 56)
-	help.text = "ZQSD/WASD = mouvement sans perte de vitesse en virage • SPACE x2 = NinjaJump • SPACE face obstacle = vault/mantle • SHIFT = dash\nCTRL = UAL2 Slide_Start > Slide > Slide_Exit • CTRL en l’air = slide dès le contact au sol • LMB/J pendant slide = attaques légères slide\nAucune animation d’atterrissage : reprise immédiate Idle/Jog/Sprint • RMB/K = heavy • A/molette = 360"
+	help.text = "ZQSD/WASD = mouvement • SPACE x2 = NinjaJump • SPACE obstacle = vault/mantle • SHIFT = dash • CTRL = slide\nLMB/J = light rapide • RMB/K = heavy • A/molette = 360 • H = debug combat • regarder haut/bas = incline les coups\nIA: 1 jambe = marche lente • 2 jambes = crawl • bras droit = désarmé • mort = chute au sol"
 	help.add_theme_font_size_override("font_size", 14)
 	layer.add_child(help)
 

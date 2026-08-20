@@ -2,9 +2,11 @@ extends CharacterBody3D
 class_name HopliteUALNativePlayer
 
 signal slide_slash_contact(target: Node)
+signal combat_hit(target: Node, zone: StringName, hit: Variant)
 
 const DriverScript = preload("res://scripts/animation/native_animation_driver.gd")
 const TrailScript = preload("res://scripts/animation/sword_trail.gd")
+const HitEventScript = preload("res://scripts/combat/hit_event.gd")
 const UAL1_PATH := "res://assets/runtime/ual1/UAL1_Standard.glb"
 
 # Fast, momentum-preserving locomotion. Steering changes direction without
@@ -89,12 +91,43 @@ var left_hand_bone: String = ""
 var sword_attachment: BoneAttachment3D
 var shield_attachment: BoneAttachment3D
 var sword_root: Node3D
+var sword_base: Marker3D
 var sword_tip: Marker3D
 var sword_trail: HopliteNativeSwordTrail
 var sword_blade_material: StandardMaterial3D
 var sword_base_color: Color = Color(0.72, 0.76, 0.78)
 var sword_preset: int = 0
 var shield_visible: bool = true
+
+# V0.0.3 weapon contact: the WHOLE blade is a swept capsule. We sample the
+# previous/current blade transforms so fast animation frames cannot tunnel
+# through thin anatomy zones. One enemy can still be damaged once per swing.
+var weapon_hit_radius: float = 0.12
+var weapon_hit_mask: int = 8
+var previous_sword_base_position: Vector3 = Vector3.ZERO
+var previous_sword_tip_position: Vector3 = Vector3.ZERO
+var weapon_hit_targets: Dictionary = {}
+var weapon_swing_active: bool = false
+var weapon_last_slot: StringName = StringName()
+var weapon_last_progress: float = 0.0
+var last_heavy_release_ratio: float = 0.0
+
+# Small horizontal aim assist: only corrects near-misses inside a narrow cone.
+# It never hard-locks and never changes vertical targeting / anatomy selection.
+var aim_assist_enabled: bool = true
+var aim_assist_max_distance: float = 3.45
+var aim_assist_cone_degrees: float = 34.0
+var aim_assist_max_correction_degrees: float = 15.0
+
+# H combat diagnostics (F8 is reserved by the Godot editor to stop the running project).
+var combat_debug_visible: bool = false
+var debug_blade_mesh: MeshInstance3D
+var debug_sweep_mesh_instance: MeshInstance3D
+var debug_sweep_mesh: ImmediateMesh
+var debug_line_material: StandardMaterial3D
+var debug_last_zone: StringName = StringName()
+var debug_last_blade_speed: float = 0.0
+var debug_last_candidates: String = "none"
 
 var light_step: int = 0
 var combo_timer: float = 0.0
@@ -109,16 +142,28 @@ var spin_active_time: float = 0.0
 var spin_total_time: float = 0.0
 var spin_rotation_total: float = 0.0
 
+# Lightweight player health for the first enemy-AI combat lab. This is deliberately
+# separate from the future Spartan anatomy system; it only proves enemy attacks.
+var max_health: float = 300.0
+var health: float = 300.0
+var enemy_hit_invulnerability: float = 0.22
+var enemy_hit_invulnerability_timer: float = 0.0
+var last_enemy_damage: float = 0.0
+
 var resource_error: String = ""
 var debug_text: String = ""
 
 func _ready() -> void:
 	collision_layer = 2
-	collision_mask = 1
+	collision_mask = 1 | 4
 	_ensure_slide_input_action()
 	_build_collider()
 	_build_camera()
 	_load_ual1_mannequin()
+	if sword_base != null and sword_tip != null:
+		previous_sword_base_position = sword_base.global_position
+		previous_sword_tip_position = sword_tip.global_position
+		_build_weapon_debug_visuals()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _build_collider() -> void:
@@ -177,8 +222,8 @@ func _load_ual1_mannequin() -> void:
 	if not animation_driver.configure(mannequin_scene, skeleton, animation_player):
 		resource_error = "Native UAL animation setup failed. Check Output."
 	else:
-		print("[HOPLITE LAB V2.12] persistent heavy charge across mobility ACTIVE")
-		print("[HOPLITE LAB V2.12] right hand=", right_hand_bone, " left hand=", left_hand_bone)
+		print("[HOPLITE LAB V0.0.5] fast lights + vertical sword aim + injury AI ACTIVE")
+		print("[HOPLITE LAB V0.0.4] right hand=", right_hand_bone, " left hand=", left_hand_bone)
 
 func _missing_marker() -> void:
 	var label: Label3D = Label3D.new()
@@ -193,6 +238,7 @@ func _physics_process(delta: float) -> void:
 	dash_cooldown_timer = maxf(0.0, dash_cooldown_timer - delta)
 	dash_variant_grace = maxf(0.0, dash_variant_grace - delta)
 	slide_slash_active_time = maxf(0.0, slide_slash_active_time - delta)
+	enemy_hit_invulnerability_timer = maxf(0.0, enemy_hit_invulnerability_timer - delta)
 
 	if parkour_active:
 		# Parkour owns movement while active, but CTRL is still accepted as a
@@ -300,6 +346,8 @@ func _physics_process(delta: float) -> void:
 	if slide_time > 0.0 and slide_slash_active_time > 0.0:
 		_scan_slide_slash_contacts()
 
+	_update_weapon_hit_detection(delta)
+
 	if animation_driver != null:
 		var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
 		animation_driver.set_locomotion(clampf(horizontal_speed / max_speed, 0.0, 1.0))
@@ -307,6 +355,20 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	_update_slide_visual_height(delta)
 	_update_camera(delta)
+
+	# Gameplay attacks are polled directly instead of relying on _unhandled_input.
+	# UI/debug nodes can consume mouse events, but Input.is_action_just_pressed()
+	# remains deterministic, so rapid light-combo clicks are no longer dropped.
+	if not parkour_active:
+		if Input.is_action_just_pressed("attack_light"):
+			_do_light_attack()
+		if Input.is_action_just_pressed("spin_attack"):
+			_do_spin_attack()
+		if Input.is_action_just_pressed("attack_heavy"):
+			_begin_heavy_input()
+		if Input.is_action_just_released("attack_heavy") and heavy_charging:
+			_release_heavy_attack()
+
 	combo_timer = maxf(0.0, combo_timer - delta)
 	if combo_timer <= 0.0 and not Input.is_action_pressed("attack_light"):
 		light_step = 0
@@ -329,6 +391,9 @@ func _process(delta: float) -> void:
 			rotate_y((spin_rotation_total / spin_total_time) * step)
 
 	if animation_driver != null:
+		# Camera pitch bends the authored upper-body attack pose. Looking down while
+		# airborne therefore makes the real sword markers/sweep travel downward too.
+		animation_driver.set_attack_aim_pitch(_attack_vertical_pitch())
 		animation_driver.tick(delta)
 		if animation_driver.is_attack_active() and not animation_driver.is_heavy_charging() and sword_tip != null and sword_trail != null:
 			sword_trail.push_point(sword_tip.global_position, animation_driver.current_attack_is_heavy())
@@ -354,15 +419,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if parkour_active:
 		return
 
-	if event.is_action_pressed("attack_light"):
-		_do_light_attack()
-	if event.is_action_pressed("spin_attack"):
-		_do_spin_attack()
-	if event.is_action_pressed("attack_heavy"):
-		_begin_heavy_input()
-	if event.is_action_released("attack_heavy") and heavy_charging:
-		_release_heavy_attack()
-
+	# Combat actions are handled in _process() so fast clicks cannot be swallowed
+	# by UI/unhandled-input routing. This block is reserved for editor/debug keys.
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: InputEventKey = event as InputEventKey
 		match key.keycode:
@@ -378,6 +436,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				shield_visible = not shield_visible
 				if shield_attachment != null:
 					shield_attachment.visible = shield_visible
+			KEY_H:
+				_toggle_combat_debug()
 			KEY_PAGEUP:
 				if animation_driver != null:
 					animation_driver.preview_next()
@@ -404,7 +464,7 @@ func _do_light_attack() -> void:
 
 	var context: StringName = _combat_context()
 	if context != &"slide":
-		_face_direction(_camera_forward_flat(), 0.08)
+		_face_direction(_attack_aim_direction(_camera_forward_flat()), 0.08)
 
 	if combo_timer <= 0.0:
 		light_step = 0
@@ -415,7 +475,7 @@ func _do_light_attack() -> void:
 	# Slide attacks deliberately stay upper-body weighted: the legs keep the slide
 	# pose while the sword gets its own low/wide contextual slash variant.
 	var full_body: bool = context == &"air" or context == &"dash"
-	var custom_speed: float = 1.22 if context == &"slide" else -1.0
+	var custom_speed: float = 1.62 if context == &"slide" else -1.0
 	var custom_blend: float = 0.035 if context == &"slide" else -1.0
 	var hips_weight: float = 0.42 if context == &"slide" else -1.0
 
@@ -447,7 +507,7 @@ func _release_heavy_attack() -> void:
 	if animation_driver == null:
 		_cancel_heavy_charge()
 		return
-	_face_direction(_camera_forward_flat(), 0.09)
+	_face_direction(_attack_aim_direction(_camera_forward_flat()), 0.09)
 	var ratio: float = clampf(heavy_charge / heavy_charge_max, 0.0, 1.0)
 	var context: StringName = _combat_context()
 	var fast_combo: bool = fast_heavy_candidate and heavy_charge <= 0.28
@@ -458,6 +518,7 @@ func _release_heavy_attack() -> void:
 		played = animation_driver.play_attack_variant(&"heavy", context, context == &"air" or context == &"dash", 1.48 if fast_combo else -1.0, 0.04 if fast_combo else -1.0, -1.0, fast_combo)
 
 	if played:
+		last_heavy_release_ratio = ratio
 		var forward: Vector3 = _camera_forward_flat()
 		var impulse: float = (4.7 if fast_combo else lerpf(3.0, 7.4, ratio))
 		var heavy_speed_cap: float = dash_speed if context == &"dash" else max_speed + (2.6 if fast_combo else lerpf(2.0, 4.0, ratio))
@@ -488,7 +549,7 @@ func _cancel_heavy_charge() -> void:
 func _do_spin_attack() -> void:
 	if animation_driver == null or heavy_charging:
 		return
-	_face_direction(_camera_forward_flat(), 0.06)
+	_face_direction(_attack_aim_direction(_camera_forward_flat()), 0.06)
 	var context: StringName = _combat_context()
 	var combo_fast: bool = combo_timer > 0.0 and combo_light_count > 0
 	var speed: float = 1.24 if combo_fast else -1.0
@@ -676,30 +737,469 @@ func _scan_slide_slash_contacts() -> void:
 	if get_world_3d() == null:
 		return
 
+	var contact_center: Vector3 = global_position + Vector3.UP * 0.82 + slide_direction * 0.36
 	var sphere: SphereShape3D = SphereShape3D.new()
 	sphere.radius = slide_slash_radius
 	var query: PhysicsShapeQueryParameters3D = PhysicsShapeQueryParameters3D.new()
 	query.shape = sphere
-	query.transform = Transform3D(Basis.IDENTITY, global_position + Vector3.UP * 0.82 + slide_direction * 0.36)
-	query.collide_with_bodies = true
+	query.transform = Transform3D(Basis.IDENTITY, contact_center)
+	query.collision_mask = weapon_hit_mask
+	query.collide_with_bodies = false
 	query.collide_with_areas = true
 	var excluded: Array[RID] = []
 	excluded.append(get_rid())
 	query.exclude = excluded
 
-	var hits: Array[Dictionary] = get_world_3d().direct_space_state.intersect_shape(query, 32)
-	for hit: Dictionary in hits:
-		var collider: Node = hit.get("collider") as Node
-		var target: Node = _resolve_slide_slash_target(collider)
-		if target == null or target == self:
+	var hits: Array[Dictionary] = get_world_3d().direct_space_state.intersect_shape(query, 48)
+	var candidates_by_target: Dictionary = {}
+
+	for result: Dictionary in hits:
+		var collider: Node = result.get("collider") as Node
+		if collider == null or collider == self:
 			continue
-		var id: int = target.get_instance_id()
+		var id: int = collider.get_instance_id()
 		if slide_slash_contacts.has(id):
 			continue
-		slide_slash_contacts[id] = true
-		slide_slash_contact.emit(target)
-		if target.has_method("on_slide_slash"):
-			target.call("on_slide_slash", self)
+
+		var shape_index: int = int(result.get("shape", -1))
+		if collider.has_method("receive_weapon_hit") and collider.has_method("zone_from_shape_index"):
+			var zone: StringName = StringName(collider.call("zone_from_shape_index", shape_index))
+			if zone == StringName():
+				continue
+			var center: Vector3 = global_position
+			if collider is Node3D:
+				center = (collider as Node3D).global_position
+			if collider.has_method("zone_world_center_from_shape_index"):
+				var center_value: Variant = collider.call("zone_world_center_from_shape_index", shape_index)
+				if center_value is Vector3:
+					center = center_value
+			var radius: float = 0.18
+			if collider.has_method("zone_radius_from_shape_index"):
+				radius = float(collider.call("zone_radius_from_shape_index", shape_index))
+			var priority: float = 0.0
+			if collider.has_method("zone_priority_from_shape_index"):
+				priority = float(collider.call("zone_priority_from_shape_index", shape_index))
+			var score: float = contact_center.distance_to(center) / maxf(slide_slash_radius + radius, 0.01) - priority * 0.22
+			var current_best: Dictionary = candidates_by_target.get(id, {})
+			if current_best.is_empty() or score < float(current_best.get("score", INF)):
+				candidates_by_target[id] = {
+					"collider": collider,
+					"zone": zone,
+					"shape_index": shape_index,
+					"hit_position": center,
+					"score": score
+				}
+		else:
+			var target: Node = _resolve_slide_slash_target(collider)
+			if target != null and target != self:
+				slide_slash_contacts[id] = true
+				slide_slash_contact.emit(target)
+				if target.has_method("on_slide_slash"):
+					target.call("on_slide_slash", self)
+
+	for raw_id: Variant in candidates_by_target.keys():
+		var candidate: Dictionary = candidates_by_target[raw_id]
+		var collider: Node = candidate.get("collider") as Node
+		if collider == null:
+			continue
+		var id: int = int(raw_id)
+		if slide_slash_contacts.has(id):
+			continue
+		var zone: StringName = StringName(candidate.get("zone", StringName()))
+		var shape_index: int = int(candidate.get("shape_index", -1))
+		var event = _make_slide_contact_hit()
+		var hit_position_value: Variant = candidate.get("hit_position", event.position)
+		if hit_position_value is Vector3:
+			event.position = hit_position_value
+		var accepted: bool = false
+		if collider.has_method("receive_weapon_hit_zone"):
+			accepted = bool(collider.call("receive_weapon_hit_zone", event, zone))
+		else:
+			accepted = bool(collider.call("receive_weapon_hit", event, shape_index))
+		if accepted:
+			slide_slash_contacts[id] = true
+			debug_last_zone = zone
+			combat_hit.emit(collider, zone, event)
+			slide_slash_contact.emit(collider)
+
+func _update_weapon_hit_detection(delta: float) -> void:
+	if sword_base == null or sword_tip == null or animation_driver == null or get_world_3d() == null:
+		return
+
+	var current_base: Vector3 = sword_base.global_position
+	var current_tip: Vector3 = sword_tip.global_position
+	if previous_sword_base_position == Vector3.ZERO:
+		previous_sword_base_position = current_base
+	if previous_sword_tip_position == Vector3.ZERO:
+		previous_sword_tip_position = current_tip
+
+	var attack_active: bool = animation_driver.is_attack_active() and not animation_driver.is_heavy_charging()
+	var slot: StringName = animation_driver.current_attack_slot_name()
+	var progress: float = animation_driver.current_attack_progress()
+
+	if not attack_active or slot == StringName() or slot == &"charge":
+		weapon_swing_active = false
+		weapon_hit_targets.clear()
+		weapon_last_slot = StringName()
+		weapon_last_progress = 0.0
+		previous_sword_base_position = current_base
+		previous_sword_tip_position = current_tip
+		_update_weapon_debug_visuals(current_base, current_tip, current_base, current_tip)
+		return
+
+	var new_swing: bool = not weapon_swing_active or slot != weapon_last_slot or progress + 0.12 < weapon_last_progress
+	if new_swing:
+		weapon_swing_active = true
+		weapon_hit_targets.clear()
+		previous_sword_base_position = current_base
+		previous_sword_tip_position = current_tip
+
+	weapon_last_slot = slot
+	weapon_last_progress = progress
+
+	var base_sweep: Vector3 = current_base - previous_sword_base_position
+	var tip_sweep: Vector3 = current_tip - previous_sword_tip_position
+	var max_sweep_length: float = maxf(base_sweep.length(), tip_sweep.length())
+	var blade_speed: float = max_sweep_length / maxf(delta, 0.001)
+	debug_last_blade_speed = blade_speed
+
+	_update_weapon_debug_visuals(previous_sword_base_position, previous_sword_tip_position, current_base, current_tip)
+
+	# Animation progress only defines a broad safety window. Actual contact is
+	# primarily gated by real blade velocity so slow anticipation/recovery poses
+	# do not deal damage while fast frames remain responsive.
+	if not _attack_is_in_hit_window(slot, progress) or blade_speed < _minimum_blade_hit_speed(slot):
+		previous_sword_base_position = current_base
+		previous_sword_tip_position = current_tip
+		return
+
+	var samples: int = clampi(int(ceil(max_sweep_length / maxf(weapon_hit_radius * 0.90, 0.06))) + 1, 2, 10)
+	var candidates_by_target: Dictionary = {}
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = weapon_hit_radius
+
+	for i: int in range(samples):
+		var alpha: float = float(i) / float(maxi(samples - 1, 1))
+		var sample_base: Vector3 = previous_sword_base_position.lerp(current_base, alpha)
+		var sample_tip: Vector3 = previous_sword_tip_position.lerp(current_tip, alpha)
+		var blade_segment: Vector3 = sample_tip - sample_base
+		var blade_length: float = blade_segment.length()
+		if blade_length < 0.04:
+			continue
+
+		capsule.height = blade_length + weapon_hit_radius * 2.0
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = capsule
+		query.transform = Transform3D(_basis_y_along(blade_segment), sample_base.lerp(sample_tip, 0.5))
+		query.collision_mask = weapon_hit_mask
+		query.collide_with_bodies = false
+		query.collide_with_areas = true
+		var hits: Array[Dictionary] = get_world_3d().direct_space_state.intersect_shape(query, 48)
+
+		for result: Dictionary in hits:
+			var collider: Node = result.get("collider") as Node
+			if collider == null or not collider.has_method("receive_weapon_hit"):
+				continue
+			var target_id: int = collider.get_instance_id()
+			if weapon_hit_targets.has(target_id):
+				continue
+
+			var shape_index: int = int(result.get("shape", -1))
+			var zone: StringName = StringName()
+			if collider.has_method("zone_from_shape_index"):
+				zone = StringName(collider.call("zone_from_shape_index", shape_index))
+			if zone == StringName():
+				continue
+
+			var zone_center: Vector3 = global_position
+			if collider is Node3D:
+				zone_center = (collider as Node3D).global_position
+			if collider.has_method("zone_world_center_from_shape_index"):
+				var zone_center_value: Variant = collider.call("zone_world_center_from_shape_index", shape_index)
+				if zone_center_value is Vector3:
+					zone_center = zone_center_value
+			var zone_radius: float = 0.18
+			if collider.has_method("zone_radius_from_shape_index"):
+				zone_radius = float(collider.call("zone_radius_from_shape_index", shape_index))
+			var zone_priority: float = 0.0
+			if collider.has_method("zone_priority_from_shape_index"):
+				zone_priority = float(collider.call("zone_priority_from_shape_index", shape_index))
+
+			var closest: Vector3 = _closest_point_on_segment(zone_center, sample_base, sample_tip)
+			var center_distance: float = closest.distance_to(zone_center)
+			var normalized_distance: float = center_distance / maxf(zone_radius + weapon_hit_radius, 0.01)
+			# Priority only breaks overlapping/near-equal anatomy candidates. It
+			# cannot make a distant head beat a blade physically inside the torso.
+			var score: float = normalized_distance - zone_priority * 0.26
+
+			var current_best: Dictionary = candidates_by_target.get(target_id, {})
+			if current_best.is_empty() or score < float(current_best.get("score", INF)):
+				candidates_by_target[target_id] = {
+					"collider": collider,
+					"shape_index": shape_index,
+					"zone": zone,
+					"hit_position": closest,
+					"score": score,
+					"distance": center_distance
+				}
+
+	var candidate_debug: Array[String] = []
+	for raw_target_id: Variant in candidates_by_target.keys():
+		var candidate: Dictionary = candidates_by_target[raw_target_id]
+		var collider: Node = candidate.get("collider") as Node
+		if collider == null:
+			continue
+		var target_id: int = int(raw_target_id)
+		if weapon_hit_targets.has(target_id):
+			continue
+
+		var shape_index: int = int(candidate.get("shape_index", -1))
+		var zone: StringName = StringName(candidate.get("zone", StringName()))
+		var hit_position: Vector3 = current_tip
+		var hit_position_value: Variant = candidate.get("hit_position", current_tip)
+		if hit_position_value is Vector3:
+			hit_position = hit_position_value
+		var motion: Vector3 = tip_sweep if tip_sweep.length() >= base_sweep.length() else base_sweep
+		var event = _make_weapon_hit_event(slot, animation_driver.current_attack_context_name(), hit_position, motion, blade_speed)
+
+		var accepted: bool = false
+		if collider.has_method("receive_weapon_hit_zone"):
+			accepted = bool(collider.call("receive_weapon_hit_zone", event, zone))
+		else:
+			accepted = bool(collider.call("receive_weapon_hit", event, shape_index))
+
+		if accepted:
+			weapon_hit_targets[target_id] = true
+			debug_last_zone = zone
+			candidate_debug.append("%s %.2fm" % [String(zone), float(candidate.get("distance", 0.0))])
+			combat_hit.emit(collider, zone, event)
+
+	debug_last_candidates = ", ".join(candidate_debug) if not candidate_debug.is_empty() else "none"
+	previous_sword_base_position = current_base
+	previous_sword_tip_position = current_tip
+
+func _minimum_blade_hit_speed(slot: StringName) -> float:
+	match slot:
+		&"heavy": return 0.45
+		&"spin360": return 0.70
+		&"light1", &"light2", &"light3": return 0.60
+		_: return 0.55
+
+func _attack_is_in_hit_window(slot: StringName, progress: float) -> bool:
+	match slot:
+		&"heavy":
+			return progress >= 0.16 and progress <= 0.84
+		&"spin360":
+			return progress >= 0.08 and progress <= 0.90
+		&"light1", &"light2", &"light3":
+			return progress >= 0.10 and progress <= 0.82
+		_:
+			return progress >= 0.12 and progress <= 0.80
+
+func _closest_point_on_segment(point: Vector3, a: Vector3, b: Vector3) -> Vector3:
+	var ab: Vector3 = b - a
+	var length_sq: float = ab.length_squared()
+	if length_sq <= 0.000001:
+		return a
+	var t: float = clampf((point - a).dot(ab) / length_sq, 0.0, 1.0)
+	return a + ab * t
+
+func _attack_aim_direction(preferred_direction: Vector3) -> Vector3:
+	var preferred: Vector3 = preferred_direction
+	preferred.y = 0.0
+	if preferred.length() < 0.01:
+		preferred = -global_basis.z
+		preferred.y = 0.0
+	preferred = preferred.normalized()
+
+	if not aim_assist_enabled or get_tree() == null or slide_time > 0.0:
+		return preferred
+
+	var best_direction: Vector3 = preferred
+	var best_score: float = INF
+	var max_angle: float = deg_to_rad(aim_assist_cone_degrees)
+
+	for node: Node in get_tree().get_nodes_in_group("enemy"):
+		if node == null or not (node is Node3D):
+			continue
+		if node.has_method("is_dead_for_combat") and bool(node.call("is_dead_for_combat")):
+			continue
+		var target_position: Vector3 = (node as Node3D).global_position + Vector3.UP * 1.05
+		if node.has_method("get_combat_aim_point"):
+			var aim_point_value: Variant = node.call("get_combat_aim_point")
+			if aim_point_value is Vector3:
+				target_position = aim_point_value
+		var to_target: Vector3 = target_position - global_position
+		to_target.y = 0.0
+		var distance: float = to_target.length()
+		if distance < 0.15 or distance > aim_assist_max_distance:
+			continue
+		var direction: Vector3 = to_target / distance
+		var angle: float = acos(clampf(preferred.dot(direction), -1.0, 1.0))
+		if angle > max_angle:
+			continue
+		var score: float = angle * 1.55 + distance * 0.085
+		if score < best_score:
+			best_score = score
+			best_direction = direction
+
+	if best_score == INF:
+		return preferred
+
+	var signed_angle: float = atan2(preferred.cross(best_direction).y, preferred.dot(best_direction))
+	var correction: float = clampf(signed_angle, -deg_to_rad(aim_assist_max_correction_degrees), deg_to_rad(aim_assist_max_correction_degrees))
+	return (Basis(Vector3.UP, correction) * preferred).normalized()
+
+func _attack_vertical_pitch() -> float:
+	# Use the actual camera forward vector rather than the raw pitch variable so
+	# this remains correct if the camera rig changes later. Positive = aim up,
+	# negative = aim down. The bridge distributes this over spine/chest bones.
+	if camera != null:
+		var forward: Vector3 = -camera.global_basis.z
+		if forward.length() > 0.001:
+			forward = forward.normalized()
+			return clampf(asin(clampf(forward.y, -1.0, 1.0)) * 0.92, -0.82, 0.58)
+	return clampf(camera_pitch_value * 0.92, -0.82, 0.58)
+
+func _toggle_combat_debug() -> void:
+	combat_debug_visible = not combat_debug_visible
+	if debug_blade_mesh != null:
+		debug_blade_mesh.visible = combat_debug_visible
+	if debug_sweep_mesh_instance != null:
+		debug_sweep_mesh_instance.visible = combat_debug_visible
+	for enemy: Node in get_tree().get_nodes_in_group("enemy"):
+		if enemy.has_method("set_combat_debug_visible"):
+			enemy.call("set_combat_debug_visible", combat_debug_visible)
+	print("[COMBAT DEBUG] H = ", combat_debug_visible)
+
+func _build_weapon_debug_visuals() -> void:
+	var scene: Node = get_tree().current_scene
+	if scene == null:
+		return
+
+	debug_blade_mesh = MeshInstance3D.new()
+	debug_blade_mesh.name = "DebugSwordHitCapsule"
+	debug_blade_mesh.top_level = true
+	debug_blade_mesh.visible = combat_debug_visible
+	debug_blade_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var capsule := CapsuleMesh.new()
+	capsule.radius = weapon_hit_radius
+	capsule.height = maxf(sword_base.global_position.distance_to(sword_tip.global_position) + weapon_hit_radius * 2.0, weapon_hit_radius * 2.05)
+	capsule.radial_segments = 8
+	capsule.rings = 3
+	var blade_debug_mat := StandardMaterial3D.new()
+	blade_debug_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	blade_debug_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	blade_debug_mat.no_depth_test = true
+	blade_debug_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.34)
+	capsule.material = blade_debug_mat
+	debug_blade_mesh.mesh = capsule
+	scene.add_child(debug_blade_mesh)
+
+	debug_sweep_mesh = ImmediateMesh.new()
+	debug_sweep_mesh_instance = MeshInstance3D.new()
+	debug_sweep_mesh_instance.name = "DebugSwordTemporalSweep"
+	debug_sweep_mesh_instance.top_level = true
+	debug_sweep_mesh_instance.visible = combat_debug_visible
+	debug_sweep_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	debug_sweep_mesh_instance.mesh = debug_sweep_mesh
+	debug_line_material = StandardMaterial3D.new()
+	debug_line_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	debug_line_material.no_depth_test = true
+	debug_line_material.albedo_color = Color(1.0, 0.38, 0.06, 0.95)
+	scene.add_child(debug_sweep_mesh_instance)
+
+func _update_weapon_debug_visuals(previous_base: Vector3, previous_tip: Vector3, current_base: Vector3, current_tip: Vector3) -> void:
+	if debug_blade_mesh == null or debug_sweep_mesh == null:
+		return
+	var segment: Vector3 = current_tip - current_base
+	if segment.length() > 0.02:
+		debug_blade_mesh.global_transform = Transform3D(_basis_y_along(segment), current_base.lerp(current_tip, 0.5))
+
+	if not combat_debug_visible:
+		return
+	debug_sweep_mesh.clear_surfaces()
+	debug_sweep_mesh.surface_begin(Mesh.PRIMITIVE_LINES, debug_line_material)
+	_debug_line(previous_base, current_base)
+	_debug_line(previous_tip, current_tip)
+	_debug_line(previous_base, previous_tip)
+	_debug_line(current_base, current_tip)
+	debug_sweep_mesh.surface_end()
+
+func _debug_line(a: Vector3, b: Vector3) -> void:
+	if debug_sweep_mesh == null:
+		return
+	debug_sweep_mesh.surface_add_vertex(a)
+	debug_sweep_mesh.surface_add_vertex(b)
+
+func _make_weapon_hit_event(slot: StringName, context: StringName, hit_position: Vector3, sweep: Vector3, blade_speed: float) -> Variant:
+	var event = HitEventScript.new()
+	event.source = self
+	event.position = hit_position
+	var direction: Vector3 = sweep.normalized() if sweep.length() > 0.01 else _camera_forward_flat()
+	event.direction = direction
+	event.normal = -direction
+	event.blade_speed = blade_speed
+	event.attack_slot = slot
+	event.attack_context = context
+	event.damage_type = &"slash"
+
+	match slot:
+		&"light1":
+			event.damage = 18.0
+			event.sever_damage = 16.0
+		&"light2":
+			event.damage = 20.0
+			event.sever_damage = 18.0
+		&"light3":
+			event.damage = 24.0
+			event.sever_damage = 23.0
+		&"heavy":
+			event.damage = lerpf(39.0, 76.0, last_heavy_release_ratio)
+			event.sever_damage = lerpf(50.0, 112.0, last_heavy_release_ratio)
+		&"spin360":
+			event.damage = 30.0
+			event.sever_damage = 34.0
+		_:
+			event.damage = 18.0
+			event.sever_damage = 14.0
+
+	var movement_speed: float = Vector2(velocity.x, velocity.z).length()
+	var physical_bonus: float = clampf(0.90 + blade_speed * 0.025 + movement_speed * 0.018, 0.90, 1.55)
+	event.damage *= physical_bonus
+	event.sever_damage *= physical_bonus
+
+	match context:
+		&"run":
+			event.damage *= 1.05
+			event.sever_damage *= 1.08
+		&"air":
+			event.damage *= 1.10
+			event.sever_damage *= 1.16
+		&"dash":
+			event.damage *= 1.18
+			event.sever_damage *= 1.34
+		&"slide":
+			event.damage *= 1.12
+			event.sever_damage *= 1.32
+
+	event.impulse = direction * clampf(2.5 + event.sever_damage * 0.045, 3.0, 10.0)
+	return event
+
+func _make_slide_contact_hit() -> Variant:
+	var event = HitEventScript.new()
+	event.source = self
+	event.position = global_position + Vector3.UP * 0.78 + slide_direction * 0.38
+	event.direction = slide_direction.normalized() if slide_direction.length() > 0.01 else _camera_forward_flat()
+	event.normal = -event.direction
+	event.attack_slot = &"slide_contact"
+	event.attack_context = &"slide"
+	event.damage_type = &"slash"
+	event.damage = 25.0
+	event.sever_damage = 36.0
+	event.blade_speed = _slide_speed()
+	event.impulse = event.direction * 5.5
+	return event
 
 func _resolve_slide_slash_target(collider: Node) -> Node:
 	var current: Node = collider
@@ -710,6 +1210,15 @@ func _resolve_slide_slash_target(collider: Node) -> Node:
 		current = current.get_parent()
 		depth += 1
 	return null
+
+func _basis_y_along(segment: Vector3) -> Basis:
+	var y_axis: Vector3 = segment.normalized()
+	var helper: Vector3 = Vector3.RIGHT
+	if absf(y_axis.dot(helper)) > 0.92:
+		helper = Vector3.FORWARD
+	var z_axis: Vector3 = helper.cross(y_axis).normalized()
+	var x_axis: Vector3 = y_axis.cross(z_axis).normalized()
+	return Basis(x_axis, y_axis, z_axis)
 
 func _add_horizontal_impulse(direction: Vector3, impulse: float, speed_cap: float) -> void:
 	var flat_direction: Vector3 = direction
@@ -1139,7 +1648,12 @@ func _make_sword() -> Node3D:
 	grip.position.y = -0.10
 	grip.material_override = bronze
 	root.add_child(grip)
+	sword_base = Marker3D.new()
+	sword_base.name = "SwordBladeBase"
+	sword_base.position = Vector3(0.0, 0.12, 0.0)
+	root.add_child(sword_base)
 	sword_tip = Marker3D.new()
+	sword_tip.name = "SwordBladeTip"
 	sword_tip.position = Vector3(0.0, 1.03, 0.0)
 	root.add_child(sword_tip)
 	_apply_sword_preset(root)
@@ -1265,11 +1779,30 @@ func _find_skeleton(node: Node) -> Skeleton3D:
 			return result
 	return null
 
+func receive_enemy_hit(damage: float, attacker: Node = null, hit_direction: Vector3 = Vector3.ZERO) -> bool:
+	if damage <= 0.0 or enemy_hit_invulnerability_timer > 0.0:
+		return false
+	enemy_hit_invulnerability_timer = enemy_hit_invulnerability
+	last_enemy_damage = damage
+	health = maxf(0.0, health - damage)
+
+	var push: Vector3 = hit_direction
+	if push.length() < 0.01 and attacker is Node3D:
+		push = global_position - (attacker as Node3D).global_position
+	push.y = 0.0
+	if push.length() > 0.01:
+		push = push.normalized()
+		velocity.x += push.x * 2.2
+		velocity.z += push.z * 2.2
+
+	return true
+
 func _update_debug_text() -> void:
 	var status: String = animation_driver.debug_summary() if animation_driver != null else "UAL NATIVE=OFF"
 	var charge_pct: int = int(clampf(heavy_charge / heavy_charge_max, 0.0, 1.0) * 100.0)
 	var movement_state: String = "PARKOUR:" + String(parkour_kind) + ("+SLIDE" if parkour_slide_queued else "") if parkour_active else ("SLIDE_ARMED" if slide_armed else String(_combat_context()).to_upper())
 	var slide_y: float = visual_root.position.y if visual_root != null else 0.0
-	debug_text = "V2.12  STATE=%s  speed=%.2f  slideY=%.2f  comboLights=%d  charge=%d%%\n%s\nSPACE x2=NinjaJump_Start • landing=direct locomotion • air+CTRL=slide on contact\nHeavy charge survives jump/dash/slide • parkour cancels charge • CTRL parkour=early slide • parkourProbe=%s" % [movement_state, Vector2(velocity.x, velocity.z).length(), slide_y, combo_light_count, charge_pct, status, parkour_debug_reason]
+	var combat_debug: String = "ON" if combat_debug_visible else "OFF"
+	debug_text = "V0.0.5  HP=%.0f/%.0f  STATE=%s  speed=%.2f  slideY=%.2f  comboLights=%d  charge=%d%%\n%s\nH combatDebug=%s • bladeSpeed=%.2f • selected=%s • candidates=%s\nAimAssist=%.0fdeg/%.1fm • swordPitch=%.0fdeg • whole-blade sweep • parkourProbe=%s" % [health, max_health, movement_state, Vector2(velocity.x, velocity.z).length(), slide_y, combo_light_count, charge_pct, status, combat_debug, debug_last_blade_speed, String(debug_last_zone), debug_last_candidates, aim_assist_max_correction_degrees, aim_assist_max_distance, rad_to_deg(_attack_vertical_pitch()), parkour_debug_reason]
 	if resource_error != "":
 		debug_text += "\nERROR: " + resource_error
