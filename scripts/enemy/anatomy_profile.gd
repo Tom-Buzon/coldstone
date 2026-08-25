@@ -62,9 +62,9 @@ static func default_humanoid() -> Dictionary:
             "proxy_zone": &"pelvis",
             "target_priority": 0.02
         },
-        &"upper_arm_l": _limb(["upperarm_l", "upper_arm_l", "leftupperarm", "arm_l"], ["lowerarm_l", "lower_arm_l", "leftforearm", "forearm_l"], 0.16, 0.78, 1.00, 78.0, 0.34),
+        &"upper_arm_l": _limb(["upperarm_l", "upper_arm_l", "leftupperarm", "leftarm", "arm_l"], ["lowerarm_l", "lower_arm_l", "leftforearm", "forearm_l"], 0.16, 0.78, 1.00, 78.0, 0.34),
         &"forearm_l": _limb(["lowerarm_l", "lower_arm_l", "leftforearm", "forearm_l"], ["hand_l", "lefthand", "wrist_l"], 0.14, 0.75, 1.10, 60.0, 0.46),
-        &"upper_arm_r": _limb(["upperarm_r", "upper_arm_r", "rightupperarm", "arm_r"], ["lowerarm_r", "lower_arm_r", "rightforearm", "forearm_r"], 0.16, 0.78, 1.00, 78.0, 0.34),
+        &"upper_arm_r": _limb(["upperarm_r", "upper_arm_r", "rightupperarm", "rightarm", "arm_r"], ["lowerarm_r", "lower_arm_r", "rightforearm", "forearm_r"], 0.16, 0.78, 1.00, 78.0, 0.34),
         &"forearm_r": _limb(["lowerarm_r", "lower_arm_r", "rightforearm", "forearm_r"], ["hand_r", "righthand", "wrist_r"], 0.14, 0.75, 1.10, 60.0, 0.46),
         &"thigh_l": _limb(["thigh_l", "leftupleg", "upperleg_l", "upleg_l"], ["calf_l", "leftleg", "lowerleg_l", "shin_l"], 0.21, 0.88, 0.82, 94.0, 0.22),
         &"shin_l": _limb(["calf_l", "leftleg", "lowerleg_l", "shin_l"], ["foot_l", "leftfoot", "ankle_l"], 0.18, 0.84, 1.05, 72.0, 0.40),

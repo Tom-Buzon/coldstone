@@ -4,6 +4,8 @@ $root = Split-Path -Parent $tools
 $downloads = Join-Path $root '_downloads'
 $source = Join-Path $root '_source'
 $runtime = Join-Path $root 'assets\runtime'
+$mixamoRaw = Join-Path $source 'mixamo_raw'
+$mixamoRuntime = Join-Path $runtime 'mixamo\animations'
 $ual1Name = 'universal_animation_librarystandard.zip'
 $ual2Name = 'universal_animation_library_2standard.zip'
 $ual1Url = 'https://opengameart.org/sites/default/files/universal_animation_librarystandard.zip'
@@ -47,10 +49,25 @@ if (-not $ual2) { $ual2 = Get-ChildItem -Path $ual2Source -Recurse -File -Filter
 if (-not $ual2) { throw 'UAL2_Standard.glb not found.' }
 $ual1Runtime = Join-Path $runtime 'ual1'
 $ual2Runtime = Join-Path $runtime 'ual2'
-if (Test-Path $runtime) { Remove-Item $runtime -Recurse -Force }
-New-Item -ItemType Directory -Force -Path $ual1Runtime,$ual2Runtime | Out-Null
+# Rebuild only UAL1/UAL2. The former whole-runtime deletion also erased the
+# optimized Mixamo bank whenever SETUP_ASSETS was rerun.
+foreach ($folder in @($ual1Runtime,$ual2Runtime)) {
+    if (Test-Path -LiteralPath $folder) { Remove-Item -LiteralPath $folder -Recurse -Force }
+}
+New-Item -ItemType Directory -Force -Path $ual1Runtime,$ual2Runtime,$mixamoRuntime | Out-Null
 Copy-Item -LiteralPath $ual1.FullName -Destination (Join-Path $ual1Runtime 'UAL1_Standard.glb') -Force
 Copy-Item -LiteralPath $ual2.FullName -Destination (Join-Path $ual2Runtime 'UAL2_Standard.glb') -Force
+if (Test-Path -LiteralPath $mixamoRaw) {
+    Get-ChildItem -LiteralPath $mixamoRaw -File -Filter '*.fbx' | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $mixamoRuntime $_.Name) -Force
+    }
+    $swordShieldZip = Join-Path $mixamoRaw 'Sword and Shield Pack.zip'
+    if (Test-Path -LiteralPath $swordShieldZip) {
+        $swordShieldRuntime = Join-Path $mixamoRuntime 'sword_and_shield_pack'
+        New-Item -ItemType Directory -Force -Path $swordShieldRuntime | Out-Null
+        Expand-Archive -LiteralPath $swordShieldZip -DestinationPath $swordShieldRuntime -Force
+    }
+}
 $cache = Join-Path $root '.godot'
 if (Test-Path $cache) { Remove-Item $cache -Recurse -Force }
 $report = @"
@@ -66,6 +83,7 @@ $($ual2.FullName)
 
 No Universal Base Character. No retargeting between different rigs.
 UAL2 clips are copied onto the UAL1 mannequin's matching Universal skeleton.
+Mixamo FBX clips are retargeted at runtime through BoneMap-style semantic bone matching.
 "@
 $report | Set-Content -Path (Join-Path $root 'ASSET_REPORT.txt') -Encoding UTF8
 Write-Host ''

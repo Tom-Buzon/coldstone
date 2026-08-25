@@ -2,8 +2,8 @@ extends Node
 class_name HopliteNativeAnimationDriver
 
 const UAL2_PATH := "res://assets/runtime/ual2/UAL2_Standard.glb"
-const SAVE_PATH := "user://hoplite_ual_native_slots_v24.cfg"
 const BridgeScript = preload("res://scripts/animation/authored_pose_bridge.gd")
+const ExternalBankScript = preload("res://scripts/animation/external_animation_bank.gd")
 
 var target_scene: Node
 var target_skeleton: Skeleton3D
@@ -29,14 +29,15 @@ var full_body_blend: AnimationNodeBlend2
 var full_body_playback: AnimationNodeStateMachinePlayback
 var movement_pose_bridge: HopliteAuthoredPoseBridge
 var pose_bridge: HopliteAuthoredPoseBridge
+var external_bank: Node
+var wall_movement_bank: Node
+var attack_uses_external_donor: bool = false
 
 var slot_map: Dictionary = {}
 var variant_pools: Dictionary = {}
 var movement_pools: Dictionary = {}
-var last_variant_by_pool: Dictionary = {}
 var attack_candidates: Array[StringName] = []
 var preview_index: int = 0
-var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 var current_attack_slot: StringName = StringName()
 var current_attack_context: StringName = &"idle"
@@ -55,10 +56,28 @@ var charge_active: bool = false
 var charge_clip: StringName = StringName()
 var charge_context: StringName = &"idle"
 var charge_ratio: float = 0.0
+var block_active: bool = false
+var block_clip: StringName = StringName()
+var block_impact_timer: float = 0.0
 
 var donor_action_timer: float = 0.0
 var donor_action_duration: float = 0.0
 var donor_action_slot: StringName = StringName()
+
+# A wall release often outlives its authored flip clip. Keep an airborne ninja
+# pose ready behind those one-shots so the legs never fall back to standing
+# locomotion before the CharacterBody actually lands.
+var wall_release_air_pose_requested: bool = false
+var wall_release_air_pose_active: bool = false
+
+# Mixamo wall-run clips use their own bank/bridges. Keeping them separate from
+# the combat bank prevents an upper-body attack cleanup from accidentally
+# stopping a full-body parkour pose.
+var wall_visual_mode: StringName = StringName()
+var wall_visual_timer: float = 0.0
+var wall_visual_duration: float = 0.0
+var wall_visual_looping: bool = false
+var wall_visual_mirrored: bool = false
 
 # Dedicated UAL2 slide visual state. Mechanical movement remains in player.gd;
 # this state only retargets the authored Slide_Start / Slide / Slide_Exit poses.
@@ -72,7 +91,7 @@ var full_body_duration: float = 0.0
 var speed_blend: float = 0.0
 var configured: bool = false
 
-func configure(visible_scene: Node, skeleton: Skeleton3D, player: AnimationPlayer) -> bool:
+func configure(visible_scene: Node, skeleton: Skeleton3D, player: AnimationPlayer, enable_external_bank: bool = true, external_keys: Array = []) -> bool:
 	target_scene = visible_scene
 	target_skeleton = skeleton
 	target_player = player
@@ -131,9 +150,22 @@ func configure(visible_scene: Node, skeleton: Skeleton3D, player: AnimationPlaye
 		push_error("[UAL NATIVE] combat pose bridge could not map rigs")
 		return false
 
-	rng.randomize()
+	# Enemies reuse this driver for UAL2 locomotion/signature moves, but they do
+	# not need the player's 18 Mixamo attacks. Avoid constructing an entire donor
+	# bank for every AI actor.
+	if enable_external_bank:
+		external_bank = ExternalBankScript.new()
+		external_bank.name = "ExternalAnimationBank"
+		add_child(external_bank)
+		external_bank.configure(target_skeleton, external_keys)
+
+		wall_movement_bank = ExternalBankScript.new()
+		wall_movement_bank.name = "WallRunAnimationBank"
+		add_child(wall_movement_bank)
+		wall_movement_bank.configure(target_skeleton, [&"wall_run", &"wall_run_diagonal", &"wall_run_vertical", &"wall_run_detach_twist"])
+		wall_movement_bank.move_pose_bridges_before(pose_bridge)
+
 	_build_slot_map()
-	_load_saved_slots()
 	if not _build_locomotion_tree():
 		return false
 	configured = true
@@ -148,8 +180,16 @@ func tick(delta: float) -> void:
 
 	# Combat layer. This bridge was added after movement_pose_bridge, so these
 	# upper-body rotations can sit on top of the authored slide pose.
-	if charge_active:
-		if pose_bridge != null:
+	if block_active:
+		if block_impact_timer > 0.0:
+			block_impact_timer = maxf(0.0, block_impact_timer - delta)
+			_set_active_attack_weight(1.0, false, 0.82)
+			if block_impact_timer <= 0.0 and external_bank != null:
+				external_bank.hold(&"block_idle", 0.46, false, 0.72)
+		else:
+			_set_active_attack_weight(1.0, false, 0.72)
+	elif charge_active:
+		if pose_bridge != null and not attack_uses_external_donor:
 			# A held heavy charge is a persistent upper-body layer. Jump, dash and
 			# slide keep ownership of the lower body until the attack is released.
 			pose_bridge.set_attack_weight(1.0, false, 0.50)
@@ -161,27 +201,39 @@ func tick(delta: float) -> void:
 			blend = progress / maxf(attack_blend_in, 0.001)
 		elif progress > (1.0 - attack_blend_out):
 			blend = clampf((1.0 - progress) / maxf(attack_blend_out, 0.001), 0.0, 1.0)
-		if pose_bridge != null:
-			pose_bridge.set_attack_weight(blend, attack_full_body, attack_hips_weight)
+		_set_active_attack_weight(blend, attack_full_body, attack_hips_weight)
 
 		if not attack_queue.is_empty() and progress >= current_attack_chain_point:
 			var queued: Dictionary = attack_queue[0]
 			attack_queue.remove_at(0)
-			_start_attack_clip(
-				StringName(queued.get("slot", StringName())),
-				StringName(queued.get("context", &"idle")),
-				StringName(queued.get("clip", StringName())),
-				bool(queued.get("full_body", false)),
-				float(queued.get("speed", 1.0)),
-				float(queued.get("blend", 0.07)),
-				float(queued.get("hips", 0.35)),
-				float(queued.get("start_fraction", 0.0)),
-				bool(queued.get("fast", false))
-			)
+			if bool(queued.get("external", false)):
+				_start_external_attack(
+					StringName(queued.get("external_key", StringName())),
+					StringName(queued.get("slot", StringName())),
+					StringName(queued.get("context", &"idle")),
+					bool(queued.get("full_body", false)),
+					float(queued.get("speed", 1.0)),
+					float(queued.get("blend", 0.07)),
+					float(queued.get("hips", 0.35)),
+					float(queued.get("start_fraction", 0.0)),
+					bool(queued.get("fast", false))
+				)
+			else:
+				_start_attack_clip(
+					StringName(queued.get("slot", StringName())),
+					StringName(queued.get("context", &"idle")),
+					StringName(queued.get("clip", StringName())),
+					bool(queued.get("full_body", false)),
+					float(queued.get("speed", 1.0)),
+					float(queued.get("blend", 0.07)),
+					float(queued.get("hips", 0.35)),
+					float(queued.get("start_fraction", 0.0)),
+					bool(queued.get("fast", false))
+				)
 		elif attack_timer <= 0.0:
 			_finish_attack()
-	elif pose_bridge != null:
-		pose_bridge.set_attack_weight(0.0, false, 0.0)
+	else:
+		_set_active_attack_weight(0.0, false, 0.0)
 
 	# Full-body UAL2 movement layer (slide / parkour / ninja jump).
 	if slide_visual_active or slide_visual_phase == &"exit":
@@ -198,8 +250,15 @@ func tick(delta: float) -> void:
 			movement_pose_bridge.set_attack_weight(donor_blend, true, 1.0)
 		if donor_action_timer <= 0.0:
 			_finish_donor_action()
+	elif wall_release_air_pose_active:
+		# _tick_wall_release_air_pose owns the weight. It may temporarily hide
+		# this pose while a new flip, dash or other full-body action is playing.
+		pass
 	elif movement_pose_bridge != null:
 		movement_pose_bridge.set_attack_weight(0.0, false, 0.0)
+
+	_tick_wall_run_visual(delta)
+	_tick_wall_release_air_pose()
 
 	if full_body_timer > 0.0:
 		full_body_timer -= delta
@@ -222,10 +281,71 @@ func set_locomotion(normalized_speed: float) -> void:
 func set_attack_aim_pitch(pitch_radians: float) -> void:
 	if pose_bridge != null:
 		pose_bridge.set_attack_aim_pitch(pitch_radians)
+	if external_bank != null:
+		# External clips already author the blade's vertical arc. Adding camera
+		# pitch on top made every imported slash climb upward and heavily distorted
+		# the dedicated spins. Horizontal aim assist remains handled by player.gd.
+		external_bank.set_aim_pitch(0.0)
+
+func begin_block() -> bool:
+	if not configured or source_player == null:
+		return false
+	if block_active:
+		return true
+	_finish_attack()
+	if external_bank != null and external_bank.hold(&"block_idle", 0.46, false, 0.72):
+		block_active = true
+		block_clip = &"external:block_idle"
+		block_impact_timer = 0.0
+		attack_uses_external_donor = true
+		return true
+	# Sword_Block retargets the UAL2 left arm behind the UAL1 torso. Idle_Shield
+	# keeps the aspis on the actual frontal side of this target rig.
+	block_clip = &"Idle_Shield" if source_player.has_animation(&"Idle_Shield") else &"Sword_Block"
+	if block_clip == StringName() or not source_player.has_animation(block_clip):
+		return false
+	block_active = true
+	source_player.play(block_clip, 0.07, 1.0)
+	source_player.advance(0.0)
+	var anim: Animation = source_player.get_animation(block_clip)
+	if anim != null:
+		source_player.seek(anim.length * 0.48, true)
+	source_player.pause()
+	if pose_bridge != null:
+		pose_bridge.set_attack_weight(1.0, false, 0.58)
+	return true
+
+func end_block() -> void:
+	if not block_active:
+		return
+	block_active = false
+	block_clip = StringName()
+	block_impact_timer = 0.0
+	if attack_uses_external_donor and external_bank != null:
+		external_bank.stop()
+		attack_uses_external_donor = false
+	if source_player != null:
+		source_player.stop()
+	if pose_bridge != null:
+		pose_bridge.set_attack_weight(0.0, false, 0.0)
+
+func is_block_active() -> bool:
+	return block_active
+
+func play_block_impact() -> bool:
+	if not block_active or external_bank == null or not external_bank.has_clip(&"block_impact"):
+		return false
+	var duration: float = external_bank.play(&"block_impact", 0.025, 1.45, false, 0.82, 0.0)
+	if duration <= 0.0:
+		return false
+	attack_uses_external_donor = true
+	block_impact_timer = duration
+	return true
 
 func play_attack_variant(slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false) -> bool:
 	if not configured:
 		return false
+	end_block()
 	var clip: StringName = _choose_attack_variant(slot, context)
 	if clip == StringName():
 		return false
@@ -236,9 +356,71 @@ func play_attack_variant(slot: StringName, context: StringName, force_full_body:
 	var hips_value: float = hips_weight if hips_weight >= 0.0 else float(profile.get("hips", 0.35))
 	return _start_attack_clip(slot, context, clip, full_body_value, speed_value, blend_value, hips_value, 0.0, fast)
 
+# Explicit fallback used for attacks whose silhouette must remain recognizable.
+# It keeps the gameplay slot/context intact (unlike signature enemy actions) and
+# never silently substitutes an unrelated dash or multi-hit combo animation.
+func play_attack_exact(slot: StringName, context: StringName, candidates: Array, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false) -> bool:
+	if not configured or source_player == null:
+		return false
+	end_block()
+	var clip: StringName = _first_existing_attack_clip(candidates)
+	if clip == StringName():
+		return false
+	var profile: Dictionary = _attack_profile(slot, context, fast)
+	var full_body_value: bool = force_full_body or bool(profile.get("full_body", false))
+	var speed_value: float = custom_speed if custom_speed > 0.0 else float(profile.get("speed", 1.0))
+	var blend_value: float = custom_blend if custom_blend >= 0.0 else float(profile.get("blend", 0.07))
+	var hips_value: float = hips_weight if hips_weight >= 0.0 else float(profile.get("hips", 0.35))
+	return _start_attack_clip(slot, context, clip, full_body_value, speed_value, blend_value, hips_value, 0.0, fast)
+
+func has_external_clip(key: StringName) -> bool:
+	return external_bank != null and external_bank.has_clip(key)
+
+func external_clip_length(key: StringName) -> float:
+	return float(external_bank.clip_length(key)) if external_bank != null and external_bank.has_clip(key) else 0.0
+
+func play_external_attack(key: StringName, slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false, start_fraction: float = 0.0) -> bool:
+	if not configured or external_bank == null or not external_bank.has_clip(key):
+		return false
+	end_block()
+	var profile: Dictionary = _attack_profile(slot, context, fast)
+	var full_body_value: bool = force_full_body or bool(profile.get("full_body", false))
+	var speed_value: float = custom_speed if custom_speed > 0.0 else float(profile.get("speed", 1.0))
+	var blend_value: float = custom_blend if custom_blend >= 0.0 else float(profile.get("blend", 0.07))
+	var hips_value: float = hips_weight if hips_weight >= 0.0 else float(profile.get("hips", 0.35))
+	return _start_external_attack(key, slot, context, full_body_value, speed_value, blend_value, hips_value, start_fraction, fast)
+
+func request_external_attack(key: StringName, slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false, start_fraction: float = 0.0) -> bool:
+	if not configured or external_bank == null or not external_bank.has_clip(key):
+		return false
+	end_block()
+	var profile: Dictionary = _attack_profile(slot, context, fast)
+	var full_body_value: bool = force_full_body or bool(profile.get("full_body", false))
+	var speed_value: float = custom_speed if custom_speed > 0.0 else float(profile.get("speed", 1.0))
+	var blend_value: float = custom_blend if custom_blend >= 0.0 else float(profile.get("blend", 0.07))
+	var hips_value: float = hips_weight if hips_weight >= 0.0 else float(profile.get("hips", 0.35))
+	if attack_timer <= 0.0 and not charge_active:
+		return _start_external_attack(key, slot, context, full_body_value, speed_value, blend_value, hips_value, start_fraction, fast)
+	if attack_queue.size() >= 3:
+		return false
+	attack_queue.append({
+		"external": true,
+		"external_key": key,
+		"slot": slot,
+		"context": context,
+		"full_body": full_body_value,
+		"speed": speed_value,
+		"blend": blend_value,
+		"hips": hips_value,
+		"start_fraction": start_fraction,
+		"fast": fast
+	})
+	return true
+
 func request_attack_variant(slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false) -> bool:
 	if not configured:
 		return false
+	end_block()
 	var clip: StringName = _choose_attack_variant(slot, context)
 	if clip == StringName():
 		return false
@@ -271,12 +453,26 @@ func request_attack_variant(slot: StringName, context: StringName, force_full_bo
 func play_attack(slot: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0) -> bool:
 	return play_attack_variant(slot, &"idle", force_full_body, custom_speed, custom_blend, hips_weight, false)
 
+# Enemy classes may request one of the exact UAL2 clips inventoried for their
+# signature move (shield bash, farm swing, dash...). Keeping that choice here
+# preserves the same pose bridge and blend lifecycle as ordinary attacks.
+func play_authored_attack(candidates: Array, custom_speed: float = 1.0, force_full_body: bool = false, hips_weight: float = 0.45) -> bool:
+	if not configured or source_player == null:
+		return false
+	end_block()
+	for candidate: Variant in candidates:
+		var clip := StringName(candidate)
+		if source_player.has_animation(clip):
+			return _start_attack_clip(&"signature", &"idle", clip, force_full_body, custom_speed, 0.06, hips_weight, 0.0, false)
+	return false
+
 func request_attack(slot: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0) -> bool:
 	return request_attack_variant(slot, &"idle", force_full_body, custom_speed, custom_blend, hips_weight, false)
 
 func begin_heavy_charge(context: StringName) -> bool:
 	if not configured:
 		return false
+	end_block()
 	_finish_attack()
 	charge_context = context
 	charge_clip = _choose_attack_variant(&"heavy", context)
@@ -329,7 +525,10 @@ func release_heavy_charge(context: StringName, ratio: float, fast_combo: bool = 
 	var speed_value: float = 1.45 if fast_combo else lerpf(1.05, 0.86, final_ratio)
 	var blend_value: float = 0.045 if fast_combo else lerpf(0.07, 0.10, final_ratio)
 	var start_fraction: float = 0.20 if fast_combo else lerpf(0.12, 0.24, final_ratio)
-	var full_body_value: bool = context == &"air" or context == &"dash"
+	# Running heavies must own the hips during the release. Previously the run
+	# locomotion kept masking most of the selected dash clip, producing motion and
+	# damage state without a readable sword attack.
+	var full_body_value: bool = context == &"run" or context == &"air" or context == &"dash"
 	var hips_value: float = 0.82 if full_body_value else lerpf(0.54, 0.72, final_ratio)
 	return _start_attack_clip(&"heavy", context, clip, full_body_value, speed_value, blend_value, hips_value, start_fraction, fast_combo)
 
@@ -357,16 +556,252 @@ func play_donor_action(slot: StringName, speed: float = 1.0) -> bool:
 func play_ninja_jump(speed: float = 1.0) -> float:
 	if not configured:
 		return 0.0
+	# A fresh jump must own the full body immediately. This is especially
+	# important after a wall release: the independent wall donor is added after
+	# the UAL2 movement bridge and would otherwise mask NinjaJump_Start until its
+	# old flip finishes.
+	stop_wall_run_visual()
 	stop_full_body()
 	cancel_slide_visual()
 	var clip: StringName = StringName(slot_map.get(&"ninja_jump_start", StringName()))
 	return _play_exact_movement_action(clip, &"ninja_jump", speed)
+
+func play_wall_release_double_jump() -> bool:
+	if not configured or not wall_release_air_pose_requested or wall_movement_bank == null:
+		return false
+	stop_movement_action()
+	stop_full_body()
+	cancel_slide_visual()
+	wall_movement_bank.stop()
+	wall_visual_mode = &"wall_double_jump_twist"
+	wall_visual_timer = 0.0
+	wall_visual_duration = 0.0
+	wall_visual_looping = false
+	wall_visual_mirrored = false
+	# Front Twist Flip is the proven diagonal wall-jump animation. Skip its
+	# planted preparation and play its compact airborne rotation as the actual
+	# second jump, at the moment the input is pressed rather than after the first
+	# vertical backflip has already finished.
+	wall_visual_duration = wall_movement_bank.play(&"wall_run_detach_twist", 0.025, 1.18, true, 1.0, 0.18)
+	wall_visual_timer = wall_visual_duration
+	if wall_visual_timer <= 0.0:
+		wall_visual_mode = StringName()
+		return false
+	wall_movement_bank.set_mirrored(false)
+	wall_movement_bank.set_weight(1.0, true, 1.0)
+	return true
+
+func request_wall_release_air_pose() -> void:
+	if not configured:
+		return
+	wall_release_air_pose_requested = true
+
+func clear_wall_release_air_pose() -> void:
+	wall_release_air_pose_requested = false
+	if wall_release_air_pose_active:
+		_finish_donor_action(true)
+
+func _tick_wall_release_air_pose() -> void:
+	if not wall_release_air_pose_requested:
+		return
+	var overridden: bool = (
+		wall_visual_mode != StringName()
+		or donor_action_timer > 0.0
+		or slide_visual_active
+		or slide_visual_phase == &"exit"
+		or full_body_timer > 0.0
+	)
+	if overridden:
+		if wall_release_air_pose_active and movement_pose_bridge != null:
+			movement_pose_bridge.set_attack_weight(0.0, false, 0.0)
+		return
+	if not wall_release_air_pose_active:
+		_start_wall_release_air_pose()
+	if wall_release_air_pose_active and movement_pose_bridge != null:
+		movement_pose_bridge.set_attack_weight(1.0, true, 1.0)
+
+func _start_wall_release_air_pose() -> void:
+	if movement_source_player == null:
+		return
+	var clip: StringName = StringName(slot_map.get(&"ninja_jump_idle", StringName()))
+	var hold_still: bool = false
+	if clip == StringName() or not movement_source_player.has_animation(clip):
+		# Safe fallback for an incomplete animation package: hold the tucked part
+		# of NinjaJump_Start instead of ever revealing the upright locomotion.
+		clip = StringName(slot_map.get(&"ninja_jump_start", StringName()))
+		hold_still = true
+	if clip == StringName() or not movement_source_player.has_animation(clip):
+		return
+	_finish_donor_action(true)
+	var anim: Animation = movement_source_player.get_animation(clip)
+	if not hold_still:
+		anim.loop_mode = Animation.LOOP_LINEAR
+	movement_source_player.play(clip, 0.055, 1.0)
+	movement_source_player.advance(0.0)
+	if hold_still:
+		movement_source_player.seek(anim.length * 0.56, true)
+		movement_source_player.pause()
+	wall_release_air_pose_active = true
+	if movement_pose_bridge != null:
+		movement_pose_bridge.set_attack_weight(0.001, true, 1.0)
 
 func stop_movement_action() -> void:
 	_finish_donor_action(true)
 
 func current_movement_action_slot() -> StringName:
 	return donor_action_slot
+
+func play_wall_run_visual(mode: StringName, mirrored: bool = false) -> bool:
+	if not configured or wall_movement_bank == null:
+		return false
+	if wall_visual_mode == mode and wall_visual_mirrored == mirrored and (wall_visual_looping or wall_visual_timer > 0.0):
+		return true
+
+	stop_movement_action()
+	stop_full_body()
+	cancel_slide_visual()
+	wall_movement_bank.stop()
+	wall_visual_mode = mode
+	wall_visual_timer = 0.0
+	wall_visual_duration = 0.0
+	wall_visual_looping = mode == &"horizontal" or mode == &"diagonal"
+	wall_visual_mirrored = mirrored and mode != &"vertical"
+
+	var key: StringName = &"wall_run"
+	var speed: float = 1.0
+	if mode == &"diagonal":
+		key = &"wall_run_diagonal"
+		speed = 1.05
+	elif mode == &"vertical":
+		key = &"wall_run_vertical"
+		speed = 1.0
+
+	if wall_visual_looping:
+		if wall_movement_bank.play_loop(key, 0.045, speed, true, 1.0):
+			wall_movement_bank.set_mirrored(wall_visual_mirrored)
+			wall_movement_bank.set_weight(1.0, true, 1.0)
+			return true
+	else:
+		wall_visual_duration = wall_movement_bank.play(key, 0.035, speed, true, 1.0)
+		wall_visual_timer = wall_visual_duration
+		if wall_visual_timer > 0.0:
+			wall_movement_bank.set_mirrored(false)
+			return true
+
+	wall_visual_mode = StringName()
+	wall_visual_looping = false
+	return false
+
+func finish_wall_run_visual(keep_vertical_flip: bool = false) -> void:
+	if keep_vertical_flip and wall_visual_mode == &"vertical" and wall_visual_timer > 0.0:
+		# Run To Flip contains the authored detachment/backflip. Mechanics release
+		# the wall first, then this one-shot is allowed to finish in the air. If
+		# the player jumps early, skip the remaining approach steps so the actual
+		# flip is still shown immediately.
+		var remaining: float = wall_movement_bank.seek_active_fraction(0.32)
+		if remaining > 0.0:
+			wall_visual_duration = remaining
+			wall_visual_timer = remaining
+			wall_visual_mode = &"vertical_release"
+			return
+	# If the authored vertical approach has already ended, use the proven compact
+	# diagonal flip as the release itself. It must not be chained automatically
+	# after an already visible backflip; the next acrobatic beat belongs to the
+	# player's real second-jump input.
+	if keep_vertical_flip and _start_vertical_release_twist():
+		return
+	stop_wall_run_visual()
+
+func _start_vertical_release_twist() -> bool:
+	if not configured or wall_movement_bank == null:
+		return false
+	wall_movement_bank.stop()
+	wall_visual_mode = &"vertical_twist_release"
+	wall_visual_timer = 0.0
+	wall_visual_duration = 0.0
+	wall_visual_looping = false
+	wall_visual_mirrored = false
+	# Fallback release for the case where Run To Flip has already expired. This is
+	# the same tucked silhouette that works for the diagonal release, kept
+	# unmirrored for a straight vertical eject.
+	wall_visual_duration = wall_movement_bank.play(&"wall_run_detach_twist", 0.025, 1.10, true, 1.0, 0.18)
+	wall_visual_timer = wall_visual_duration
+	if wall_visual_timer <= 0.0:
+		wall_visual_mode = StringName()
+		return false
+	wall_movement_bank.set_mirrored(false)
+	wall_movement_bank.set_weight(1.0, true, 1.0)
+	return true
+
+func play_wall_run_detach_visual(released_mode: StringName, mirrored: bool) -> bool:
+	if not configured or wall_movement_bank == null or released_mode == &"vertical":
+		return false
+	stop_movement_action()
+	stop_full_body()
+	cancel_slide_visual()
+	wall_movement_bank.stop()
+	wall_visual_mode = &"twist_release"
+	wall_visual_timer = 0.0
+	wall_visual_duration = 0.0
+	wall_visual_looping = false
+	wall_visual_mirrored = mirrored
+
+	# Front Twist Flip was authored as a ground take-off. Positional/root tracks
+	# are already ignored by the pose bridge; beginning slightly inside the clip
+	# also removes the planted preparation so it reads as an airborne wall eject.
+	var speed: float = 1.12 if released_mode == &"horizontal" else 1.04
+	var start_fraction: float = 0.18 if released_mode == &"horizontal" else 0.15
+	wall_visual_duration = wall_movement_bank.play(&"wall_run_detach_twist", 0.035, speed, true, 1.0, start_fraction)
+	wall_visual_timer = wall_visual_duration
+	if wall_visual_timer > 0.0:
+		wall_movement_bank.set_mirrored(wall_visual_mirrored)
+		wall_movement_bank.set_weight(1.0, true, 1.0)
+		return true
+	wall_visual_mode = StringName()
+	wall_visual_mirrored = false
+	return false
+
+func stop_wall_run_visual() -> void:
+	wall_visual_mode = StringName()
+	wall_visual_timer = 0.0
+	wall_visual_duration = 0.0
+	wall_visual_looping = false
+	wall_visual_mirrored = false
+	if wall_movement_bank != null:
+		wall_movement_bank.stop()
+
+func _tick_wall_run_visual(delta: float) -> void:
+	if wall_movement_bank == null or wall_visual_mode == StringName():
+		return
+	if wall_visual_looping:
+		wall_movement_bank.set_weight(1.0, true, 1.0)
+		return
+	wall_visual_timer = maxf(0.0, wall_visual_timer - delta)
+	# Hand off before Run To Flip reaches its long, extended-leg recovery. In
+	# source time this is roughly 78% through the full clip: the backflip reads
+	# completely, then NinjaJump_Idle immediately supplies the tucked airborne
+	# silhouette. A twist is reserved for an actual second-jump input.
+	if (
+		wall_visual_mode == &"vertical_release"
+		and wall_release_air_pose_requested
+		and wall_visual_duration > 0.001
+		and wall_visual_timer <= wall_visual_duration * 0.32
+	):
+		stop_wall_run_visual()
+		return
+	var weight: float = 1.0
+	var vertical_air_chain: bool = (
+		wall_visual_mode == &"vertical_release"
+		or wall_visual_mode == &"vertical_twist_release"
+		or wall_visual_mode == &"wall_double_jump_twist"
+	)
+	# Never reveal locomotion immediately before NinjaJump_Idle. Lateral/diagonal
+	# release blending stays untouched.
+	if not vertical_air_chain and wall_visual_duration > 0.001 and wall_visual_timer < wall_visual_duration * 0.18:
+		weight = clampf(wall_visual_timer / (wall_visual_duration * 0.18), 0.0, 1.0)
+	wall_movement_bank.set_weight(weight, true, 1.0)
+	if wall_visual_timer <= 0.0:
+		stop_wall_run_visual()
 
 func start_slide_visual(mechanical_duration: float) -> bool:
 	if not configured or movement_source_player == null:
@@ -471,11 +906,12 @@ func _play_exact_movement_action(clip: StringName, slot: StringName, speed: floa
 	return donor_action_duration
 
 func _finish_donor_action(force: bool = false) -> void:
-	if not force and donor_action_timer <= 0.0 and donor_action_slot == StringName():
+	if not force and donor_action_timer <= 0.0 and donor_action_slot == StringName() and not wall_release_air_pose_active:
 		return
 	donor_action_timer = 0.0
 	donor_action_duration = 0.0
 	donor_action_slot = StringName()
+	wall_release_air_pose_active = false
 	if movement_source_player != null:
 		movement_source_player.stop()
 	if movement_pose_bridge != null:
@@ -485,6 +921,9 @@ func _start_attack_clip(slot: StringName, context: StringName, clip: StringName,
 	if clip == StringName() or not source_player.has_animation(clip):
 		print("[UAL NATIVE] missing attack clip ", slot, " / ", context, " -> ", clip)
 		return false
+	if external_bank != null:
+		external_bank.stop()
+	attack_uses_external_donor = false
 	source_player.play(clip, blend_value, speed_value)
 	source_player.advance(0.0)
 	var anim: Animation = source_player.get_animation(clip)
@@ -509,7 +948,42 @@ func _start_attack_clip(slot: StringName, context: StringName, clip: StringName,
 	print("[UAL NATIVE] ATTACK ", slot, "/", context, " -> ", clip, " speed=", speed_value, " fast=", fast)
 	return true
 
+func _start_external_attack(key: StringName, slot: StringName, context: StringName, full_body_value: bool, speed_value: float, blend_value: float, hips_value: float, start_fraction: float, fast: bool) -> bool:
+	if external_bank == null or not external_bank.has_clip(key):
+		return false
+	if source_player != null:
+		source_player.stop()
+	if pose_bridge != null:
+		pose_bridge.set_attack_weight(0.0, false, 0.0)
+	var duration: float = external_bank.play(key, blend_value, speed_value, full_body_value, hips_value, start_fraction)
+	if duration <= 0.0:
+		return false
+	attack_uses_external_donor = true
+	current_attack_slot = slot
+	current_attack_context = context
+	current_attack_clip = StringName("external:%s" % String(key))
+	attack_full_body = full_body_value
+	attack_hips_weight = hips_value
+	attack_speed = speed_value
+	var profile: Dictionary = _attack_profile(slot, context, fast)
+	attack_blend_in = float(profile.get("blend_in", 0.055))
+	attack_blend_out = float(profile.get("blend_out", 0.10))
+	current_attack_chain_point = float(profile.get("chain", 0.58))
+	attack_duration = duration
+	attack_timer = duration
+	print("[UAL NATIVE] EXTERNAL ATTACK ", slot, "/", context, " -> ", key, " duration=", snappedf(duration, 0.001))
+	return true
+
+func _set_active_attack_weight(value: float, full_body_value: bool, hips_value: float) -> void:
+	if attack_uses_external_donor and external_bank != null:
+		external_bank.set_weight(value, full_body_value, hips_value)
+	elif pose_bridge != null:
+		pose_bridge.set_attack_weight(value, full_body_value, hips_value)
+
 func _finish_attack() -> void:
+	if external_bank != null:
+		external_bank.stop()
+	attack_uses_external_donor = false
 	current_attack_slot = StringName()
 	current_attack_context = &"idle"
 	current_attack_clip = StringName()
@@ -553,6 +1027,14 @@ func _attack_profile(slot: StringName, context: StringName, fast: bool = false) 
 		result["blend"] = minf(float(result["blend"]), 0.045)
 		result["blend_in"] = minf(float(result["blend_in"]), 0.035)
 		result["chain"] = minf(float(result["chain"]), 0.46)
+	elif context == &"wall":
+		# Wall movement owns the lower body. Sword attacks and held heavy charges
+		# remain readable upper-body layers without twisting the run pose off-wall.
+		result["speed"] = float(result["speed"]) * 1.08
+		result["full_body"] = false
+		result["hips"] = 0.12
+		result["blend"] = minf(float(result["blend"]), 0.045)
+		result["blend_in"] = minf(float(result["blend_in"]), 0.035)
 	if fast:
 		result["speed"] = float(result["speed"]) * 1.30
 		result["blend"] = 0.035
@@ -647,16 +1129,6 @@ func preview_play() -> bool:
 	print("[UAL NATIVE PREVIEW FULL BODY] ", clip)
 	return true
 
-func assign_preview_to_slot(slot: StringName) -> bool:
-	if attack_candidates.is_empty():
-		return false
-	var clip: StringName = attack_candidates[preview_index]
-	slot_map[slot] = clip
-	_save_slots()
-	_rebuild_variant_pools()
-	print("[UAL NATIVE] ASSIGN ", slot, " = ", clip)
-	return true
-
 func slot_debug() -> String:
 	var keys: Array[StringName] = [&"idle", &"walk", &"run", &"light1", &"light2", &"light3", &"heavy", &"spin360", &"jump", &"dash", &"slide_start", &"slide_loop", &"slide_exit", &"ninja_jump_start", &"roll"]
 	var parts: Array[String] = []
@@ -711,8 +1183,10 @@ func _build_slot_map() -> void:
 	slot_map[&"light1"] = _first_existing(source_names, ["Sword_Regular_A", "Sword_Attack_A", "Sword_A"])
 	slot_map[&"light2"] = _first_existing(source_names, ["Sword_Regular_B", "Sword_Attack_B", "Sword_B"])
 	slot_map[&"light3"] = _first_existing(source_names, ["Sword_Regular_C", "Sword_Attack_C", "Sword_C"])
-	slot_map[&"heavy"] = _best_family_clip(&"heavy", &"idle")
-	slot_map[&"spin360"] = _best_family_clip(&"spin360", &"idle")
+	# Stable temporary semantics while dedicated authored Heavy/spiral clips are
+	# being sourced. The runtime selectors below use the same explicit order.
+	slot_map[&"heavy"] = _first_existing(source_names, ["Sword_Regular_C", "Sword_Regular_Combo"])
+	slot_map[&"spin360"] = _first_existing(source_names, ["Sword_Regular_A", "Sword_Regular_B"])
 	_rebuild_variant_pools()
 	_build_movement_pools(source_names)
 	if attack_candidates.size() > 0:
@@ -743,43 +1217,37 @@ func _build_movement_pools(source_names: PackedStringArray) -> void:
 		movement_pools["climb"] = _rank_generic_pool(all_names, ["jump", "reach", "pull"], ["attack", "hit", "death", "idle"], 3)
 
 func _choose_attack_variant(family: StringName, context: StringName) -> StringName:
+	# Until dedicated authored clips are imported, stable semantic fallbacks beat
+	# the old heuristic: Heavy always uses the vertical finisher, and a spiral is
+	# never replaced by Sword_Dash_RM or the three-second regular combo.
+	if family == &"heavy":
+		return _first_existing_attack_clip([&"Sword_Regular_C", &"Sword_Regular_Combo"])
+	if family == &"spin360":
+		return _first_existing_attack_clip([&"Sword_Regular_A", &"Sword_Regular_B"])
 	var key: String = _pool_key(family, context)
 	var pool: Array = variant_pools.get(key, [])
 	if pool.is_empty():
 		pool = variant_pools.get(_pool_key(family, &"idle"), [])
 	if pool.is_empty():
-		var fallback: StringName = StringName(slot_map.get(family, StringName()))
-		return fallback
-	var last: StringName = StringName(last_variant_by_pool.get(key, StringName()))
-	var choices: Array[StringName] = []
-	for value: Variant in pool:
-		var clip: StringName = StringName(value)
-		if clip != last or pool.size() == 1:
-			choices.append(clip)
-	if choices.is_empty():
-		for value: Variant in pool:
-			choices.append(StringName(value))
-	var selected: StringName = choices[rng.randi_range(0, choices.size() - 1)]
-	last_variant_by_pool[key] = selected
-	return selected
+		return StringName(slot_map.get(family, StringName()))
+	# Context may deliberately change the authored clip, but identical gameplay
+	# state/input must never produce a random swing direction or timing.
+	return StringName(pool[0])
+
+func _first_existing_attack_clip(candidates: Array) -> StringName:
+	if source_player == null:
+		return StringName()
+	for candidate: Variant in candidates:
+		var clip := StringName(candidate)
+		if source_player.has_animation(clip):
+			return clip
+	return StringName()
 
 func _choose_movement_variant(slot: StringName) -> StringName:
 	var pool: Array = movement_pools.get(String(slot), [])
 	if pool.is_empty():
 		return StringName()
-	var key: String = "move|" + String(slot)
-	var last: StringName = StringName(last_variant_by_pool.get(key, StringName()))
-	var candidates: Array[StringName] = []
-	for value: Variant in pool:
-		var clip: StringName = StringName(value)
-		if clip != last or pool.size() == 1:
-			candidates.append(clip)
-	if candidates.is_empty():
-		for value: Variant in pool:
-			candidates.append(StringName(value))
-	var selected: StringName = candidates[rng.randi_range(0, candidates.size() - 1)]
-	last_variant_by_pool[key] = selected
-	return selected
+	return StringName(pool[0])
 
 func _rank_attack_pool(family: StringName, context: StringName, limit: int) -> Array[StringName]:
 	var scored: Array[Dictionary] = []
@@ -918,22 +1386,6 @@ func _print_variant_summary() -> void:
 		for value: Variant in pool:
 			names.append(String(value))
 		print("[UAL PARKOUR] ", String(key), " = ", ", ".join(names))
-
-func _load_saved_slots() -> void:
-	var config: ConfigFile = ConfigFile.new()
-	if config.load(SAVE_PATH) != OK:
-		return
-	for key: StringName in [&"light1", &"light2", &"light3", &"heavy", &"spin360"]:
-		var saved: String = String(config.get_value("combat", String(key), ""))
-		if saved != "" and source_player.has_animation(saved):
-			slot_map[key] = StringName(saved)
-	_rebuild_variant_pools()
-
-func _save_slots() -> void:
-	var config: ConfigFile = ConfigFile.new()
-	for key: StringName in [&"light1", &"light2", &"light3", &"heavy", &"spin360"]:
-		config.set_value("combat", String(key), String(slot_map.get(key, "")))
-	config.save(SAVE_PATH)
 
 func _build_locomotion_tree() -> bool:
 	var idle_clip: StringName = StringName(slot_map.get(&"idle", StringName()))

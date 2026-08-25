@@ -18,6 +18,16 @@ _downloads/
 # Runtime assets - recreated by SETUP_ASSETS.bat
 assets/runtime/
 
+# Mixamo is converted separately: keep the optimized runtime package, not the
+# several-hundred-MB raw FBX sources or the converter's working copies.
+!assets/runtime/
+assets/runtime/*
+!assets/runtime/mixamo/
+!assets/runtime/mixamo/**
+_source/mixamo_raw/
+_source/mixamo_pipeline/input/
+_source/mixamo_pipeline/output/
+
 # Generated asset verification/report
 ASSET_REPORT.txt
 
@@ -45,6 +55,21 @@ exports/
 *.temp
 *.bak
 *.old
+
+# Local audit/probe workspaces created at the repository root
+/.tmp_*
+
+# Local Godot editor/runtime bundle (the project itself lives at the root)
+/Godot/
+
+# Python tooling caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Blender automatic backup files; keep the authored *.blend sources
+*.blend1
+*.blend2
 
 # ============================================================
 # WINDOWS

@@ -1,0 +1,9 @@
+[application]
+config/name="Hoplite Mixamo Pipeline"
+
+[filesystem]
+import/fbx2gltf/enabled=false
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

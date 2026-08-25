@@ -8,22 +8,34 @@ var direction: Vector3 = Vector3.ZERO
 var impulse: Vector3 = Vector3.ZERO
 var damage: float = 0.0
 var sever_damage: float = 0.0
+var guard_damage: float = 0.0
+var guard_broken: bool = false
 var blade_speed: float = 0.0
 var attack_slot: StringName = StringName()
 var attack_context: StringName = &"idle"
 var damage_type: StringName = &"slash"
+var hit_material: StringName = &"flesh"
+var contact_type: StringName = &"blade"
+var body_part: StringName = StringName()
+var blade_contact_ratio: float = 0.5
 
 func clone() -> HopliteHitEvent:
-    var copy := HopliteHitEvent.new()
-    copy.source = source
-    copy.position = position
-    copy.normal = normal
-    copy.direction = direction
-    copy.impulse = impulse
-    copy.damage = damage
-    copy.sever_damage = sever_damage
-    copy.blade_speed = blade_speed
-    copy.attack_slot = attack_slot
-    copy.attack_context = attack_context
-    copy.damage_type = damage_type
-    return copy
+	var copy := HopliteHitEvent.new()
+	copy.source = source
+	copy.position = position
+	copy.normal = normal
+	copy.direction = direction
+	copy.impulse = impulse
+	copy.damage = damage
+	copy.sever_damage = sever_damage
+	copy.guard_damage = guard_damage
+	copy.guard_broken = guard_broken
+	copy.blade_speed = blade_speed
+	copy.attack_slot = attack_slot
+	copy.attack_context = attack_context
+	copy.damage_type = damage_type
+	copy.hit_material = hit_material
+	copy.contact_type = contact_type
+	copy.body_part = body_part
+	copy.blade_contact_ratio = blade_contact_ratio
+	return copy

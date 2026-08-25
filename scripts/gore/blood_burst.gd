@@ -8,6 +8,13 @@ class_name HopliteBloodBurst
 
 const MAX_ACTIVE_BURSTS: int = 24
 
+# Shared draw meshes avoid rebuilding tiny sphere geometry/materials for every hit.
+# Per-burst ParticleProcessMaterial remains unique because velocity depends on impact.
+static var _primary_mesh_normal: SphereMesh
+static var _primary_mesh_sever: SphereMesh
+static var _mist_mesh: SphereMesh
+static var _jet_mesh: SphereMesh
+
 var max_lifetime: float = 0.95
 
 func _ready() -> void:
@@ -77,17 +84,7 @@ func _build_primary_spray(strength: float, sever: bool) -> void:
     process.color = Color(0.48, 0.001, 0.004, 0.99)
     particles.process_material = process
 
-    var droplet := SphereMesh.new()
-    droplet.radius = 0.021 if sever else 0.017
-    droplet.height = 0.060 if sever else 0.046
-    droplet.radial_segments = 5
-    droplet.rings = 3
-    var mat := StandardMaterial3D.new()
-    mat.albedo_color = Color(0.52, 0.002, 0.005, 0.99)
-    mat.roughness = 0.42
-    mat.metallic = 0.0
-    droplet.material = mat
-    particles.draw_pass_1 = droplet
+    particles.draw_pass_1 = _get_primary_mesh(sever)
 
     add_child(particles)
     particles.emitting = true
@@ -121,17 +118,7 @@ func _build_dense_mist(strength: float, sever: bool) -> void:
     process.color = Color(0.35, 0.0, 0.003, 0.78)
     particles.process_material = process
 
-    var mist_drop := SphereMesh.new()
-    mist_drop.radius = 0.014
-    mist_drop.height = 0.028
-    mist_drop.radial_segments = 4
-    mist_drop.rings = 2
-    var mat := StandardMaterial3D.new()
-    mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    mat.albedo_color = Color(0.43, 0.0, 0.004, 0.80)
-    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    mist_drop.material = mat
-    particles.draw_pass_1 = mist_drop
+    particles.draw_pass_1 = _get_mist_mesh()
 
     add_child(particles)
     particles.emitting = true
@@ -162,19 +149,46 @@ func _build_arterial_jet(strength: float) -> void:
     process.color = Color(0.50, 0.001, 0.003, 1.0)
     particles.process_material = process
 
-    var jet_drop := SphereMesh.new()
-    jet_drop.radius = 0.020
-    jet_drop.height = 0.070
-    jet_drop.radial_segments = 5
-    jet_drop.rings = 3
-    var mat := StandardMaterial3D.new()
-    mat.albedo_color = Color(0.55, 0.001, 0.003, 1.0)
-    mat.roughness = 0.38
-    jet_drop.material = mat
-    particles.draw_pass_1 = jet_drop
+    particles.draw_pass_1 = _get_jet_mesh()
 
     add_child(particles)
     particles.emitting = true
+
+func _get_primary_mesh(sever: bool) -> SphereMesh:
+    if sever:
+        if _primary_mesh_sever == null:
+            _primary_mesh_sever = _create_drop_mesh(0.021, 0.060, Color(0.52, 0.002, 0.005, 0.99), false)
+        return _primary_mesh_sever
+    if _primary_mesh_normal == null:
+        _primary_mesh_normal = _create_drop_mesh(0.017, 0.046, Color(0.52, 0.002, 0.005, 0.99), false)
+    return _primary_mesh_normal
+
+func _get_mist_mesh() -> SphereMesh:
+    if _mist_mesh == null:
+        _mist_mesh = _create_drop_mesh(0.014, 0.028, Color(0.43, 0.0, 0.004, 0.80), true)
+    return _mist_mesh
+
+func _get_jet_mesh() -> SphereMesh:
+    if _jet_mesh == null:
+        _jet_mesh = _create_drop_mesh(0.020, 0.070, Color(0.55, 0.001, 0.003, 1.0), false)
+    return _jet_mesh
+
+func _create_drop_mesh(radius: float, height: float, color: Color, unshaded: bool) -> SphereMesh:
+    var drop := SphereMesh.new()
+    drop.radius = radius
+    drop.height = height
+    drop.radial_segments = 5 if radius >= 0.017 else 4
+    drop.rings = 3 if radius >= 0.017 else 2
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = color
+    mat.roughness = 0.42
+    mat.metallic = 0.0
+    if color.a < 0.999:
+        mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    if unshaded:
+        mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    drop.material = mat
+    return drop
 
 func _basis_y_along(direction: Vector3) -> Basis:
     var y_axis: Vector3 = direction.normalized()
