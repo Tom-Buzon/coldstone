@@ -808,6 +808,7 @@ func _die(_from_sever: bool) -> void:
 		return
 	dead = true
 	dinosaur_state = DinosaurState.DEAD
+	_set_attack_outline_active(false)
 	velocity = Vector3.ZERO
 	if body_collider != null:
 		body_collider.set_deferred("disabled", true)
@@ -826,6 +827,7 @@ func _die(_from_sever: bool) -> void:
 
 func _enter_state(next_state: DinosaurState, duration: float) -> void:
 	dinosaur_state = next_state
+	_set_attack_outline_active(next_state == DinosaurState.WINDUP)
 	state_time_left = duration
 	match next_state:
 		DinosaurState.IDLE, DinosaurState.ALIGN, DinosaurState.WINDUP, DinosaurState.RECOVERY:

@@ -7,9 +7,11 @@ uniform float frames_per_second = 3.0;
 uniform float alpha_cutoff : hint_range(0.0, 1.0) = 0.16;
 
 varying flat float instance_phase;
+varying flat float allied;
 
 void vertex() {
 	instance_phase = INSTANCE_CUSTOM.r;
+	allied = INSTANCE_CUSTOM.b;
 	VERTEX *= max(INSTANCE_CUSTOM.g, 0.01);
 	// The quad keeps its authored metric size while its axes follow the camera.
 	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(
@@ -27,6 +29,6 @@ void fragment() {
 	if (sampled.a < alpha_cutoff) {
 		discard;
 	}
-	ALBEDO = sampled.rgb;
+	ALBEDO = sampled.rgb * mix(vec3(1.0),vec3(0.3,0.55,1.0),allied);
 	ALPHA = sampled.a;
 }

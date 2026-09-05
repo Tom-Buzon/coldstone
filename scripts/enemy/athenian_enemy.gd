@@ -262,6 +262,7 @@ var ai_attack_recovery: float = 0.25
 var ai_attack_anim_speed: float = 1.16
 var ai_attack_cooldown_timer: float = 0.0
 var ai_attack_pending: bool = false
+var attack_outline_active: bool = false
 var ai_attack_windup_timer: float = 0.0
 var ai_attack_recovery_timer: float = 0.0
 var ai_alert_timer: float = 0.0
@@ -351,6 +352,7 @@ func _exit_tree() -> void:
 	_invalidate_crowd_membership()
 	_release_attack_permission(true)
 	_set_combat_target(null)
+	_set_attack_outline_active(false)
 
 
 func _ready() -> void:
@@ -498,6 +500,7 @@ func _apply_archetype_profile() -> void:
 		ai_aggro_distance = maxf(ai_aggro_distance, 34.0)
 
 func _process(delta: float) -> void:
+	_set_attack_outline_active(ai_attack_pending and not dead)
 	var training_dormant := _update_training_activation(delta)
 	if training_dormant and spartan_grounding_frames < 0:
 		return
@@ -3970,6 +3973,7 @@ func _die(_from_sever: bool) -> void:
 	ai_attack_pending = false
 	ai_attack_windup_timer = 0.0
 	ai_state = &"dead"
+	_set_attack_outline_active(false)
 	collision_layer = 0
 	collision_mask = 0
 	if body_collider != null:
@@ -4027,6 +4031,17 @@ func _die(_from_sever: bool) -> void:
 	_schedule_corpse_release(corpse_settle_time)
 
 	died.emit(self)
+
+
+func _set_attack_outline_active(value: bool) -> void:
+	var next_active := value and faction != &"spartan" and is_in_group(&"enemy")
+	if next_active == attack_outline_active and is_in_group(&"enemy_attack_outline_subject") == next_active:
+		return
+	attack_outline_active = next_active
+	if attack_outline_active:
+		add_to_group(&"enemy_attack_outline_subject")
+	else:
+		remove_from_group(&"enemy_attack_outline_subject")
 
 func _retire_corpse_runtime() -> void:
 	if not dead:

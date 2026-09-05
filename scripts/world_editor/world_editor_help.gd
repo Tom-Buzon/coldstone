@@ -162,6 +162,21 @@ Ses actions peuvent ouvrir une porte, générer ou retirer une troupe, retirer t
 Les boutons Carte permettent de choisir les cibles directement dans la vue. Entrée termine une capture ; clic droit ou Échap l'annule.
 
 Un Texte réutilisable ne se déclenche jamais seul : il doit être référencé par une action de narration. Les zones d'atmosphère modifient localement soleil, ambiance et brouillard."""},
+	{"id": "battlefield_v2", "category": "GAMEPLAY", "title": "Champs de bataille V2", "summary": "Composer deux armées et leur commandement adaptatif.", "content": """[font_size=18][b]Une bataille depuis la Forge[/b][/font_size]
+
+Dans [b]Personnages[/b] ou [b]Événements[/b], choisissez [b]CHAMP DE BATAILLE[/b] et placez la zone. Agrandissez-la avec ses poignées ou ses dimensions.
+
+Choisissez [b]Deux armées + joueur[/b] ou [b]Armée contre joueur[/b], la difficulté et le début (immédiat ou à l'entrée du joueur). Chaque camp possède ses propres effectifs. Le commandement adaptatif évalue les forces, renforce les secteurs menacés, exploite les brèches et déborde les fronts adverses. Les géants ennemis défendent leur périmètre (cercle orange en édition). Les groupes qui leur sont attribués poursuivent le joueur après leur mort. Le champ Défend le géant permet une affectation manuelle.
+
+[b]Peupler / actualiser le déploiement[/b] crée les groupes. Les alliés sont bleus, les marqueurs ennemis orangés. Une erreur de capacité demande d'agrandir la zone ou de réduire les effectifs. Vérifiez aussi les obstacles et le relief : la composition organise les troupes, elle ne crée pas de terrain.
+
+Vous pouvez déplacer un groupe et cocher [b]Conserver ce placement[/b] avant de repeupler. Changer les effectifs demande de repeupler ; changer les réglages de commandement prend effet au prochain test. Supprimer la zone retire ses groupes ; Ctrl+Z restaure l'ensemble.
+
+Dans un groupe V2, [b]Commandement[/b] permet de choisir sa bataille ou de rester autonome. Hors bataille : garde, patrouille locale, poursuite limitée ou escorte. Les anciens groupes sans réglage V2 local conservent leur comportement précédent.
+
+[b]Personnages > Ouvrir l’exemple : garde rapprochée[/b] propose 6 alliés d’élite contre 170 ennemis. L’escorte se configure séparément des alliés principaux : effectifs par type et puissance. Ces troupes combattent normalement avec leur armée. G rejoint le sol visé puis reprend le combat autonome ; H tient une ligne défensive au sol visé. B est désactivé. Cliquez Peupler pour appliquer les effectifs.
+
+[b]Personnages > Ouvrir l'exemple : deux armées[/b] charge une bataille prête à tester. F6 lance le test ; Ctrl+S enregistre votre version."""},
 	{"id": "chapters", "category": "ORGANISATION", "title": "Chapitres, portes et passages", "summary": "Découper le monde et relier les zones.", "content": """[font_size=18][b]Construire un monde en plusieurs chapitres[/b][/font_size]
 
 Le sélecteur Chapitre ouvre une zone sans mélanger ses objets avec les autres. Le bouton + voisin crée un chapitre vide et le champ inférieur le renomme.

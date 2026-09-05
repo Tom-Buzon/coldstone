@@ -62,6 +62,7 @@ func sever(zone: StringName, hit: Variant) -> bool:
 		anatomy.disable_zone(child_zone)
 	if zone == &"head":
 		anatomy.disable_zone(&"neck")
+	preload("res://scripts/enemy_v2/enemy_v2_team_palette.gd").apply(fragment,actor.faction)
 	last_fragment = fragment
 	if zone in [&"thigh_l", &"shin_l", &"thigh_r", &"shin_r"]:
 		actor.combat.on_guard_broken(1.6, 0.0, Vector3.ZERO)

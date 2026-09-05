@@ -60,20 +60,33 @@ func _physics_process(delta: float) -> void:
 		next = obstruction["position"]
 	var target := target_ref.get_ref() as Node3D if target_ref != null else null
 	var source := source_ref.get_ref() as Node3D if source_ref != null else null
-	if target != null and source != null:
-		var closest := Geometry3D.get_closest_point_to_segment(target.global_position + Vector3.UP * 0.95, previous, next)
-		var relative := closest - target.global_position
-		var radial := Vector2(relative.x, relative.z).length()
-		if radial < 0.43 and relative.y >= 0.12 and relative.y <= 1.85:
-			var method := &"receive_enemy_hit" if target.has_method("receive_enemy_hit") else &"receive_ai_hit"
-			if target.has_method(method):
-				target.call(method, damage, source, flight_velocity.normalized())
+	if source != null:
+		var candidates: Array[Node3D] = []
+		var encounter: Node = source.get_meta("v2_encounter") if source.has_meta("v2_encounter") else null
+		if is_instance_valid(encounter): candidates = encounter.nearby((previous+next)*0.5,6.0,48)
+		if is_instance_valid(target) and not candidates.has(target): candidates.append(target)
+		var first: Node3D
+		var first_distance := INF
+		for candidate: Node3D in candidates:
+			if not is_instance_valid(candidate) or candidate == source: continue
+			var size := float(candidate.get("size_multiplier")) if candidate is HopliteEnemyActorV2 and candidate.definition.unit_role == &"giant" else 1.0
+			var closest := Geometry3D.get_closest_point_to_segment(candidate.global_position + Vector3.UP * 0.95 * size,previous,next)
+			var relative := closest - candidate.global_position
+			var radial := Vector2(relative.x,relative.z).length()
+			if radial < 0.43*size and relative.y >= 0.12 and relative.y <= 1.85*size:
+				var distance := previous.distance_squared_to(closest)
+				if distance < first_distance:
+					first_distance = distance
+					first = candidate
+			elif candidate == target and not near_miss_reported and radial < 1.5 and absf(relative.y-0.95)<1.5:
+				near_miss_reported = true
+				if target.has_method("register_enemy_near_miss"): target.call("register_enemy_near_miss",source)
+		if first != null:
+			if preload("res://scripts/enemy_v2/enemy_v2_factions.gd").hostile(source,first):
+				var method := &"receive_enemy_hit" if first.has_method("receive_enemy_hit") else &"receive_ai_hit"
+				if first.has_method(method): first.call(method,damage,source,flight_velocity.normalized())
 			queue_free()
 			return
-		if not near_miss_reported and radial < 1.5 and absf(relative.y - 0.95) < 1.5:
-			near_miss_reported = true
-			if target.has_method("register_enemy_near_miss"):
-				target.call("register_enemy_near_miss", source)
 	global_position = next
 	_align()
 	if not obstruction.is_empty():

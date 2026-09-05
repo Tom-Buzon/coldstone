@@ -106,6 +106,11 @@ var sfx_detail_sliders: Dictionary = {}
 var display_toggles: Dictionary = {}
 var camera_occlusion_sliders: Dictionary = {}
 var camera_occlusion_value_labels: Dictionary = {}
+var camera_outline_color := HopliteCameraOcclusionFader.DEFAULT_OUTLINE_COLOR
+var enemy_attack_outline_color := HopliteCameraOcclusionFader.DEFAULT_ENEMY_ATTACK_OUTLINE_COLOR
+var camera_outline_opacity := HopliteCameraOcclusionFader.DEFAULT_OUTLINE_OPACITY
+var camera_outline_picker: ColorPickerButton
+var enemy_attack_outline_picker: ColorPickerButton
 var camera_occlusion_opacity := HopliteCameraOcclusionFader.DEFAULT_OPACITY
 var camera_occlusion_radius := HopliteCameraOcclusionFader.DEFAULT_RADIUS
 var development_monitor: HopliteDevelopmentMonitor
@@ -437,6 +442,24 @@ func _build_display_tab() -> void:
 		content.add_child(toggle)
 	_add_camera_occlusion_slider(content, &"opacity", "OPACITE DES OCCULTANTS", 0.02, 0.45, 0.01, "Part visible des décors, personnages et effets placés entre la caméra et le joueur.")
 	_add_camera_occlusion_slider(content, &"radius", "LARGEUR DE PROTECTION", 0.10, 1.20, 0.02, "Élargit le corridor protégé autour du joueur pour anticiper les obstacles fins et les mouvements rapides.")
+	_add_camera_occlusion_slider(content, &"outline_opacity", "OPACITE DES CONTOURS", 0.0, 1.0, 0.01, "Silhouette du joueur à travers les obstacles et des ennemis pendant leur préparation d'attaque. À 0 %, les contours sont désactivés.")
+	var outline_label := Label.new()
+	outline_label.text = "COULEUR DU CONTOUR DU JOUEUR"
+	content.add_child(outline_label)
+	camera_outline_picker = ColorPickerButton.new()
+	camera_outline_picker.custom_minimum_size = Vector2(120, 36)
+	camera_outline_picker.edit_alpha = false
+	content.add_child(camera_outline_picker)
+	camera_outline_picker.color_changed.connect(_on_camera_outline_color_changed)
+	var enemy_outline_label := Label.new()
+	enemy_outline_label.text = "COULEUR DU CONTOUR D'ATTAQUE ENNEMI"
+	content.add_child(enemy_outline_label)
+	enemy_attack_outline_picker = ColorPickerButton.new()
+	enemy_attack_outline_picker.custom_minimum_size = Vector2(120, 36)
+	enemy_attack_outline_picker.edit_alpha = false
+	enemy_attack_outline_picker.tooltip_text = "Couleur de la silhouette des ennemis pendant la préparation de leur attaque."
+	content.add_child(enemy_attack_outline_picker)
+	enemy_attack_outline_picker.color_changed.connect(_on_enemy_attack_outline_color_changed)
 	content.add_child(_body_label("Le système couvre les visuels de la scène et utilise plusieurs sondes physiques pour les bâtiments, les toits et les parois proches de la caméra. Le terrain de base reste toujours opaque. Les matériaux et ombres sont restaurés dès que la ligne de vue est libre."))
 	content.add_child(_section_label("PERFORMANCE 3D ET FOULES"))
 	lod_enabled_toggle = CheckButton.new()
@@ -1114,6 +1137,14 @@ func _update_weapon_tuning_value(id: StringName, value: float) -> void:
 		_: label.text = "%.2f" % value
 
 func _sync_from_camera_occlusion() -> void:
+	if camera_outline_picker != null:
+		camera_outline_picker.color = camera_outline_color
+	if enemy_attack_outline_picker != null:
+		enemy_attack_outline_picker.color = enemy_attack_outline_color
+	var outline_slider := camera_occlusion_sliders.get(&"outline_opacity") as HSlider
+	if outline_slider != null:
+		outline_slider.set_value_no_signal(camera_outline_opacity)
+	_update_camera_occlusion_value(&"outline_opacity", camera_outline_opacity)
 	var opacity_slider := camera_occlusion_sliders.get(&"opacity") as HSlider
 	if opacity_slider != null:
 		opacity_slider.set_value_no_signal(camera_occlusion_opacity)
@@ -1127,7 +1158,7 @@ func _update_camera_occlusion_value(id: StringName, value: float) -> void:
 	var label := camera_occlusion_value_labels.get(id) as Label
 	if label == null:
 		return
-	if id == &"opacity":
+	if id in [&"opacity", &"outline_opacity"]:
 		label.text = "%d%%" % int(round(value * 100.0))
 	else:
 		label.text = "%.2f m" % value
@@ -1556,6 +1587,9 @@ func _load_global_settings() -> void:
 	for raw_id: Variant in visual_settings.keys():
 		var id := StringName(raw_id)
 		visual_settings[id] = bool(config.get_value("display", String(id), visual_settings[id]))
+	camera_outline_color = config.get_value("display", "camera_outline_color", camera_outline_color)
+	enemy_attack_outline_color = config.get_value("display", "enemy_attack_outline_color", enemy_attack_outline_color)
+	camera_outline_opacity = clampf(float(config.get_value("display", "camera_outline_opacity", camera_outline_opacity)), 0.0, 1.0)
 	camera_occlusion_opacity = clampf(float(config.get_value("display", "camera_occlusion_opacity", camera_occlusion_opacity)), 0.02, 0.45)
 	camera_occlusion_radius = clampf(float(config.get_value("display", "camera_occlusion_radius", camera_occlusion_radius)), 0.10, 1.20)
 	for definition: Dictionary in ACTIONS:
@@ -1622,6 +1656,9 @@ func _save_visual_settings() -> void:
 	for raw_id: Variant in visual_settings.keys():
 		var id := StringName(raw_id)
 		config.set_value("display", String(id), bool(visual_settings[id]))
+	config.set_value("display", "camera_outline_color", camera_outline_color)
+	config.set_value("display", "enemy_attack_outline_color", enemy_attack_outline_color)
+	config.set_value("display", "camera_outline_opacity", camera_outline_opacity)
 	config.set_value("display", "camera_occlusion_opacity", camera_occlusion_opacity)
 	config.set_value("display", "camera_occlusion_radius", camera_occlusion_radius)
 	config.save(GLOBAL_SETTINGS_PATH)
@@ -1644,6 +1681,8 @@ func _apply_camera_occlusion_settings() -> void:
 	if get_tree() == null:
 		return
 	for fader: Node in get_tree().get_nodes_in_group(HopliteCameraOcclusionFader.OCCLUSION_GROUP):
+		if fader.has_method("apply_outline_settings"):
+			fader.call("apply_outline_settings", camera_outline_color, camera_outline_opacity, enemy_attack_outline_color)
 		if fader.has_method("apply_settings"):
 			fader.call(
 				"apply_settings",
@@ -2071,8 +2110,20 @@ func _refresh_player_skin_controls() -> void:
 		toggle.toggled.connect(_on_player_skin_part_toggled.bind(StringName(definition.get("id", StringName()))))
 		player_skin_parts_container.add_child(toggle)
 
+func _on_camera_outline_color_changed(value: Color) -> void:
+	camera_outline_color = Color(value, 1.0)
+	_save_visual_settings()
+	_apply_camera_occlusion_settings()
+
+func _on_enemy_attack_outline_color_changed(value: Color) -> void:
+	enemy_attack_outline_color = Color(value, 1.0)
+	_save_visual_settings()
+	_apply_camera_occlusion_settings()
+
 func _on_camera_occlusion_slider_changed(value: float, id: StringName) -> void:
-	if id == &"opacity":
+	if id == &"outline_opacity":
+		camera_outline_opacity = clampf(value, 0.0, 1.0)
+	elif id == &"opacity":
 		camera_occlusion_opacity = clampf(value, 0.02, 0.45)
 	else:
 		camera_occlusion_radius = clampf(value, 0.10, 1.20)

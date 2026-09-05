@@ -1,5 +1,7 @@
 # Enemy refactor — photographie initiale, non autoritaire
 
+> Pour la composition et le commandement **V2 actuels**, commencer par [README.md](README.md). Ce document conserve le contexte de sa passe et ne remplace pas les nouveaux contrats.
+
 > Document historique de phase 0. Il ne décrit pas le runtime final; voir `FINAL_ENEMY_OPTIMIZATION_REPORT.md` et `REGRESSION_MATRIX.md` pour l'état autoritaire.
 
 Updated: 2026-08-25

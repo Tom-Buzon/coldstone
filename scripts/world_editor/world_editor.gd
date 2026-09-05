@@ -12,6 +12,7 @@ const MaterialCatalogScript = preload("res://scripts/environment/material_catalo
 const AtmosphereCatalogScript = preload("res://scripts/environment/world_atmosphere_catalog.gd")
 const EnemyArchetypesScript = preload("res://scripts/enemy/enemy_archetypes.gd")
 const EnemyRuntimeMigrationScript = preload("res://scripts/enemy/enemy_runtime_migration.gd")
+const BattlefieldComposer = preload("res://scripts/enemy_v2/battlefield/battlefield_composer.gd")
 const HopliteV2CatalogScript = preload("res://scripts/enemy_v2/hoplite_v2_catalog.gd")
 const EncounterBudgetScript = preload("res://scripts/world_editor/world_encounter_budget.gd")
 const EditorGridScript = preload("res://scripts/world_editor/world_editor_grid.gd")
@@ -1319,6 +1320,10 @@ func _refresh_library() -> void:
 			troop_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			library_items.add_child(troop_hint)
 			library_items.add_child(_section("PRÉRÉGLAGES DE TROUPES"))
+			_library_button("⚑ CHAMP DE BATAILLE — composer deux armées", "battlefield", BattlefieldComposer.defaults())
+			library_items.add_child(_button("Ouvrir l’exemple : deux armées",_load_battlefield_example))
+			library_items.add_child(_button("Ouvrir l’exemple : garde rapprochée",_load_battlefield_example.bind("res://worlds/forge/bataille_v2_garde_rapprochee.hoplite.json")))
+			_library_button("GARDE RAPPROCHÉE — 6 élites contre 170 ennemis", "battlefield", BattlefieldComposer.bodyguard_preset())
 			_library_button("♟  TROUPE ENNEMIE — 6 soldats", "enemy_group", {"group_id": "nouvelle_troupe", "archetype": "nathenian1", "count": 6, "rank": "normal", "size_multiplier": 1.0, "match_perfect_hitbox": false, "behavior": "normal", "route_id": "", "protect_target": "", "spawn_condition": "start", "spawn_trigger": "", "spawn_dead_group": "", "spawn_delay": 3.0, "deployment_mode": "all", "formation": "line"})
 			_library_button("▦  PHALANGE 15 — 4 veterans + 11 lanciers", "enemy_group", {"group_id": "phalange_mixte", "archetype": "ngeneral", "count": 15, "composition": [{"archetype": "ngeneral", "count": 11}, {"archetype": "ngeneral_veteran", "count": 4}], "rank": "normal", "size_multiplier": 1.0, "match_perfect_hitbox": false, "behavior": "normal", "route_id": "", "protect_target": "", "spawn_condition": "start", "spawn_trigger": "", "spawn_dead_group": "", "spawn_delay": 3.0, "deployment_mode": "all", "formation": "phalanx"})
 			_library_button("◇  PHALANGE V2 — 24 hoplites coordonnés", "enemy_group", {"group_id": "phalange_v2_lab", "archetype": String(HopliteV2CatalogScript.FORGE_HOPLITE_ID), "count": 24, "composition": [{"archetype": String(HopliteV2CatalogScript.FORGE_HOPLITE_ID), "count": 18}, {"archetype": String(HopliteV2CatalogScript.FORGE_VETERAN_ID), "count": 6}], "rank": "normal", "size_multiplier": 1.0, "match_perfect_hitbox": false, "behavior": "normal", "route_id": "", "protect_target": "", "spawn_condition": "start", "spawn_trigger": "", "spawn_dead_group": "", "spawn_delay": 3.0, "deployment_mode": "all", "formation": "phalanx", "formation_columns": 8, "formation_spacing": 1.20, "formation_rank_spacing": 1.05, "v2_animation": "block_idle", "v2_combat_lab": true, "v2_troop_mode": "hoplite_phalanx", "v2_persistent_fronts": true})
@@ -1333,6 +1338,7 @@ func _refresh_library() -> void:
 			trigger_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			library_items.add_child(trigger_hint)
 			_library_button("◇  Point de patrouille", "patrol_point", {"route_id": "route_1", "order": 0, "wait": 1.0})
+			_library_button("⚑ CHAMP DE BATAILLE — zone et armées", "battlefield", BattlefieldComposer.defaults())
 			_library_button("⬡  DECLENCHEUR — zone joueur", "trigger", {"size": [6.0, 3.0, 6.0], "condition": "player_enter", "condition_group": "", "threshold": 100.0, "action": "none", "action_target": "", "action_text": "", "action_speaker": "Narrateur", "action_duration": 4.0, "music_path": "", "once": true})
 			_library_button("✦  Texte reutilisable (ne se declenche pas seul)", "narrative", {"speaker": "Narrateur", "text": "Votre texte...", "duration": 4.0})
 			_library_button("▱  Zone d'atmosphere", "atmosphere_zone", {"size": [12.0, 5.0, 12.0], "preset": "Siege enfume", "sun_energy": 0.66, "ambient_energy": 0.42, "fog_density": 0.027})
@@ -1975,6 +1981,7 @@ func _select_brush(title: String, type: String, properties: Dictionary) -> void:
 	brush_type = type
 	brush_properties = properties.duplicate(true)
 	if type == "enemy_group":
+		if HopliteV2CatalogScript.is_forge_archetype(StringName(properties.get("archetype",""))): brush_properties["v2_local_order"] = "guard"
 		brush_properties["performance_profile"] = EncounterBudgetScript.normalize_profile(brush_properties.get("performance_profile", "auto"))
 	if type == "chapter_portal":
 		_apply_portal_property_defaults(brush_properties)
@@ -2019,7 +2026,7 @@ func _select_material(material: String) -> void:
 
 func _add_entity(type: String, properties: Dictionary) -> void:
 	_push_undo()
-	var labels := {"surface": "Nouvelle surface", "prop": "Nouveau decor", "water": "Nouvelle nappe d'eau", "fire": "Nouveau feu", "light": "Nouvelle lumiere", "enemy_group": "Nouveau groupe", "patrol_point": "Point de patrouille", "trigger": "Nouvel evenement", "narrative": "Element narratif", "atmosphere_zone": "Zone d'atmosphere", "player_spawn": "Depart joueur", "door": "Nouvelle porte", "chapter_portal": "Passage de chapitre"}
+	var labels := {"surface": "Nouvelle surface", "prop": "Nouveau decor", "water": "Nouvelle nappe d'eau", "fire": "Nouveau feu", "light": "Nouvelle lumiere", "enemy_group": "Nouveau groupe", "patrol_point": "Point de patrouille", "battlefield": "Champ de bataille", "trigger": "Nouvel evenement", "narrative": "Element narratif", "atmosphere_zone": "Zone d'atmosphere", "player_spawn": "Depart joueur", "door": "Nouvelle porte", "chapter_portal": "Passage de chapitre"}
 	var position := camera_target
 	position.x = snappedf(position.x, float((document.data["settings"] as Dictionary).get("grid_size", 1.0)))
 	position.z = snappedf(position.z, float((document.data["settings"] as Dictionary).get("grid_size", 1.0)))
@@ -2102,7 +2109,7 @@ func _rebuild_inspector() -> void:
 		var empty := _label("Selectionnez un element dans la vue ou la hierarchie.", 15, Color("8f9db2")); empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; inspector_content.add_child(empty)
 		rebuilding_inspector = false; return
 	_add_entity_group_memberships(entity)
-	inspector_content.add_child(_label(String(entity.get("type", "")).to_upper(), 12, Color("68d9b6")))
+	inspector_content.add_child(_label("CHAMP DE BATAILLE" if entity.get("type", "") == "battlefield" else String(entity.get("type", "")).to_upper(), 12, Color("68d9b6")))
 	_add_text_field("Nom", String(entity.get("name", "")), func(value: String) -> void: _set_entity_value(entity, "name", value))
 	_add_check_field("Actif", bool(entity.get("enabled", true)), func(value: bool) -> void: _set_entity_value(entity, "enabled", value))
 	inspector_content.add_child(_section("TRANSFORMATION"))
@@ -2130,6 +2137,7 @@ func _rebuild_inspector() -> void:
 		"enemy_group": _inspect_enemy_group(entity, properties)
 		"patrol_point": _inspect_patrol(entity, properties)
 		"trigger": _inspect_trigger(entity, properties)
+		"battlefield": _inspect_battlefield(entity, properties)
 		"door": _inspect_door(entity, properties)
 		"chapter_portal": _inspect_chapter_portal(entity, properties)
 		"player_spawn": _inspect_player_spawn(entity, properties)
@@ -2517,6 +2525,9 @@ func _inspect_fire(entity: Dictionary, p: Dictionary) -> void:
 		_add_number_field("Portée lumière", float(p.get("light_range", 7.0)), 0.5, 30.0, 0.5, func(v: float) -> void: _set_property(entity, "light_range", v))
 
 func _inspect_enemy_group(entity: Dictionary, p: Dictionary) -> void:
+	if p.get("battlefield_boss",false):
+		_inspect_battlefield_boss(entity,p)
+		return
 	inspector_content.add_child(_section("TROUPE ENNEMIE"))
 	var help := _label("Ce bloc represente un spawn complet. Choisissez son comportement, puis utilisez les boutons Carte pour le relier au monde.", 12, Color("aebbd0"))
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -2549,6 +2560,28 @@ func _inspect_enemy_group(entity: Dictionary, p: Dictionary) -> void:
 	var runtime_text := "Enemy V2 laboratoire" if is_v2_lab else ("Enemy V2 optimisé" if int(inspected_route.get("generation", EnemyRuntimeMigrationScript.RuntimeGeneration.LEGACY_V1)) == EnemyRuntimeMigrationScript.RuntimeGeneration.MODULAR_V2 else "Enemy V1 actuel")
 	inspector_content.add_child(_label("Origine : %s  •  Runtime : %s" % [origin_text, runtime_text], 11, Color("6fe1bd")))
 	if is_v2_lab:
+		_add_mapped_option_field("Camp", ["Ennemis", "Alliés — bleu"], ["athenian", "spartan"], String(p.get("faction", "athenian")), func(v: String) -> void: _set_property(entity,"faction",v))
+		var army_labels: Array[String] = ["Autonome (hors bataille)"]
+		var army_ids: Array[String] = [""]
+		for zone: Dictionary in _chapter_entities():
+			if zone.get("type", "") == "battlefield":
+				army_labels.append(String(zone.name))
+				army_ids.append(String(zone.id))
+		_add_mapped_option_field("Commandement",army_labels,army_ids,String(p.get("battlefield_id","")),func(v: String) -> void: _set_property(entity,"battlefield_id",v))
+		if not String(p.get("battlefield_id", "")).is_empty():
+			inspector_content.add_child(_label("Rattaché au champ : %s" % p.battlefield_id,11,Color("aebbd0")))
+			if p.get("faction","athenian") == "athenian":
+				var labels: Array[String] = ["Automatique","Aucun — armée régulière"]
+				var values: Array[String] = ["auto","none"]
+				for candidate: Dictionary in _chapter_entities():
+					var cp: Dictionary = candidate.get("properties",{})
+					if cp.get("battlefield_id","") == p.battlefield_id and cp.get("archetype","") == "enemy_v2_giant" and cp.get("faction","athenian") == "athenian":
+						labels.append(String(candidate.name))
+						values.append(String(cp.get("group_id",candidate.id)))
+				_add_mapped_option_field("Défend le géant",labels,values,String(p.get("guard_of","auto")),func(v: String) -> void: _set_property(entity,"guard_of",v))
+			_add_checkbox_field("Conserver ce placement",bool(p.get("deployment_locked",false)),func(v: bool) -> void: _set_property(entity,"deployment_locked",v))
+		else:
+			_add_mapped_option_field("Ordre local", ["Garder la position", "Patrouiller autour", "Poursuite limitée", "Escorter le joueur"], ["guard","patrol","pursue","escort"],String(p.get("v2_local_order","guard")),func(v: String) -> void: _set_property(entity,"v2_local_order",v))
 		var v2_warning := _label("Armée V2 : fronts persistants, navigation collective et pression partagée. Archers et fantassins utilisent provisoirement le corps hoplite avec leur équipement et leur combat propres. Géants : modèle dédié, taille réglable ci-dessus.", 11, Color("e6bd72"))
 		v2_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inspector_content.add_child(v2_warning)
@@ -4074,7 +4107,7 @@ func _refresh_gizmo(entity: Dictionary, size: Vector3) -> void:
 	var contains_terrain := false
 	for selected_entity: Dictionary in _selected_entities():
 		contains_terrain = contains_terrain or String(selected_entity.get("type", "")) == "terrain"
-	var wants_gizmo := tool_mode == "select" and (multi_selection or entity_type in ["terrain", "surface", "prop", "water"]) and not test_mode and not rotating_entity
+	var wants_gizmo := tool_mode == "select" and (multi_selection or entity_type in ["terrain", "surface", "prop", "water", "battlefield"]) and not test_mode and not rotating_entity
 	var signature := "%s|%s|%s|%s|%s" % [str(selected_ids), str(size), str(_selection_center()), str(entity.get("rotation", [])), str(entity.get("scale", []))]
 	if not wants_gizmo:
 		_clear_gizmo()
@@ -4582,6 +4615,11 @@ func _delete_selected() -> void:
 	_push_undo()
 	var removed_count := 0
 	for entity_id: String in selected_ids.duplicate():
+		var selected := document.find_entity(entity_id)
+		if selected.get("type", "") == "battlefield":
+			for child: Dictionary in document.entities().duplicate():
+				if child.get("properties", {}).get("battlefield_id", "") == entity_id:
+					document.remove_entity(child.id)
 		removed_count += 1 if document.remove_entity(entity_id) else 0
 	_set_single_selection("")
 	_mark_changed(); _rebuild_preview(); _set_status("%d élément(s) supprimé(s). Annulation possible avec Ctrl+Z." % removed_count)
@@ -4987,3 +5025,138 @@ func _combined_arms_preset(archetype: String, role: String, count: int) -> Dicti
 		"formation_spacing": 1.6 if role == "archer" else 1.25, "formation_rank_spacing": 1.4,
 		"v2_combat_lab": true, "v2_animation": "idle", "v2_troop_mode": role,
 		"v2_unit_role": role, "v2_persistent_fronts": true}
+
+func _inspect_battlefield(entity: Dictionary, p: Dictionary) -> void:
+	inspector_content.add_child(_section("BOSS ET RENFORTS"))
+	inspector_content.add_child(_button("+ Ajouter un boss / miniboss",_add_battlefield_boss.bind(entity),Color("59334d")))
+	for boss: Dictionary in document.entities():
+		if boss.get("properties",{}).get("battlefield_boss",false) and boss.properties.get("battlefield_id","") == entity.id:
+			inspector_content.add_child(_button(String(boss.name),func() -> void: _set_single_selection(String(boss.id)); _rebuild_inspector(),Color("343b49")))
+	_add_check_field("Retirer les alliés après la victoire",p.get("victory_remove_allies",true),func(v: bool) -> void: _set_property(entity,"victory_remove_allies",v))
+	_add_number_field("Départ des alliés après (s)",float(p.get("victory_cleanup_delay",4)),2,30,0.5,func(v: float) -> void: _set_property(entity,"victory_cleanup_delay",v))
+	_add_text_field("Message de victoire",String(p.get("victory_message","Victoire ! Le champ de bataille est libéré.")),func(v: String) -> void: _set_property(entity,"victory_message",v))
+	inspector_content.add_child(_section("CHAMP DE BATAILLE"))
+	var help := _label("1. Dimensionnez la zone avec les poignées. 2. Composez les camps. 3. Peuplez, ajustez les groupes puis lancez le test. Les placements verrouillés sont conservés.",12,Color("aebbd0"))
+	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(help)
+	var button := _button("Peupler / actualiser le déploiement",_populate_battlefield.bind(entity),Color("205247"))
+	var capacity: Dictionary = BattlefieldComposer.compose(entity)
+	button.disabled = not capacity.errors.is_empty()
+	button.tooltip_text = " ".join(capacity.errors) if button.disabled else "Créer les groupes selon cette composition ; conserver les placements verrouillés."
+	inspector_content.add_child(button)
+	_add_vector_property("Dimensions",entity,p,"size",1.0)
+	_add_mapped_option_field("Rencontre",["Deux armées + joueur","Armée contre joueur"],["armies","player"],String(p.get("mode","armies")),func(v: String) -> void: _set_property(entity,"mode",v))
+	_add_mapped_option_field("Difficulté",["Novice","Normal","Difficile"],["novice","normal","hard"],String(p.get("difficulty","normal")),func(v: String) -> void: _set_property(entity,"difficulty",v))
+	_add_mapped_option_field("Début",["Au lancement","À l'entrée du joueur"],["start","enter"],String(p.get("activation","start")),func(v: String) -> void: _set_property(entity,"activation",v))
+	var adaptive_help := _label("Commandement adaptatif : les armées évaluent leurs forces, exploitent les brèches, débordent les fronts et renforcent les secteurs menacés. La mobilisation vers le joueur diminue quand l’armée est en difficulté.",12,Color("aebbd0"))
+	adaptive_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(adaptive_help)
+	inspector_content.add_child(_section("RYTHME ET PROXIMITÉ"))
+	_add_number_field("Écart entre groupes (m)",float(p.get("deployment_spacing",11.5)),10.6,22,0.5,func(v: float) -> void: _set_property(entity,"deployment_spacing",v))
+	_add_number_field("Écart initial des camps (m)",float(p.get("front_gap",12.0)),12,36,1,func(v: float) -> void: _set_property(entity,"front_gap",v))
+	_add_number_field("Priorité joueur à (m)",float(p.get("player_focus_radius",22.0)),8,60,1,func(v: float) -> void: _set_property(entity,"player_focus_radius",v))
+	_add_number_field("Mobilisation maximale vers le joueur (%)",float(p.get("player_focus_fraction",0.5))*100,0,100,5,func(v: float) -> void: _set_property(entity,"player_focus_fraction",v/100.0))
+	inspector_content.add_child(_section("GÉANTS ET LEURS GARDES"))
+	_add_number_field("Groupes de garde par géant",float(p.get("guards_per_champion",2)),0,6,1,func(v: float) -> void: _set_property(entity,"guards_per_champion",int(v)))
+	_add_number_field("Périmètre d’alerte (m)",float(p.get("champion_aggro_radius",32.0)),10,80,1,func(v: float) -> void: _set_property(entity,"champion_aggro_radius",v))
+	_add_number_field("Distance des gardes (m)",float(p.get("champion_guard_radius",9.0)),6,20,1,func(v: float) -> void: _set_property(entity,"champion_guard_radius",v))
+	var guard_help := _label("Affectation automatique aux géants proches. Pour choisir les défenseurs, sélectionnez une troupe puis « Défend le géant ». Après sa mort, ses gardes poursuivent le joueur sans limite de distance.",12,Color("aebbd0"))
+	guard_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(guard_help)
+	for camp: String in (["enemy","ally"] if p.get("mode","armies") == "armies" else ["enemy"]):
+		inspector_content.add_child(_section("ALLIÉS — BLEU" if camp == "ally" else "ENNEMIS"))
+		for role: String in ["phalanx","infantry","archer","giant"]:
+			var count_key := camp + "_" + role
+			var label: String = {"phalanx":"Hoplites","infantry":"Fantassins","archer":"Archers","giant":"Géants"}[role]
+			_add_number_field(label,float(p.get(count_key,0)),0,500 if role != "giant" else 12,1,func(v: float) -> void: _set_property(entity,count_key,int(v)))
+	inspector_content.add_child(_section("ESCORTE DU JOUEUR — INDÉPENDANTE"))
+	var escort_help := _label("En plus des alliés principaux, 24 unités maximum. Combat autonome avec votre armée. G : rejoindre le point visé puis combattre • H : tenir une ligne défensive au point visé. Effectifs appliqués avec Peupler.",12,Color("aebbd0"))
+	escort_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(escort_help)
+	for role: String in ["phalanx","infantry","archer","giant"]:
+		var count_key := "escort_" + role
+		_add_number_field({"phalanx":"Hoplites d’escorte","infantry":"Fantassins d’escorte","archer":"Archers d’escorte","giant":"Géants d’escorte"}[role],float(p.get(count_key,0)),0,2 if role == "giant" else 12,1,func(v: float) -> void: _set_property(entity,count_key,int(v)))
+	_add_number_field("Puissance de l’escorte",float(p.get("bodyguard_power",4.0)),1,8,0.5,func(v: float) -> void: _set_property(entity,"bodyguard_power",v))
+	_add_number_field("Échelle géants",float(p.get("giant_scale",3.0)),0.5,5.0,0.25,func(v: float) -> void: _set_property(entity,"giant_scale",v))
+	var result: Dictionary = BattlefieldComposer.compose(entity)
+	var info := _label("%d unités proposées. La capacité mesure l'espace de déploiement, pas les FPS." % result.population,12,Color("aebbd0"))
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(info)
+	for error: String in result.errors:
+		var warning := _label(error,12,Color("eeaa66"))
+		warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inspector_content.add_child(warning)
+
+func _populate_battlefield(entity: Dictionary) -> void:
+	var preview: Dictionary = BattlefieldComposer.compose(entity)
+	if not preview.errors.is_empty():
+		_set_status("Agrandissez la zone ou ajustez la composition.")
+		return
+	_push_undo()
+	var result: Dictionary = BattlefieldComposer.populate(document.data,entity)
+	if not result.errors.is_empty():
+		undo_stack.pop_back()
+		_set_status(" ".join(result.errors),true)
+		return
+	_mark_changed()
+	_rebuild_preview()
+	_set_status("Déploiement créé. Ajustez les troupes et cochez Conserver ce placement pour les verrouiller.")
+
+func _load_battlefield_example(path: String = "res://worlds/forge/bataille_v2_deux_armees.hoplite.json") -> void:
+	var loaded := WorldDocumentScript.from_json(FileAccess.get_file_as_string(path))
+	if loaded == null: return
+	_push_undo()
+	document = loaded
+	active_chapter_id = document.start_chapter()
+	current_save_filename = ""
+	_set_single_selection("battlefield_demo")
+	_mark_changed()
+	_refresh_chapter_picker()
+	_rebuild_preview()
+	_set_status("Exemple chargé : sélectionnez la zone pour sa composition et son commandement adaptatif, puis lancez le test. Ctrl+Z restaure votre monde précédent.")
+
+
+func _add_battlefield_boss(zone: Dictionary) -> void:
+	_push_undo()
+	var p := _combined_arms_preset("enemy_v2_giant","giant",1)
+	p.merge({"battlefield_id":zone.id,"battlefield_boss":true,"spawn_condition":"battlefield","boss_spawn_condition":"loss_percent","boss_loss_percent":25,"spawn_delay":30,"boss_cinematic":true,"boss_guard_phalanx":8,"boss_guard_infantry":0,"boss_guard_archer":0,"boss_guard_power":1.0,"encounter_power":2.0,"deployment_locked":true,"faction":"athenian","guard_of":"none"},true)
+	var entity := WorldDocumentScript.entity("enemy_group","Miniboss — Géant",WorldDocumentScript.vector3(zone.position),p)
+	entity.chapter = zone.get("chapter",active_chapter_id)
+	entity.properties.group_id = entity.id
+	_set_single_selection(document.add_entity(entity))
+	_mark_changed()
+	_rebuild_preview()
+	_set_status("Boss ajouté : placez-le avec les poignées, puis réglez son apparition et sa garde.")
+
+func _inspect_battlefield_boss(entity: Dictionary, p: Dictionary) -> void:
+	inspector_content.add_child(_section("BOSS / MINIBOSS V2"))
+	var help := _label("Ce marqueur fixe le point d’apparition. La cible de mort désigne toute la troupe choisie (un boss compte pour une unité). Les gardes apparaissent avec leur chef. Les renforts encore attendus empêchent la victoire.",12,Color("aebbd0"))
+	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(help)
+	_add_mapped_option_field("Unité",["Géant","Champion hoplite","Champion fantassin","Champion archer"],["giant","phalanx","infantry","archer"],String(p.get("v2_unit_role","giant")),func(v: String) -> void:
+		_push_undo()
+		p.archetype = "enemy_v2_hoplite" if v == "phalanx" else "enemy_v2_"+v
+		p.composition = [{"archetype":p.archetype,"count":1}]
+		p.count = 1
+		p.v2_unit_role = v
+		p.v2_troop_mode = "hoplite_phalanx" if v == "phalanx" else v
+		p.size_multiplier = 3.0 if v == "giant" else 1.3
+		_mark_changed(); _rebuild_preview())
+	_add_number_field("Taille",float(p.get("size_multiplier",3)),0.5,6,0.1,func(v: float) -> void: _set_property(entity,"size_multiplier",v))
+	_add_number_field("Puissance (dégâts / résistance)",float(p.get("encounter_power",2)),1,8,0.25,func(v: float) -> void: _set_property(entity,"encounter_power",v))
+	_add_mapped_option_field("Apparition",["Début de bataille","Pertes de l’armée ennemie (%)","Mort de la cible / troupe","Délai après début de bataille","Entrée dans une zone"],["start","loss_percent","target_dead","timer","trigger"],String(p.get("boss_spawn_condition","loss_percent")),func(v: String) -> void: _set_property(entity,"boss_spawn_condition",v))
+	match String(p.get("boss_spawn_condition","loss_percent")):
+		"loss_percent": _add_number_field("Pertes requises (%)",float(p.get("boss_loss_percent",25)),1,100,1,func(v: float) -> void: _set_property(entity,"boss_loss_percent",v))
+		"timer": _add_number_field("Délai (s)",float(p.get("spawn_delay",30)),0,3600,1,func(v: float) -> void: _set_property(entity,"spawn_delay",v))
+		"target_dead":
+			_add_group_reference_details(entity,p,"spawn_dead_group","Cible à éliminer")
+			inspector_content.add_child(_button("Choisir la cible sur la carte",_begin_reference_capture.bind(entity,"spawn_dead"),Color("205247")))
+		"trigger":
+			inspector_content.add_child(_label("Zone : "+_entity_reference_label(String(p.get("spawn_trigger",""))),12,Color("aebbd0")))
+			inspector_content.add_child(_button("Choisir la zone sur la carte",_begin_reference_capture.bind(entity,"spawn_trigger"),Color("205247")))
+	_add_check_field("Présentation cinématique (2 secondes)",p.get("boss_cinematic",true),func(v: bool) -> void: _set_property(entity,"boss_cinematic",v))
+	inspector_content.add_child(_section("GARDE PERSONNELLE"))
+	for role: String in ["phalanx","infantry","archer"]:
+		var key := "boss_guard_"+role
+		_add_number_field({"phalanx":"Hoplites","infantry":"Fantassins","archer":"Archers"}[role],float(p.get(key,0)),0,48,1,func(v: float) -> void: _set_property(entity,key,int(v)))
+	_add_number_field("Puissance des gardes",float(p.get("boss_guard_power",1)),1,8,0.25,func(v: float) -> void: _set_property(entity,"boss_guard_power",v))

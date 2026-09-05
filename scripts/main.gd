@@ -186,10 +186,6 @@ func _input(event: InputEvent) -> void:
 		elif key.keycode == KEY_I:
 			_set_debug_overlay_visible(not debug_overlay_visible)
 			get_viewport().set_input_as_handled()
-		elif key.keycode == KEY_G:
-			if gore_hud != null:
-				gore_hud.set_enabled(not gore_hud.is_enabled())
-			get_viewport().set_input_as_handled()
 
 func _is_settings_key(key: InputEventKey) -> bool:
 	return key.unicode == 0x00B2 or key.keycode == KEY_QUOTELEFT or key.physical_keycode == KEY_QUOTELEFT

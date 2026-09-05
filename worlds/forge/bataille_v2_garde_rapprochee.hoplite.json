@@ -1,0 +1,1166 @@
+{
+  "version": 10,
+  "name": "Bataille V2 — garde rapprochée",
+  "settings": {
+    "grid_size": 1.0,
+    "map_half_extent": 60.0,
+    "test_radius": 32.0,
+    "mob_warning_limit": 300
+  },
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "name": "Chapitre 1"
+    }
+  ],
+  "start_chapter": "chapter_1",
+  "atmosphere": {
+    "sky_id": "procedural",
+    "sun_energy": 1.15,
+    "sun_rotation_x": -48.0,
+    "sun_rotation_y": -28.0,
+    "sun_color": "#f9dfb2",
+    "ambient_energy": 0.72,
+    "fog_density": 0.006,
+    "fog_height": 0.0,
+    "fog_height_density": 0.0,
+    "fog_color": "#d8ad78",
+    "sky_top": "#263850",
+    "sky_horizon": "#d8ad78",
+    "background_energy": 1.0,
+    "exposure": 1.08,
+    "saturation": 1.0,
+    "preset": "Jour antique"
+  },
+  "entities": [
+    {
+      "id": "surface_1780276_970",
+      "type": "surface",
+      "name": "Sol",
+      "position": [
+        0.0,
+        -0.200000002980232,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "properties": {
+        "shape": "floor",
+        "size": [
+          120.0,
+          0.4,
+          120.0
+        ],
+        "material": "pavers"
+      },
+      "chapter": "chapter_1"
+    },
+    {
+      "id": "player_spawn_1780280_925",
+      "type": "player_spawn",
+      "name": "Joueur",
+      "position": [
+        0.0,
+        0.100000001490116,
+        -1.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "properties": {
+        "radius": 1.0,
+        "spawn_id": "depart"
+      },
+      "chapter": "chapter_1"
+    },
+    {
+      "id": "battlefield_demo",
+      "type": "battlefield",
+      "name": "Bataille — assaut contre défense",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "properties": {
+        "size": [
+          80.0,
+          4.0,
+          100.0
+        ],
+        "mode": "armies",
+        "enemy_doctrine": "assault",
+        "ally_doctrine": "support",
+        "difficulty": "normal",
+        "enemy_phalanx": 96.0,
+        "enemy_infantry": 48.0,
+        "enemy_archer": 24.0,
+        "enemy_giant": 2.0,
+        "ally_phalanx": 0.0,
+        "ally_infantry": 0.0,
+        "ally_archer": 0.0,
+        "ally_giant": 0.0,
+        "giant_scale": 3.0,
+        "activation": "start",
+        "deployment_spacing": 11.5,
+        "front_gap": 12.0,
+        "player_focus_radius": 22.0,
+        "guards_per_champion": 2.0,
+        "champion_aggro_radius": 32.0,
+        "champion_guard_radius": 9.0,
+        "escort_phalanx": 0.0,
+        "escort_infantry": 6.0,
+        "escort_archer": 0.0,
+        "escort_giant": 0.0,
+        "bodyguard_power": 4.0,
+        "bodyguard_radius": 4.0,
+        "bodyguard_intercept_radius": 14.0
+      },
+      "chapter": "chapter_1"
+    },
+    {
+      "id": "battlefield_demo_enemy_0",
+      "type": "enemy_group",
+      "name": "Ennemis — Hoplites 1",
+      "position": [
+        -23.0,
+        0.100000001490116,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_0",
+        "archetype": "enemy_v2_hoplite",
+        "count": 24,
+        "composition": [
+          {
+            "archetype": "enemy_v2_hoplite",
+            "count": 24.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 8.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "hoplite_phalanx",
+        "v2_unit_role": "phalanx",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 0.0,
+        "v2_front_origin": [
+          -23.0,
+          0.100000001490116,
+          -6.0
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 10,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_1",
+      "type": "enemy_group",
+      "name": "Ennemis — Hoplites 2",
+      "position": [
+        -11.5,
+        0.100000001490116,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_1",
+        "archetype": "enemy_v2_hoplite",
+        "count": 24,
+        "composition": [
+          {
+            "archetype": "enemy_v2_hoplite",
+            "count": 24.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 8.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "hoplite_phalanx",
+        "v2_unit_role": "phalanx",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 1.0,
+        "v2_front_origin": [
+          -11.5,
+          0.100000001490116,
+          -6.0
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 10,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_2",
+      "type": "enemy_group",
+      "name": "Ennemis — Géant 3",
+      "position": [
+        0.0,
+        0.100000001490116,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_2",
+        "archetype": "enemy_v2_giant",
+        "count": 1,
+        "composition": [
+          {
+            "archetype": "enemy_v2_giant",
+            "count": 1.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 1.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 3.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "giant",
+        "v2_unit_role": "giant",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 2.0,
+        "v2_front_origin": [
+          0.0,
+          0.100000001490116,
+          -6.0
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 1,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_3",
+      "type": "enemy_group",
+      "name": "Ennemis — Hoplites 4",
+      "position": [
+        11.5,
+        0.100000001490116,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_3",
+        "archetype": "enemy_v2_hoplite",
+        "count": 24,
+        "composition": [
+          {
+            "archetype": "enemy_v2_hoplite",
+            "count": 24.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 8.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "hoplite_phalanx",
+        "v2_unit_role": "phalanx",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 3.0,
+        "v2_front_origin": [
+          11.5,
+          0.100000001490116,
+          -6.0
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 10,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_4",
+      "type": "enemy_group",
+      "name": "Ennemis — Hoplites 5",
+      "position": [
+        23.0,
+        0.100000001490116,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_4",
+        "archetype": "enemy_v2_hoplite",
+        "count": 24,
+        "composition": [
+          {
+            "archetype": "enemy_v2_hoplite",
+            "count": 24.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 8.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "hoplite_phalanx",
+        "v2_unit_role": "phalanx",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 4.0,
+        "v2_front_origin": [
+          23.0,
+          0.100000001490116,
+          -6.0
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 10,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_5",
+      "type": "enemy_group",
+      "name": "Ennemis — Fantassins 6",
+      "position": [
+        -23.0,
+        0.100000001490116,
+        -17.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_5",
+        "archetype": "enemy_v2_infantry",
+        "count": 12,
+        "composition": [
+          {
+            "archetype": "enemy_v2_infantry",
+            "count": 12.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 4.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "infantry",
+        "v2_unit_role": "infantry",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 0.0,
+        "v2_front_origin": [
+          -23.0,
+          0.100000001490116,
+          -17.5
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 10,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_6",
+      "type": "enemy_group",
+      "name": "Ennemis — Fantassins 7",
+      "position": [
+        -11.5,
+        0.100000001490116,
+        -17.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_6",
+        "archetype": "enemy_v2_infantry",
+        "count": 12,
+        "composition": [
+          {
+            "archetype": "enemy_v2_infantry",
+            "count": 12.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 4.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "infantry",
+        "v2_unit_role": "infantry",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 1.0,
+        "v2_front_origin": [
+          -11.5,
+          0.100000001490116,
+          -17.5
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 10,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_7",
+      "type": "enemy_group",
+      "name": "Ennemis — Fantassins 8",
+      "position": [
+        0.0,
+        0.100000001490116,
+        -17.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_7",
+        "archetype": "enemy_v2_infantry",
+        "count": 12,
+        "composition": [
+          {
+            "archetype": "enemy_v2_infantry",
+            "count": 12.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 4.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "infantry",
+        "v2_unit_role": "infantry",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 2.0,
+        "v2_front_origin": [
+          0.0,
+          0.100000001490116,
+          -17.5
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 10,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_8",
+      "type": "enemy_group",
+      "name": "Ennemis — Fantassins 9",
+      "position": [
+        11.5,
+        0.100000001490116,
+        -17.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_8",
+        "archetype": "enemy_v2_infantry",
+        "count": 12,
+        "composition": [
+          {
+            "archetype": "enemy_v2_infantry",
+            "count": 12.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 4.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "infantry",
+        "v2_unit_role": "infantry",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 3.0,
+        "v2_front_origin": [
+          11.5,
+          0.100000001490116,
+          -17.5
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 10,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_9",
+      "type": "enemy_group",
+      "name": "Ennemis — Archers 10",
+      "position": [
+        23.0,
+        0.100000001490116,
+        -17.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_9",
+        "archetype": "enemy_v2_archer",
+        "count": 12,
+        "composition": [
+          {
+            "archetype": "enemy_v2_archer",
+            "count": 12.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 4.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "archer",
+        "v2_unit_role": "archer",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 4.0,
+        "v2_front_origin": [
+          23.0,
+          0.100000001490116,
+          -17.5
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 10,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_10",
+      "type": "enemy_group",
+      "name": "Ennemis — Archers 11",
+      "position": [
+        -23.0,
+        0.100000001490116,
+        -29.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_10",
+        "archetype": "enemy_v2_archer",
+        "count": 12,
+        "composition": [
+          {
+            "archetype": "enemy_v2_archer",
+            "count": 12.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 4.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "archer",
+        "v2_unit_role": "archer",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 0.0,
+        "v2_front_origin": [
+          -23.0,
+          0.100000001490116,
+          -29.0
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 10,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_enemy_11",
+      "type": "enemy_group",
+      "name": "Ennemis — Géant 12",
+      "position": [
+        -11.5,
+        0.100000001490116,
+        -29.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_enemy_11",
+        "archetype": "enemy_v2_giant",
+        "count": 1,
+        "composition": [
+          {
+            "archetype": "enemy_v2_giant",
+            "count": 1.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 1.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 3.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "giant",
+        "v2_unit_role": "giant",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 1.0,
+        "v2_front_origin": [
+          -11.5,
+          0.100000001490116,
+          -29.0
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": false,
+        "faction": "athenian",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 1,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    },
+    {
+      "id": "battlefield_demo_escort_0",
+      "type": "enemy_group",
+      "name": "Escorte — Fantassins 1",
+      "position": [
+        -5.75,
+        0.100000001490116,
+        29.0
+      ],
+      "rotation": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "enabled": true,
+      "chapter": "chapter_1",
+      "properties": {
+        "group_id": "battlefield_demo_escort_0",
+        "archetype": "enemy_v2_infantry",
+        "count": 6,
+        "composition": [
+          {
+            "archetype": "enemy_v2_infantry",
+            "count": 6.0
+          }
+        ],
+        "formation": "phalanx",
+        "formation_columns": 4.0,
+        "formation_spacing": 0.95,
+        "formation_rank_spacing": 1.0,
+        "size_multiplier": 1.0,
+        "v2_combat_lab": true,
+        "v2_animation": "idle",
+        "v2_troop_mode": "infantry",
+        "v2_unit_role": "infantry",
+        "v2_persistent_fronts": true,
+        "v2_front_id": 0.0,
+        "v2_front_origin": [
+          -5.75,
+          0.100000001490116,
+          29.0
+        ],
+        "v2_front_forward": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "battlefield_id": "battlefield_demo",
+        "player_escort": true,
+        "faction": "spartan",
+        "deployment_locked": false,
+        "spawn_condition": "start",
+        "deployment_mode": "all",
+        "behavior": "normal",
+        "performance_profile": "auto",
+        "match_perfect_hitbox": false,
+        "giant_traversal_mode": "assisted",
+        "giant_capsule_radius_multiplier": 0.9,
+        "giant_capsule_height_multiplier": 1.0,
+        "giant_walkable_tops": true,
+        "spawn_trigger": "",
+        "spawn_dead_group": "",
+        "spawn_delay": 3.0,
+        "wave_size": 3,
+        "wave_interval": 5.0,
+        "deployment_stop_trigger": "",
+        "deployment_stop_mode": "total",
+        "deployment_stop_group": "",
+        "initial_active": 6,
+        "reinforce_threshold": 7,
+        "reinforce_amount": 3
+      }
+    }
+  ],
+  "editor_groups": [],
+  "events": []
+}

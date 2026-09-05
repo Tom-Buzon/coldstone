@@ -14,6 +14,9 @@ class_name HopliteEnemyV2Definition
 @export var body_lod_distances: PackedFloat32Array = []
 @export_range(0.0, 20.0, 0.25) var body_lod_fade_margin: float = 2.0
 @export var animation_library_path: String
+@export var animation_pack_paths: PackedStringArray = []
+@export var weapon_script: Script
+@export var special_ability_script: Script
 @export var equipment_profile: StringName = &"hoplite_spear_shield"
 @export var guard_profile: CombatGuardProfile
 @export_range(0.1, 3.0, 0.01) var visual_scale: float = 1.0
@@ -42,8 +45,10 @@ func validate() -> Array[String]:
 		if body_lod_distances[index] <= previous_distance:
 			errors.append("body LOD distances must be strictly increasing")
 		previous_distance = body_lod_distances[index]
-	if animation_library_path.is_empty() or not ResourceLoader.exists(animation_library_path):
+	if animation_pack_paths.is_empty() and (animation_library_path.is_empty() or not ResourceLoader.exists(animation_library_path)):
 		errors.append("animation library is missing")
+	for path: String in animation_pack_paths:
+		if not ResourceLoader.exists(path): errors.append("animation pack is missing: " + path)
 	if guard_profile == null:
 		errors.append("guard profile is missing")
 	var required: Array[StringName] = [&"idle", &"move", &"sprint", &"death"]

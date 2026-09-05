@@ -179,9 +179,6 @@ func _input(event: InputEvent) -> void:
 			if audio_settings != null and not audio_settings.is_open():
 				audio_settings.set_open(true)
 			get_viewport().set_input_as_handled()
-		elif key.keycode == KEY_G:
-			gore_hud.set_enabled(not gore_hud.is_enabled())
-			get_viewport().set_input_as_handled()
 
 
 func _is_settings_key(key: InputEventKey) -> bool:

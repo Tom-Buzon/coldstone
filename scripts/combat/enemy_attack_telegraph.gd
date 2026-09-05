@@ -4,6 +4,8 @@ class_name HopliteEnemyAttackTelegraph
 ## Shared world-space warning used by every enemy generation. Combat controllers
 ## decide when an attack starts; this node only owns the readable visual cue.
 
+const ATTACK_OUTLINE_GROUP := &"enemy_attack_outline_subject"
+
 var label: Label3D
 var duration: float = 0.0
 var elapsed: float = 0.0
@@ -33,11 +35,13 @@ func begin(windup_seconds: float) -> void:
 	active = true
 	if label != null:
 		label.visible = true
+	_set_outline_active(true)
 	set_process(true)
 
 
 func clear() -> void:
 	active = false
+	_set_outline_active(false)
 	if label != null:
 		label.visible = false
 	set_process(false)
@@ -45,6 +49,20 @@ func clear() -> void:
 
 func shutdown() -> void:
 	clear()
+
+
+func _exit_tree() -> void:
+	_set_outline_active(false)
+
+
+func _set_outline_active(value: bool) -> void:
+	var subject := get_parent() as Node3D
+	if subject == null:
+		return
+	if value and subject.is_in_group(&"enemy"):
+		subject.add_to_group(ATTACK_OUTLINE_GROUP)
+	else:
+		subject.remove_from_group(ATTACK_OUTLINE_GROUP)
 
 
 func _process(delta: float) -> void:

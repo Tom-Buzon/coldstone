@@ -1,4 +1,4 @@
-extends "res://scripts/enemy_v2/hoplite_v2_combat_component.gd"
+extends "res://scripts/enemy_v2/enemy_v2_combat_core.gd"
 
 ## Shared lifecycle/capsule/guard/LOD contract. Role subclasses own decisions,
 ## attack timing and delivery. Neither imports nor invokes the V1 controller.
@@ -103,4 +103,15 @@ func _lock_attack_direction() -> void:
 	locked_direction = locked_direction.normalized() if locked_direction.length_squared() > 0.001 else actor.global_basis.z.normalized()
 
 func _play_state_animation() -> void:
-	actor.play_semantic_animation(&"move" if state == State.APPROACH else (&"idle" if actor.definition.unit_role == &"archer" else &"block_idle"))
+	actor.play_semantic_animation(&"move" if state == State.APPROACH else _idle_semantic())
+
+func is_formation_engaged() -> bool:
+	return state in [State.ATTACK, State.RECOVERY, State.STUNNED]
+
+func _idle_semantic() -> StringName:
+	return &"block_idle"
+
+func cancel_player_order() -> void:
+	super.cancel_player_order()
+	local_override = false
+	local_motion = Vector3.ZERO

@@ -111,6 +111,7 @@ func _spawn_fragment(
 		Vector3(0.035, 0.055, 0.03) * minf(impulse_strength, 3.0)
 	)
 	fragment.set_meta("source_bone", skeleton.get_bone_name(root_bone))
+	preload("res://scripts/enemy_v2/enemy_v2_team_palette.gd").apply(fragment,actor.faction)
 	return fragment
 
 

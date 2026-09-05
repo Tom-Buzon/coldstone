@@ -201,6 +201,7 @@ func _schedule_group_spawn(group: Dictionary, delay: float) -> void:
 	timer.start()
 
 func _spawn_group_entity(group: Dictionary) -> Array[Node]:
+	if group.get("properties",{}).get("battlefield_boss",false): return []
 	var properties := group.get("properties", {}) as Dictionary
 	if String(properties.get("deployment_mode", "all")) != "all":
 		return _activate_deployment(group)

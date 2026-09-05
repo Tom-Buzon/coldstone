@@ -57,6 +57,7 @@ var sun: DirectionalLight3D
 var player: HopliteUALNativePlayer
 var crowd_director: HopliteBattleCrowdDirector
 var enemy_v2_troop_runtime: HopliteV2TroopRuntime
+var battlefield_runtime: Node
 var navigation_region: NavigationRegion3D
 var navigation_mesh: NavigationMesh
 var navigation_source_geometry: NavigationMeshSourceGeometryData3D
@@ -97,6 +98,13 @@ func build(source: HopliteWorldDocument, edit_mode: bool = true, center: Vector3
 		enemy_v2_troop_runtime.name = "EnemyV2TroopRuntime"
 		world_root.add_child(enemy_v2_troop_runtime)
 		_build_test_player()
+		battlefield_runtime = preload("res://scripts/enemy_v2/battlefield/battlefield_runtime.gd").new()
+		world_root.add_child(battlefield_runtime)
+		battlefield_runtime.configure(self)
+		var encounter := preload("res://scripts/enemy_v2/battlefield/battlefield_encounter.gd").new()
+		encounter.name = "BattlefieldEncounter"
+		world_root.add_child(encounter)
+		encounter.configure(self)
 		# Player/UI startup may restore the user's global quality configuration.
 		# Re-assert a map-owned laboratory profile immediately before enemies are
 		# instantiated so every actor receives the documented thresholds.
@@ -201,6 +209,8 @@ func clear_world() -> void:
 	preview_character_count = 0
 	player = null
 	crowd_director = null
+	if is_instance_valid(battlefield_runtime): battlefield_runtime.process_mode = Node.PROCESS_MODE_DISABLED
+	battlefield_runtime = null
 	enemy_v2_troop_runtime = null
 	v2_terrain_surfaces.clear()
 	navigation_bake_revision += 1
@@ -366,6 +376,7 @@ func _build_entity(entity: Dictionary) -> Node3D:
 		"enemy_group": return _build_enemy_group(entity)
 		"patrol_point": return _build_patrol_point(entity)
 		"trigger": return _build_trigger(entity)
+		"battlefield": return _build_battlefield(entity)
 		"door": return _build_door(entity)
 		"chapter_portal": return _build_chapter_portal(entity)
 		"narrative": return _build_narrative(entity)
@@ -661,6 +672,8 @@ func spawn_enemy_group(entity: Dictionary, target: Node3D, existing_holder: Node
 			"performance_profile": String(properties.get("performance_profile", "auto")),
 			"planned_simultaneous_population": planned_population, "guard_index": unit_index,
 			"scale_multiplier": float(properties.get("size_multiplier", 1.0)),
+			"faction": StringName(properties.get("faction", &"athenian")),
+			"battlefield_id": String(properties.get("battlefield_id", "")),
 			"v2_animation": StringName(properties.get("v2_animation", &"idle")),
 			"v2_combat_lab": bool(properties.get("v2_combat_lab", false)),
 			"v2_troop_mode": effective_v2_troop_mode,
@@ -696,6 +709,7 @@ func spawn_enemy_group(entity: Dictionary, target: Node3D, existing_holder: Node
 	return spawned
 
 func remove_enemy_group(group_id: String) -> int:
+	if is_instance_valid(battlefield_runtime): battlefield_runtime.remove_group(StringName(group_id))
 	if enemy_v2_troop_runtime != null:
 		enemy_v2_troop_runtime.remove_group(StringName(group_id))
 	var removed := 0
@@ -728,6 +742,10 @@ func living_count(group_id: String) -> int:
 
 func _build_enemy_preview(holder: Node3D, entity: Dictionary, count: int) -> void:
 	var properties := entity.get("properties", {}) as Dictionary
+	if properties.get("archetype","") == "enemy_v2_giant" and properties.get("faction","athenian") == "athenian":
+		var owner := document.find_entity(String(properties.get("battlefield_id","")))
+		if not owner.is_empty():
+			preload("res://scripts/enemy_v2/battlefield/battlefield_preview.gd").add_champion_perimeter(holder,float(owner.properties.get("champion_aggro_radius",32.0)))
 	var shown := mini(count, PREVIEW_FORMATION_LIMIT)
 	var positions := _enemy_formation_positions(properties, shown)
 	var rank := String(properties.get("rank", "normal"))
@@ -736,6 +754,7 @@ func _build_enemy_preview(holder: Node3D, entity: Dictionary, count: int) -> voi
 		var profile := _enemy_profile(archetype)
 		var is_veteran := StringName(profile.get("behavior", &"")) == &"phalanx_veteran"
 		var color := Color(0.88, 0.24, 0.16) if rank == "miniboss" else (Color(0.92, 0.65, 0.18) if is_veteran else Color(0.20, 0.48, 0.88))
+		if HopliteV2CatalogScript.is_forge_archetype(archetype): color = Color(0.2,0.5,1.0) if properties.get("faction","athenian") == "spartan" else Color(0.88,0.3,0.18)
 		if index == 0 and preview_character_count < PREVIEW_CHARACTER_LIMIT:
 			if not HopliteV2CatalogScript.is_forge_archetype(archetype) and rank == "miniboss" and not EnemyArchetypesScript.is_miniboss(archetype) and not EnemyArchetypesScript.is_boss(archetype):
 				archetype = &"captain"
@@ -743,7 +762,9 @@ func _build_enemy_preview(holder: Node3D, entity: Dictionary, count: int) -> voi
 				"ai_enabled": false,
 				"name": "Apercu",
 				"scale_multiplier": float(properties.get("size_multiplier", 1.0)),
-				"v2_animation": StringName(properties.get("v2_animation", &"idle")),
+				"faction": StringName(properties.get("faction", &"athenian")),
+			"battlefield_id": String(properties.get("battlefield_id", "")),
+			"v2_animation": StringName(properties.get("v2_animation", &"idle")),
 				"match_perfect_hitbox": bool(properties.get("match_perfect_hitbox", false)),
 				"giant_traversal_mode": StringName(properties.get("giant_traversal_mode", "assisted")),
 				"giant_capsule_radius_multiplier": float(properties.get("giant_capsule_radius_multiplier", 0.90)),
@@ -798,6 +819,8 @@ func _spawn_forge_enemy(parent: Node, archetype: StringName, position_value: Vec
 		actor.call("set_visual_scale", maxf(0.35, float(options.get("scale_multiplier", 3.0))))
 	else:
 		actor.scale = Vector3.ONE * maxf(0.01, float(options.get("scale_multiplier", 1.0)) * actor.definition.visual_scale)
+	actor.faction = StringName(options.get("faction", &"athenian"))
+	actor.set_meta("battlefield_id", options.get("battlefield_id", ""))
 	actor.initial_semantic = StringName(options.get("v2_animation", &"idle"))
 	actor.lod_reference = target
 	actor.combat_lab_enabled = bool(options.get("v2_combat_lab", false)) and bool(options.get("ai_enabled", false))
@@ -870,7 +893,10 @@ func _configure_group_behavior(enemies: Array[Node], entity: Dictionary, target_
 						v2_terrain_surfaces.append({"properties": surface_properties, "transform": surface_transform, "inverse": surface_transform.affine_inverse()})
 			enemy_v2_troop_runtime.terrain_height_sampler = _sample_v2_terrain_height
 		runtime_properties["v2_troop_mode"] = effective_mode
-		enemy_v2_troop_runtime.register_group(group_id, enemies, troop_target, runtime_properties, effective_mode)
+		if battlefield_runtime != null and (properties.has("battlefield_id") or properties.has("v2_local_order") or properties.get("faction", "athenian") == "spartan"):
+			battlefield_runtime.register_group(group_id, enemies, runtime_properties, effective_mode)
+		else:
+			enemy_v2_troop_runtime.register_group(group_id, enemies, troop_target, runtime_properties, effective_mode)
 	var behavior := String(properties.get("behavior", "normal"))
 	if behavior == "patrol":
 		var route := _patrol_route(String(properties.get("route_id", "")))
@@ -1785,3 +1811,24 @@ func _sample_v2_terrain_height(position_value: Vector3) -> float:
 			local.y = WorldTerrainScript.height_at_normalized(properties, local.x, local.z)
 			return float((surface["transform"] * local).y)
 	return position_value.y
+
+func _build_battlefield(entity: Dictionary) -> Node3D:
+	var holder := Area3D.new()
+	_configure_entity_node(holder,entity)
+	holder.collision_layer = 16 if editing else 0
+	holder.collision_mask = 0
+	holder.monitoring = false
+	var size := WorldDocumentScript.vector3(entity.properties.get("size",[70,4,90]))
+	var collision := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	collision.shape = box
+	holder.add_child(collision)
+	world_root.add_child(holder)
+	if editing: _add_zone_visual(holder,size,Color(0.2,0.55,0.85,0.16),"CHAMP DE BATAILLE")
+	return holder
+
+
+func queue_encounter_group(entity: Dictionary) -> void:
+	var node := _build_enemy_group(entity)
+	if node != null: nodes_by_id[String(entity.id)] = node

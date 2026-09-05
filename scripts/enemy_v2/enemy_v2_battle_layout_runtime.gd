@@ -198,6 +198,8 @@ func assignment(group_id: StringName) -> Dictionary:
 	if not records.has(group_id):
 		return {}
 	var record := records[group_id] as Dictionary
+	if record.has("command_assignment"):
+		return _front_route_assignment(group_id,record,record.command_assignment,record.current_anchor)
 	var target_id := int(record["target_id"])
 	var target := record.get("target") as Node3D
 	if target != null and is_instance_valid(target):
@@ -812,6 +814,12 @@ func _front_route_assignment(group_id: StringName, record: Dictionary, mission: 
 	var current: Vector3 = record["current_anchor"]
 	var goal: Vector3 = mission.get("position", current)
 	var now := Time.get_ticks_msec()
+	if record.has("recovery_goal"):
+		if _planar_distance(current,record.recovery_goal)>0.85: goal = record.recovery_goal
+		else:
+			record.erase("recovery_goal")
+			record["blocked_since"] = now
+			record["order"] = null
 	result["anchor_goal"] = current
 	result["movement_phase"] = mission.get("mission", &"hold")
 	if _planar_distance(current, goal) <= ORDER_GOAL_TOLERANCE:
@@ -823,7 +831,8 @@ func _front_route_assignment(group_id: StringName, record: Dictionary, mission: 
 	var needs_order := order == null or _planar_distance(order.final_goal, goal) > ORDER_REPLAN_DISTANCE or not permitted
 	if needs_order and now >= int(record.get("retry_at", 0)):
 		record["retry_at"] = now + 500 + int(record["registration_order"]) % 7 * 35
-		var path: PackedVector3Array = traffic.call("request_route", group_id, current, goal, player,
+		var route_goal := current.move_toward(goal,12.0)
+		var path: PackedVector3Array = traffic.call("request_route", group_id, current, route_goal, player,
 			float(record["formation_width"]), 100 if bool(mission.get("engage", false)) else 30,
 			float(record["formation_depth"]), record["forward"], record["capabilities"].body_height)
 		if not path.is_empty():
@@ -835,12 +844,27 @@ func _front_route_assignment(group_id: StringName, record: Dictionary, mission: 
 			record["order_revision"] = int(record["order_revision"]) + 1
 			permitted = true
 	if order == null or not permitted:
+		if not record.has("blocked_since"): record["blocked_since"] = now
+		if now-int(record.blocked_since)>2500 and not bool(record.get("engaged",false)) and bool(mission.get("engage",false)):
+			var diagnostic: Dictionary = traffic.diagnostics.get(group_id,{})
+			for rejection: Dictionary in diagnostic.get("rejections",[]):
+				var blocker := StringName(rejection.get("detail",""))
+				if not records.has(blocker): continue
+				var away: Vector3 = current-(records[blocker].current_anchor as Vector3)
+				away.y = 0
+				if away.length_squared()<0.01: away = record.forward
+				record["recovery_goal"] = current + away.normalized()*4.0
+				record["blocked_since"] = now
+				record["order"] = null
+				traffic.call("release",group_id)
+				break
 		result["movement_phase"] = &"waiting_corridor"
 		return result
 	if bool(order.call("advance_if_reached", current, ORDER_GOAL_TOLERANCE)):
 		traffic.call("release", group_id)
 		record["order"] = null
 		return result
+	record.erase("blocked_since")
 	var waypoint: Vector3 = order.call("current_waypoint")
 	result["anchor_goal"] = waypoint
 	result["movement_phase"] = &"march"

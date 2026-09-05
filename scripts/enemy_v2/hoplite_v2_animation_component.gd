@@ -23,14 +23,21 @@ var cycle_elapsed: float = 0.0
 
 func install(target_skeleton: Skeleton3D, value: HopliteEnemyV2Definition) -> bool:
 	definition = value
-	var library := _library_cache.get(definition.animation_library_path) as AnimationLibrary
+	var paths := definition.animation_pack_paths
+	if paths.is_empty(): paths = PackedStringArray([definition.animation_library_path])
+	var cache_key := "|".join(paths)
+	var library := _library_cache.get(cache_key) as AnimationLibrary
 	if library == null:
-		library = load(definition.animation_library_path) as AnimationLibrary
-		if library != null:
-			_library_cache[definition.animation_library_path] = library
-	if library == null:
-		push_error("HopliteV2 animation library is missing: %s" % definition.animation_library_path)
-		return false
+		library = AnimationLibrary.new()
+		for path: String in paths:
+			var pack := load(path) as AnimationLibrary
+			if pack == null: return false
+			for clip: StringName in pack.get_animation_list():
+				if library.has_animation(clip):
+					push_error("Duplicate clip in composed V2 animation packs: %s" % clip)
+					return false
+				library.add_animation(clip, pack.get_animation(clip))
+		_library_cache[cache_key] = library
 	player = AnimationPlayer.new()
 	player.name = "HopliteV2AnimationPlayer"
 	target_skeleton.add_child(player)

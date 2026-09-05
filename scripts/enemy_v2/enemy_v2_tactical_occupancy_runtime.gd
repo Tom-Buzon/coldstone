@@ -24,6 +24,11 @@ var last_block_owner: StringName = &""
 
 
 func update_footprint(group_id: StringName, center: Vector3, forward: Vector3, width: float, depth: float) -> void:
+	if footprints.has(group_id):
+		var old: RefCounted = footprints[group_id]
+		if (old.center as Vector3).is_equal_approx(center) and (old.forward as Vector3).is_equal_approx(forward) and is_equal_approx(old.width,width) and is_equal_approx(old.depth,depth):
+			update_progress(group_id,center)
+			return
 	_release_footprint_cells(group_id)
 	var footprint: RefCounted = Footprint.new().configure(group_id, center, forward, width, depth)
 	var cells: Array[Vector2i] = footprint.call("covered_cells", CELL_SIZE, 0.20)
@@ -191,6 +196,26 @@ func touch_corridor(group_id: StringName, now_msec: int = -1) -> void:
 
 ## Spatial hash bounds the neighborhood by physical extent; safety checks never
 ## truncate a crowded cell's owners. No all-army scan in the movement loop.
+func groups_along_segment(start: Vector3, finish: Vector3) -> Array[StringName]:
+	# Footprints already index every covered cell. Visit a narrow ray strip,
+	# rather than a disc whose area grows with the square of shooting range.
+	var found: Dictionary = {}
+	var visited: Dictionary = {}
+	var steps := maxi(1,ceili(_flat(finish-start).length()/CELL_SIZE))
+	for step in range(steps+1):
+		var point := start.lerp(finish,float(step)/float(steps))
+		var cell := Vector2i(floori(point.x/CELL_SIZE),floori(point.z/CELL_SIZE))
+		for x in range(-1,2):
+			for z in range(-1,2):
+				var key := cell+Vector2i(x,z)
+				if visited.has(key): continue
+				visited[key] = true
+				for id: StringName in footprint_owners.get(key,[]): found[id] = true
+	var result: Array[StringName] = []
+	for id: StringName in found: result.append(id)
+	return result
+
+
 func nearby_group_ids(center: Vector3, radius: float) -> Array[StringName]:
 	var unique: Dictionary = {}
 	var minimum := Vector2i(floori((center.x - radius) / CELL_SIZE), floori((center.z - radius) / CELL_SIZE))

@@ -145,7 +145,7 @@ func _refresh_instances() -> void:
 		var transform := Transform3D(Basis.IDENTITY, actor.global_position + Vector3.UP * origin_y * scale)
 		multi_mesh.set_instance_transform(index, transform)
 		var phase := float(actor.get_instance_id() % 997) / 997.0
-		multi_mesh.set_instance_custom_data(index, Color(phase, scale, 0.0, 1.0))
+		multi_mesh.set_instance_custom_data(index, Color(phase, scale, 1.0 if actor.faction == &"spartan" else 0.0, 1.0))
 	multi_mesh.visible_instance_count = actors.size()
 	set_process(not actors.is_empty())
 
@@ -161,3 +161,9 @@ func _ensure_capacity(required: int) -> void:
 
 func _role_frame_scale() -> float:
 	return 256.0 / 224.0 if batch_role == &"archer" else 1.0
+
+
+func flush_pending() -> void:
+	# Cinematic LOD changes must reach the renderer before the scene is paused.
+	if dirty: _process(0.0)
+	for batch: HopliteV2ImpostorBatch in role_batches.values(): batch.flush_pending()

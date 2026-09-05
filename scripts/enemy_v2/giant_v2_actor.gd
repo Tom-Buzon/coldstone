@@ -1,7 +1,6 @@
 extends "res://scripts/enemy_v2/enemy_actor_v2.gd"
 
 const GiantPresentation = preload("res://scripts/enemy_v2/giant_v2_presentation_component.gd")
-const GiantCombat = preload("res://scripts/enemy_v2/giant_v2_combat_component.gd")
 const GiantHealth = preload("res://scripts/enemy_v2/giant_v2_health_component.gd")
 const GiantDismemberment = preload("res://scripts/enemy_v2/giant_v2_dismemberment_component.gd")
 var size_multiplier: float = 3.0
@@ -43,7 +42,7 @@ func _ready() -> void:
 		attack_telegraph = AttackTelegraph.new()
 		add_child(attack_telegraph)
 		attack_telegraph.configure(size_multiplier * 1.85)
-		combat = GiantCombat.new()
+		combat = _create_combat_component()
 		combat.name = "Combat"
 		add_child(combat)
 		combat.install(self, combat_target, null, troop_controlled)
@@ -60,6 +59,8 @@ func _ready() -> void:
 	set_meta("enemy_v2_movement_mode", &"individual_physics")
 	set_meta("enemy_v2_footprint_radius", size_multiplier * 0.9)
 	_refresh_simulation_mode()
+
+	preload("res://scripts/enemy_v2/enemy_v2_team_palette.gd").apply(self,faction)
 
 func set_far_impostor_batch(_batch: Node) -> void:
 	# No hoplite billboard may stand in for the giant silhouette.
@@ -83,7 +84,7 @@ func _advance_formation(delta: float, _use_physics: bool) -> void:
 		var offset := phalanx_target_position - global_position
 		offset.y = 0.0
 		if offset.length() > 0.35:
-			desired_velocity = offset.normalized() * minf(definition.move_speed * locomotion_factor, offset.length() / maxf(delta, 0.001))
+			desired_velocity = offset.normalized() * minf(effective_move_speed() * locomotion_factor, offset.length() / maxf(delta, 0.001))
 	var facing: Vector3 = combat.formation_facing_direction(phalanx_facing)
 	if facing.length_squared() > 0.001:
 		basis = basis.slerp(Basis.looking_at(-facing), minf(1.4 * delta, 1.0)).orthonormalized()
@@ -102,7 +103,10 @@ func set_phalanx_intent(target_position: Vector3, facing_direction: Vector3, mov
 
 func begin_attack_telegraph(pattern_id: StringName, seconds: float) -> void:
 	if attack_telegraph != null and not dead:
-		attack_telegraph.begin(seconds)
+		if combat_target is HopliteEnemyActorV2:
+			attack_telegraph.clear()
+		else:
+			attack_telegraph.begin(seconds)
 	attack_started.emit(self, &"unarmed")
 	attack_telegraphed.emit(self, pattern_id, seconds)
 

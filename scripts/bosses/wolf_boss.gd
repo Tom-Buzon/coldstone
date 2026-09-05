@@ -75,6 +75,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_clear_telegraph()
+	_set_attack_outline_active(false)
 
 
 func _process(_delta: float) -> void:
@@ -268,6 +269,7 @@ func _build_readout() -> void:
 
 func _enter_state(next_state: BossState, duration: float) -> void:
 	boss_state = next_state
+	_set_attack_outline_active(next_state == BossState.TELEGRAPH)
 	state_time_left = duration
 	match boss_state:
 		BossState.INTRO:
@@ -358,6 +360,7 @@ func _update_telegraph() -> void:
 func _start_attack() -> void:
 	_clear_telegraph()
 	boss_state = BossState.ATTACK
+	_set_attack_outline_active(false)
 	attack_hit_done = false
 	match attack_id:
 		&"blood_dash_chain":

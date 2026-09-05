@@ -1,5 +1,7 @@
 # Géant V2 — intégration miniboss (2026-09-05)
 
+> Pour la composition et le commandement **V2 actuels**, commencer par [README.md](README.md). Ce document conserve le contexte de sa passe et ne remplace pas les nouveaux contrats.
+
 ## Contrat
 
 `enemy_v2_giant` (Forge) résout `giant_v2` dans le catalogue et crée `giant_v2_actor.gd` via la ShadowFactory V2. La production legacy reste inchangée.

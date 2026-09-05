@@ -124,6 +124,25 @@ func _run() -> void:
 	for index: int in 12:
 		fader.call("_process", 0.05)
 	_require(_surface_alpha(mass_visual) < 0.20, "a collider-free Enemy V2 mass actor did not fade between camera and player")
+	# Unrelated transient geometry must not suspend tracking collider-free actors.
+	var transient := _box(Vector3(20, 0, 20))
+	world.add_child(transient)
+	world.remove_child(transient)
+	transient.free()
+	fader.set("_dynamic_actor_refresh_elapsed", 0.0)
+	fader.call("_scan_occluders")
+	var mass_state: Dictionary = fader.get("_fade_states").get(mass_visual.get_instance_id(), {})
+	_require(bool(mass_state.get(&"occluded", false)), "removing unrelated geometry interrupted Enemy V2 body fading")
+	# The camera may enter the torso while the actor origin is behind it.
+	# Mass-mode actors have no collider for the ordinary camera-overlap query.
+	mass_actor.position = Vector3(0.0, 3.0, 4.2)
+	fader.call("_scan_occluders")
+	mass_state = fader.get("_fade_states").get(mass_visual.get_instance_id(), {})
+	_require(bool(mass_state.get(&"occluded", false)), "camera inside Enemy V2 torso left its body opaque when the actor center was behind the camera")
+	mass_actor.position.x = 3.0
+	fader.call("_scan_occluders")
+	mass_state = fader.get("_fade_states").get(mass_visual.get_instance_id(), {})
+	_require(not bool(mass_state.get(&"occluded", false)), "off-axis actors behind the camera must not remain faded")
 	mass_actor.queue_free()
 	await process_frame
 
@@ -177,6 +196,21 @@ func _run() -> void:
 	_require(blocker.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "disabling readability did not restore shadow casting")
 	_require(blocker.material_overlay == null, "disabling readability did not restore the original material overlay")
 
+	var layered := _box(Vector3(0, 2.56, 2))
+	var authored := layered.mesh.surface_get_material(0) as StandardMaterial3D
+	authored.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var extra_pass := StandardMaterial3D.new()
+	authored.next_pass = extra_pass
+	layered.material_overlay = extra_pass
+	world.add_child(layered)
+	fader.call("_mark_occluded", layered)
+	_require((layered.get_active_material(0) as BaseMaterial3D).cull_mode == BaseMaterial3D.CULL_BACK, "faded double-sided materials still render the inside-facing wall")
+	_require(authored.cull_mode == BaseMaterial3D.CULL_DISABLED, "fading modified authored double-sided rendering")
+	_require(layered.get_active_material(0).next_pass == null, "opaque next pass survived fading")
+	_require(layered.material_overlay == null, "opaque overlay survived fading")
+	_require(authored.next_pass == extra_pass, "fading mutated the shared source material")
+	fader.call("_process", 1.0)
+	_require(layered.get_active_material(0) == authored and layered.material_overlay == extra_pass, "layered source materials were not restored")
 	current_scene = null
 	world.queue_free()
 	if failures.is_empty():

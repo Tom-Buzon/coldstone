@@ -1,5 +1,7 @@
 # Armée V2 — intégration du 5 septembre 2026
 
+> Pour la composition et le commandement **V2 actuels**, commencer par [README.md](README.md). Ce document conserve le contexte de sa passe et ne remplace pas les nouveaux contrats.
+
 ## Résultat et utilisation
 
 La carte `champsDeBataille_V2_Commandement_414` utilise quatre fronts persistants et 25 groupes : 288 hoplites en 12 phalanges, 72 fantassins, 48 archers, quatre vétérans et deux géants. Les géants sont à l’échelle 3, modifiable dans l’inspecteur Forge. La bibliothèque Forge expose aussi des préréglages archers, fantassins et géant.

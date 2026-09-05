@@ -7,10 +7,12 @@ mesh LODs, anatomy, health and fragment components. Production V1 identities
 are unchanged; these are preliminary role implementations with placeholder
 hoplite skins.
 
+See [the current composition contract](V2_COMPOSITION_AND_ARMIES.md) for weapons, optional abilities, factions and army commanders.
+
 ## Runtime responsibilities
 
 - `enemy_actor_v2.gd` selects a combat component through
-  `_create_combat_component()`. Its public army interface is unchanged.
+  `_create_combat_component()` and the definition’s `weapon_script`. Bow and sword scripts live under `weapons/`; the old filenames are compatibility adapters. Its public army interface is unchanged.
 - `enemy_v2_role_combat.gd` reuses V2 lifecycle, capsule and guard infrastructure;
   the archer and infantry components own their decisions and attacks. No legacy
   enemy controller or live animation donor is instantiated.
@@ -35,7 +37,7 @@ hoplite skins.
 ## Animation and distant rendering
 
 `build_enemy_v2_role_animation_library.gd` bakes the existing Mixamo sword and
-bow clips offline into `enemy_v2_roles.res`. Each role clip has 23 tracks;
+bow clips offline into `enemy_v2_roles.res`. Then `build_composed_animation_packs.gd` produces separate common/bow/sword packs; the runtime composes only the required packs. Each role clip has 23 tracks;
 archer legs use the neutral pose instead of the donor's backward walk.
 The bow is attached to the left hand and calibrated against that baked pose.
 

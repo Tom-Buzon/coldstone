@@ -1,5 +1,7 @@
 # Enemy architecture — implemented contracts and retained boundaries
 
+> Pour la composition et le commandement **V2 actuels**, commencer par [README.md](README.md). Ce document conserve le contexte de sa passe et ne remplace pas les nouveaux contrats.
+
 Status: verified description of the runtime delivered by the enemy unification mission. Items explicitly labelled “target” are not claimed as current nodes or authorities.
 
 ## Constraints carried forward

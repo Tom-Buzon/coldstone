@@ -155,6 +155,12 @@ func update(records: Dictionary, target_id: int, target: Node3D, now: int = -1) 
 				"engage": not disorganized and (rank == 0 or cap.role != &"phalanx"), "ring": maxi(0, rank),
 				"slot": record["front_id"], "angle": atan2(forward.z, forward.x), "radius": target_distance,
 				"front_revision": front["revision"], "disorganized": disorganized}
+			if record.has("command_assignment"):
+				record["assignment"] = record["command_assignment"].duplicate()
+				if disorganized:
+					record["assignment"]["disorganized"] = true
+					record["assignment"]["engage"] = false
+
 
 func _assignment_cost(record: Dictionary, front: Dictionary) -> float:
 	var cap: EnemyV2UnitCapabilities = record["capabilities"]

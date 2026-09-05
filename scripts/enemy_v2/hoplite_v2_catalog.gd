@@ -83,16 +83,26 @@ static func definition(archetype_id: StringName) -> HopliteEnemyV2Definition:
 		_definitions[archetype_id] = giant_definition
 		return giant_definition
 	if archetype_id in [&"archer_v2", &"infantry_v2"]:
-		var result := definition(&"ngeneral").duplicate(true) as HopliteEnemyV2Definition
+		var result := Definition.new() as HopliteEnemyV2Definition
+		result.package_manifest_path = PACKAGE_MANIFEST
+		result.body_scene_path = BODY_SCENE
+		result.body_lod_scene_paths = PackedStringArray(BODY_LOD_SCENES)
+		result.body_lod_distances = PackedFloat32Array(BODY_LOD_DISTANCES)
+		result.body_lod_fade_margin = 2.0
+		result.guard_profile = STANDARD_GUARD_PROFILE.duplicate(true)
+		for key: StringName in [&"idle", &"move", &"sprint", &"death", &"block_idle", &"block_impact"]:
+			result.semantic_animations[key] = SEMANTIC_ANIMATIONS[key]
 		result.archetype_id = archetype_id
 		result.legacy_archetype_id = &""
 		result.unit_role = &"archer" if archetype_id == &"archer_v2" else &"infantry"
 		result.display_name = "Archer V2" if result.unit_role == &"archer" else "Fantassin V2"
 		result.equipment_profile = &"bow" if result.unit_role == &"archer" else &"sword_buckler"
 		result.animation_library_path = "res://assets/animations/enemy_v2/hoplite/enemy_v2_roles.res"
-		result.semantic_animations[&"bow_draw"] = &"bow_draw"
-		result.semantic_animations[&"sword_cut"] = &"sword_cut"
-		result.semantic_animations[&"sword_heavy"] = &"sword_heavy"
+		var weapon := "bow" if result.unit_role == &"archer" else "sword"
+		result.weapon_script = load("res://scripts/enemy_v2/weapons/%s_v2_weapon.gd" % weapon)
+		result.animation_pack_paths = PackedStringArray(["res://assets/animations/enemy_v2/packs/hoplite_common.res", "res://assets/animations/enemy_v2/packs/hoplite_%s.res" % weapon])
+		for clip: StringName in ([&"bow_draw"] if weapon == "bow" else [&"sword_cut", &"sword_heavy"]):
+			result.semantic_animations[clip] = clip
 		result.shield_scale = 0.62
 		result.max_health = 65.0 if result.unit_role == &"archer" else 85.0
 		result.move_speed = 4.2 if result.unit_role == &"archer" else 5.1
@@ -111,6 +121,8 @@ static func definition(archetype_id: StringName) -> HopliteEnemyV2Definition:
 	result.body_lod_distances = PackedFloat32Array(BODY_LOD_DISTANCES)
 	result.body_lod_fade_margin = 2.0
 	result.animation_library_path = ANIMATION_LIBRARY
+	result.weapon_script = preload("res://scripts/enemy_v2/weapons/spear_v2_weapon.gd")
+	result.animation_pack_paths = PackedStringArray(["res://assets/animations/enemy_v2/packs/hoplite_common.res", "res://assets/animations/enemy_v2/packs/hoplite_spear.res"])
 	result.equipment_profile = &"hoplite_spear_shield_veteran" if archetype_id == &"ngeneral_veteran" else &"hoplite_spear_shield"
 	result.guard_profile = VETERAN_GUARD_PROFILE if archetype_id == &"ngeneral_veteran" else STANDARD_GUARD_PROFILE
 	result.semantic_animations = SEMANTIC_ANIMATIONS.duplicate()

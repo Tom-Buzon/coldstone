@@ -8,8 +8,6 @@ const EquipmentComponent = preload("res://scripts/enemy_v2/hoplite_v2_equipment_
 const LodComponent = preload("res://scripts/enemy_v2/hoplite_v2_lod_component.gd")
 const HealthComponent = preload("res://scripts/enemy_v2/hoplite_v2_health_component.gd")
 const CombatComponent = preload("res://scripts/enemy_v2/hoplite_v2_combat_component.gd")
-const ArcherCombatComponent = preload("res://scripts/enemy_v2/archer_v2_combat_component.gd")
-const InfantryCombatComponent = preload("res://scripts/enemy_v2/infantry_v2_combat_component.gd")
 const AttackTelegraph = preload("res://scripts/combat/enemy_attack_telegraph.gd")
 const DismembermentComponent = preload("res://scripts/enemy_v2/hoplite_v2_dismemberment_component.gd")
 const GuardComponent = preload("res://scripts/combat/guard_component.gd")
@@ -53,6 +51,7 @@ var phalanx_facing := Vector3.FORWARD
 var phalanx_moving: bool = false
 var simulation_lod_level: int = 0
 var simulation_accumulator: float = 0.0
+var combat_modifiers := preload("res://scripts/enemy_v2/enemy_v2_combat_modifiers.gd").new()
 var gravity: float = 9.8
 var mass_transform_mode: bool = false
 var mass_transform_accumulator: float = 0.0
@@ -148,12 +147,11 @@ func _ready() -> void:
 	set_meta("enemy_migration_family", definition.unit_role)
 
 
+	preload("res://scripts/enemy_v2/enemy_v2_team_palette.gd").apply(self,faction)
+
 func _create_combat_component() -> Node:
-	match definition.unit_role:
-		&"archer":
-			return ArcherCombatComponent.new()
-		&"infantry":
-			return InfantryCombatComponent.new()
+	if definition.weapon_script != null:
+		return definition.weapon_script.new()
 	return CombatComponent.new()
 
 
@@ -336,7 +334,7 @@ func _advance_formation(delta: float, use_physics: bool) -> void:
 		offset.y = 0.0
 		var distance := offset.length()
 		if distance > phalanx_profile.arrival_tolerance:
-			var speed := definition.move_speed * phalanx_profile.member_speed_multiplier
+			var speed := effective_move_speed() * phalanx_profile.member_speed_multiplier
 			if distance < phalanx_profile.arrival_slowdown_distance:
 				speed *= clampf(distance / phalanx_profile.arrival_slowdown_distance, 0.25, 1.0)
 			planar_velocity = offset.normalized() * speed
@@ -366,7 +364,7 @@ func _advance_formation(delta: float, use_physics: bool) -> void:
 		if planar_velocity.length_squared() > 0.000001:
 			next_position += Vector3(velocity.x, 0.0, velocity.z) * delta
 		if not is_equal_approx(next_position.y, phalanx_target_position.y):
-			next_position.y = move_toward(next_position.y, phalanx_target_position.y, maxf(1.0, definition.move_speed) * delta)
+			next_position.y = move_toward(next_position.y, phalanx_target_position.y, maxf(1.0, effective_move_speed()) * delta)
 		if not next_position.is_equal_approx(global_position):
 			global_position = next_position
 
@@ -382,7 +380,10 @@ func begin_attack_telegraph(pattern_id: StringName, windup_seconds: float) -> vo
 	if dead:
 		return
 	if attack_telegraph != null:
-		attack_telegraph.begin(windup_seconds)
+		if combat_target is HopliteEnemyActorV2:
+			attack_telegraph.clear()
+		else:
+			attack_telegraph.begin(windup_seconds)
 	var weapon_kind: StringName = {&"archer": &"bow", &"infantry": &"sword", &"giant": &"fists"}.get(definition.unit_role, &"spear")
 	attack_started.emit(self, weapon_kind)
 	attack_telegraphed.emit(self, pattern_id, windup_seconds)
@@ -435,12 +436,13 @@ func is_dead_for_combat() -> bool:
 
 
 func can_receive_hit_from(source: Node) -> bool:
-	return not dead and source != self
+	return not dead and (source == null or preload("res://scripts/enemy_v2/enemy_v2_factions.gd").hostile(source, self))
 
 
 func receive_anatomy_hit(hit: Variant, zone: StringName) -> void:
-	if health_component == null:
+	if health_component == null or (hit != null and not can_receive_hit_from(hit.source)):
 		return
+	hit = combat_modifiers.incoming(hit)
 	var previous_health := runtime_state.health
 	health_component.receive_hit(hit, zone)
 	var damage := maxf(0.0, previous_health - runtime_state.health)
@@ -509,3 +511,32 @@ func _update_performance_lod() -> void:
 	LodComponent.invalidate_settings_cache()
 	if performance_lod != null:
 		performance_lod.refresh(true)
+
+func set_combat_target(value: Node3D) -> void:
+	if combat_target == value: return
+	if combat != null and combat.has_method("is_attack_committed") and combat.is_attack_committed(): return
+	if is_instance_valid(phalanx_runtime): phalanx_runtime.invalidate_target_permission(self)
+	combat_target = value
+	if combat != null: combat.target = value
+
+## Shared hit-receiver contract: callers (including the player's spiral) use
+## the result to emit hit feedback only when damage was actually accepted.
+func receive_ai_hit(amount: float, source: Node3D, direction: Vector3) -> bool:
+	if not can_receive_hit_from(source) or health_component == null:
+		return false
+	var previous_health := health
+	if combat != null and combat.can_block_source(source):
+		amount *= 0.3
+	var hit := preload("res://scripts/combat/hit_event.gd").new()
+	hit.source = source
+	hit.damage = amount
+	hit.direction = direction
+	hit.position = global_position + Vector3.UP
+	receive_anatomy_hit(hit, &"torso")
+	return health < previous_health
+
+func effective_attack_damage() -> float:
+	return definition.attack_damage * combat_modifiers.power
+
+func effective_move_speed() -> float:
+	return definition.move_speed * combat_modifiers.speed

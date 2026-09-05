@@ -1,5 +1,7 @@
 # IMPORTANT — dossiers surveillés par la bibliothèque automatique
 
+Documentation Enemy V2 : [architecture, armées et utilisation Forge](docs/enemy_refactor/README.md).
+
 Au prochain démarrage, la salle **Bibliothèque des assets** parcourt récursivement les dossiers suivants :
 
 ```text

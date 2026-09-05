@@ -57,7 +57,7 @@ func configure(entities: Array[Dictionary], editor_groups: Array = []) -> void:
 
 
 func planned_population_for(entity: Dictionary) -> int:
-	var key := String(entity.get("id", ""))
+	var key := String(entity.get("properties",{}).get("boss_budget_owner",entity.get("id", "")))
 	if _planned_populations.has(key):
 		return int(_planned_populations[key])
 	var properties := entity.get("properties", {}) as Dictionary
@@ -79,6 +79,8 @@ static func normalize_profile(value: Variant) -> String:
 static func active_capacity(entity: Dictionary) -> int:
 	var properties := entity.get("properties", {}) as Dictionary
 	var total := clampi(int(properties.get("count", 0)), 0, 500)
+	if properties.get("battlefield_boss",false):
+		for role: String in ["phalanx","infantry","archer"]: total += clampi(int(properties.get("boss_guard_"+role,0)),0,48)
 	if String(properties.get("deployment_mode", "all")) != "reserve":
 		return total
 	var initial_active := maxi(1, int(properties.get("initial_active", mini(10, maxi(1, total)))))

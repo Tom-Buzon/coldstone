@@ -82,6 +82,11 @@ func request_route(group_id: StringName, start: Vector3, goal: Vector3, focus: V
 	var direct := PackedVector3Array([start, goal])
 	if _try_candidate(group_id, direct, formation_width, depth, forward, formation_height, priority, now):
 		return direct
+	# Make safe progress toward contact before reserving a large lateral detour.
+	# Every prefix still passes occupancy and terrain checks.
+	if _planar_distance(start,goal)>3.0:
+		var prefix := PackedVector3Array([start,start.move_toward(goal,minf(4.0,_planar_distance(start,goal)*0.5))])
+		if _try_candidate(group_id,prefix,formation_width,depth,forward,formation_height,priority,now): return prefix
 	var nav_path: PackedVector3Array = navigation.call("navigation_path", start, goal)
 	if nav_path.size() > 2:
 		candidates.append(nav_path)

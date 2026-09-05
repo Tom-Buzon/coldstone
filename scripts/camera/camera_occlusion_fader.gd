@@ -5,6 +5,10 @@ class_name HopliteCameraOcclusionFader
 ## per-instance fade materials derived from its authored materials. Original
 ## render state is restored exactly afterward.
 
+const OutlineScript = preload("res://scripts/camera/player_occlusion_outline.gd")
+const DEFAULT_OUTLINE_COLOR := Color(0.0, 0.78622156, 0.5315931, 1.0)
+const DEFAULT_ENEMY_ATTACK_OUTLINE_COLOR := Color(1.0, 0.141, 0.0, 1.0)
+const DEFAULT_OUTLINE_OPACITY := 0.68
 const SETTINGS_PATH := "user://hoplite_global_settings_v1.cfg"
 const OCCLUSION_GROUP := &"camera_occlusion_fader"
 const IGNORE_GROUP := &"camera_occlusion_ignore"
@@ -15,8 +19,8 @@ const GIANT_OWNER_META := &"giant_owner"
 const BASE_TERRAIN_NAME_PARTS: Array[String] = ["terrain", "ground", "floor"]
 
 const DEFAULT_ENABLED := true
-const DEFAULT_OPACITY := 0.12
-const DEFAULT_RADIUS := 0.42
+const DEFAULT_OPACITY := 0.44
+const DEFAULT_RADIUS := 0.10
 const REFRESH_INTERVAL := 1.0 / 20.0
 const FADE_OUT_SPEED := 5.8
 const FADE_IN_SPEED := 4.2
@@ -31,6 +35,11 @@ const MAX_CAMERA_OVERLAPS := 32
 const DYNAMIC_ACTOR_REFRESH_INTERVAL := 0.50
 const DYNAMIC_ACTOR_RADIUS := 0.48
 const DYNAMIC_ACTOR_HEIGHT := 2.05
+
+var outline: Node
+var outline_color := DEFAULT_OUTLINE_COLOR
+var enemy_attack_outline_color := DEFAULT_ENEMY_ATTACK_OUTLINE_COLOR
+var outline_opacity := DEFAULT_OUTLINE_OPACITY
 
 var enabled := DEFAULT_ENABLED
 var occluder_opacity := DEFAULT_OPACITY
@@ -85,6 +94,13 @@ func _ready() -> void:
 func configure(camera_node: Camera3D, target_node: Node3D, spring_arm_node: SpringArm3D) -> void:
 	camera = camera_node
 	target = target_node
+	if outline == null:
+		outline = OutlineScript.new()
+		outline.fader = self
+		outline.color = outline_color
+		outline.attack_color = enemy_attack_outline_color
+		outline.opacity = outline_opacity
+		add_child(outline)
 	spring_arm = spring_arm_node
 	if spring_arm != null and not _spring_arm_mask_captured:
 		_spring_arm_collision_mask = spring_arm.collision_mask
@@ -101,6 +117,17 @@ func apply_settings(next_enabled: bool, next_opacity: float, next_radius: float)
 	_refresh_elapsed = REFRESH_INTERVAL
 	if not enabled:
 		_mark_all_for_restore()
+
+
+func apply_outline_settings(next_color: Color, next_opacity: float, next_attack_color: Variant = null) -> void:
+	outline_color = Color(next_color, 1.0)
+	if next_attack_color is Color:
+		enemy_attack_outline_color = Color(next_attack_color as Color, 1.0)
+	outline_opacity = clampf(next_opacity, 0.0, 1.0)
+	if outline != null:
+		outline.color = outline_color
+		outline.attack_color = enemy_attack_outline_color
+		outline.opacity = outline_opacity
 
 
 func get_active_occluder_count() -> int:
@@ -205,17 +232,23 @@ func _scan_dynamic_actor_occluders(camera_from: Vector3, target_point: Vector3) 
 		var actor_scale := actor.global_basis.get_scale()
 		var radius := (DYNAMIC_ACTOR_RADIUS + probe_radius) * maxf(actor_scale.x, actor_scale.z)
 		var actor_center := actor.global_position + Vector3.UP * DYNAMIC_ACTOR_HEIGHT * actor_scale.y * 0.5
-		var depth := (actor_center - camera_from).dot(segment) / length_squared
-		if depth <= 0.005 or depth >= PLAYER_DEPTH_LIMIT:
-			continue
-		var corridor_point := camera_from + segment * depth
 		var actor_bottom := actor.global_position.y - 0.10
 		var actor_top := actor.global_position.y + DYNAMIC_ACTOR_HEIGHT * actor_scale.y
-		if corridor_point.y < actor_bottom - probe_radius or corridor_point.y > actor_top + probe_radius:
-			continue
-		var horizontal_delta := Vector2(corridor_point.x - actor.global_position.x, corridor_point.z - actor.global_position.z)
-		if horizontal_delta.length_squared() > radius * radius:
-			continue
+		var camera_horizontal_delta := Vector2(camera_from.x - actor.global_position.x, camera_from.z - actor.global_position.z)
+		# Collider-free mass actors are absent from the physics overlap query.
+		# Their torso can surround the camera even when their origin is behind it;
+		# in that case fade every body/equipment surface, not just ray-hit pieces.
+		var near_camera := camera_horizontal_delta.length_squared() <= radius * radius and camera_from.y >= actor_bottom - probe_radius and camera_from.y <= actor_top + probe_radius
+		if not near_camera:
+			var depth := (actor_center - camera_from).dot(segment) / length_squared
+			if depth <= 0.005 or depth >= PLAYER_DEPTH_LIMIT:
+				continue
+			var corridor_point := camera_from + segment * depth
+			if corridor_point.y < actor_bottom - probe_radius or corridor_point.y > actor_top + probe_radius:
+				continue
+			var horizontal_delta := Vector2(corridor_point.x - actor.global_position.x, corridor_point.z - actor.global_position.z)
+			if horizontal_delta.length_squared() > radius * radius:
+				continue
 		for visual: GeometryInstance3D in _collider_visuals(actor):
 			if visual != null and is_instance_valid(visual) and visual.is_visible_in_tree() and not _is_ignored_visual(visual):
 				_mark_occluded(visual)
@@ -467,6 +500,7 @@ func _mark_occluded(visual: GeometryInstance3D) -> void:
 			&"transparency": visual.transparency,
 			&"cast_shadow": visual.cast_shadow,
 			&"material_override": visual.material_override,
+			&"material_overlay": visual.material_overlay,
 			&"surface_overrides": [],
 			&"fade_materials": [],
 			&"fade_base_alphas": [],
@@ -484,6 +518,8 @@ func _install_fade_materials(state: Dictionary) -> void:
 	var visual := _state_visual(state)
 	if visual == null:
 		return
+	# Overlays are additional draws and otherwise remain opaque above the fade.
+	visual.material_overlay = null
 	var original_override := visual.material_override
 	if visual is MeshInstance3D and original_override == null:
 		var mesh_instance := visual as MeshInstance3D
@@ -522,7 +558,16 @@ func _make_fade_material(source: Material) -> BaseMaterial3D:
 		fallback.roughness = 1.0
 		fallback.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		material = fallback
+	# A duplicate retains its authored next_pass resource; never let that pass
+	# draw an opaque second layer, or mutate the shared source material.
+	material.next_pass = null
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	# Imported cloth/armor is double-sided. Alpha blending alone leaves its
+	# inward-facing walls covering the view when the camera enters the model.
+	# Only the temporary fade copy is single-sided; restore the authored
+	# material (including double-sided cloth/shield backs) when fading ends.
+	if material.cull_mode == BaseMaterial3D.CULL_DISABLED:
+		material.cull_mode = BaseMaterial3D.CULL_BACK
 	return material
 
 
@@ -542,6 +587,8 @@ func _restore_fade_materials(state: Dictionary) -> void:
 	var visual := _state_visual(state)
 	if visual == null:
 		return
+	if visual.material_overlay == null:
+		visual.material_overlay = state.get(&"material_overlay") as Material
 	var fade_materials := state.get(&"fade_materials", []) as Array
 	if bool(state.get(&"uses_surface_overrides", false)) and visual is MeshInstance3D:
 		var mesh_instance := visual as MeshInstance3D
@@ -742,7 +789,8 @@ func _on_tree_node_removed(node: Node) -> void:
 	if not node is GeometryInstance3D:
 		return
 	_collider_visual_cache.clear()
-	_dynamic_actors.clear()
+	# Transient mesh removals do not invalidate the actor list. The dynamic scan
+	# already prunes freed actors; clearing here starves collider-free V2 bodies.
 	_remove_visual(instance_id, true)
 
 
@@ -759,6 +807,9 @@ func _load_settings() -> void:
 	var config := ConfigFile.new()
 	if config.load(SETTINGS_PATH) != OK:
 		return
+	outline_color = config.get_value("display", "camera_outline_color", DEFAULT_OUTLINE_COLOR)
+	enemy_attack_outline_color = config.get_value("display", "enemy_attack_outline_color", DEFAULT_ENEMY_ATTACK_OUTLINE_COLOR)
+	outline_opacity = clampf(float(config.get_value("display", "camera_outline_opacity", DEFAULT_OUTLINE_OPACITY)), 0.0, 1.0)
 	enabled = bool(config.get_value("display", "camera_occlusion", enabled))
 	occluder_opacity = clampf(float(config.get_value("display", "camera_occlusion_opacity", occluder_opacity)), 0.02, 0.45)
 	probe_radius = clampf(float(config.get_value("display", "camera_occlusion_radius", probe_radius)), 0.10, 1.20)

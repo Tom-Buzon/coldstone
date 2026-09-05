@@ -1,0 +1,25 @@
+extends SceneTree
+const Settings = preload("res://scripts/ui/audio_settings.gd")
+const Fader = preload("res://scripts/camera/camera_occlusion_fader.gd")
+func _initialize() -> void: _run.call_deferred()
+func _run() -> void:
+	var stage := Node3D.new()
+	root.add_child(stage)
+	current_scene = stage
+	var settings := Settings.new()
+	stage.add_child(settings)
+	assert(settings.camera_outline_picker != null)
+	assert(settings.enemy_attack_outline_picker != null)
+	assert(settings.camera_occlusion_sliders.has(&"outline_opacity"))
+	var original_radius := settings.camera_occlusion_radius
+	settings.call("_on_camera_outline_color_changed", Color(0.2,0.4,0.8))
+	settings.call("_on_enemy_attack_outline_color_changed", Color(0.9,0.3,0.1))
+	settings.call("_on_camera_occlusion_slider_changed", 0.35, &"outline_opacity")
+	assert(settings.camera_occlusion_radius == original_radius, "Outline control changed corridor radius")
+	var fader := Fader.new()
+	stage.add_child(fader)
+	assert(fader.outline_color.is_equal_approx(Color(0.2,0.4,0.8)), "Color was not persisted")
+	assert(fader.enemy_attack_outline_color.is_equal_approx(Color(0.9,0.3,0.1)), "Enemy attack color was not persisted")
+	assert(is_equal_approx(fader.outline_opacity, 0.35), "Opacity was not persisted")
+	print("PASS: separate player/enemy outline colors and persistent opacity")
+	quit()

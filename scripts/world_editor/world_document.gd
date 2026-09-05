@@ -315,6 +315,8 @@ func theoretical_mob_count(chapter_id: String = "") -> int:
 			continue
 		if String(value.get("type", "")) == "enemy_group" and bool(value.get("enabled", true)):
 			total += maxi(0, int((value.get("properties", {}) as Dictionary).get("count", 0)))
+			if value.get("properties",{}).get("battlefield_boss",false):
+				for role: String in ["phalanx","infantry","archer"]: total += clampi(int(value.properties.get("boss_guard_"+role,0)),0,48)
 	return total
 
 func warning_limit() -> int:
@@ -350,7 +352,11 @@ func validation_report() -> Dictionary:
 		ids[id] = true
 		var type := String(value.get("type", ""))
 		var properties := value.get("properties", {}) as Dictionary
-		if type == "terrain":
+		if type == "battlefield":
+			if properties.get("mode","armies") not in ["armies","player"]: errors.append("Mode de bataille inconnu : " + id)
+			if properties.get("difficulty","normal") not in ["novice","normal","hard"]: errors.append("Difficulté de bataille inconnue : " + id)
+			if properties.get("activation","start") not in ["start","enter"]: errors.append("Activation de bataille inconnue : " + id)
+		elif type == "terrain":
 			var terrain_chapter := String(value.get("chapter", start_chapter()))
 			terrains_by_chapter[terrain_chapter] = int(terrains_by_chapter.get(terrain_chapter, 0)) + 1
 			var resolution := int(properties.get("resolution", 0))
@@ -380,6 +386,12 @@ func validation_report() -> Dictionary:
 			var entity_chapter := String(value.get("chapter", start_chapter()))
 			player_spawns_by_chapter[entity_chapter] = int(player_spawns_by_chapter.get(entity_chapter, 0)) + 1
 		elif type == "enemy_group":
+			var owner := String(properties.get("battlefield_id",""))
+			if not owner.is_empty():
+				var zone := find_entity(owner)
+				if zone.get("type","") != "battlefield" or zone.get("chapter",start_chapter()) != value.get("chapter",start_chapter()): errors.append("Champ de bataille absent ou dans un autre chapitre : " + owner)
+				for row: Dictionary in properties.get("composition",[{"archetype":properties.get("archetype","")} ]):
+					if not String(row.get("archetype","")).begins_with("enemy_v2_"): errors.append("Une bataille exige des unités V2 : " + id)
 			var group_id := String(properties.get("group_id", ""))
 			if group_id.is_empty():
 				errors.append("Le groupe '%s' n'a pas d'identifiant de groupe." % String(value.get("name", id)))
@@ -388,9 +400,11 @@ func validation_report() -> Dictionary:
 			group_ids[group_id] = true
 			if int(properties.get("count", 0)) <= 0:
 				warnings.append("Le groupe '%s' est vide." % String(value.get("name", id)))
+			if properties.get("battlefield_boss",false):
+				errors.append_array(preload("res://scripts/enemy_v2/battlefield/boss_encounter_validation.gd").check(self,value))
 			var fallback := "start" if bool(properties.get("active_on_start", true)) else "trigger"
 			var spawn_condition := String(properties.get("spawn_condition", fallback))
-			if spawn_condition not in ["start", "trigger", "group_dead", "timer"]:
+			if spawn_condition not in ["start", "trigger", "group_dead", "timer", "battlefield"]:
 				errors.append("La troupe '%s' utilise une condition de spawn inconnue." % String(value.get("name", id)))
 			elif spawn_condition == "trigger" and String(properties.get("spawn_trigger", "")).is_empty():
 				errors.append("La troupe '%s' attend un declencheur non renseigne." % String(value.get("name", id)))
@@ -467,6 +481,21 @@ static func from_json(text: String) -> HopliteWorldDocument:
 	return HopliteWorldDocument.new(parsed as Dictionary)
 
 func _normalize() -> void:
+	# Preserve existing authored populations when retiring the allied doctrine.
+	var migrated: Dictionary = {}
+	for entity: Dictionary in data.get("entities",[]):
+		var p: Dictionary = entity.get("properties",{})
+		if entity.get("type","") == "battlefield" and p.get("ally_doctrine","") == "bodyguard":
+			migrated[entity.id] = true
+			for role: String in ["phalanx","infantry","archer","giant"]:
+				p["escort_"+role] = p.get("ally_"+role,0)
+				p["ally_"+role] = 0
+	for entity: Dictionary in data.get("entities",[]):
+		var p: Dictionary = entity.get("properties",{})
+		if entity.get("type","") == "battlefield":
+			p.erase("ally_doctrine")
+			p.erase("enemy_doctrine")
+		if migrated.has(p.get("battlefield_id","")) and p.get("faction","") == "spartan": p.player_escort = true
 	var source_version := int(data.get("version", 1))
 	data["version"] = source_version
 	data["name"] = String(data.get("name", "Monde sans nom"))

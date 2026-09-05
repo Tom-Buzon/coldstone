@@ -26,6 +26,7 @@ var group_children: Dictionary = {}
 var groups: Dictionary = {}
 var group_ids: Array[StringName] = []
 var total_decision_ticks: int = 0
+var last_update_usec := 0
 var battle_layout: EnemyV2BattleLayoutRuntime = BattleLayoutRuntime.new()
 var impostor_batch: HopliteV2ImpostorBatch
 var debug_overlay_enabled: bool = false
@@ -81,6 +82,7 @@ func register_group(group_id: StringName, members: Array[Node], target: Node3D, 
 			return not children.is_empty()
 	var profile := PhalanxProfile.from_properties(properties) as HopliteV2PhalanxProfile
 	var capabilities := Capabilities.from_properties(properties, mode)
+	capabilities.move_speed *= float(properties.get("v2_move_multiplier",1.0))
 	var persistent := bool(properties.get("v2_persistent_fronts", false))
 	if persistent:
 		profile.advance_speed = capabilities.move_speed
@@ -113,6 +115,7 @@ func register_group(group_id: StringName, members: Array[Node], target: Node3D, 
 	var phase := float(abs(hash(group_id)) % 997) / 997.0
 	var state := {
 		"persistent_fronts": persistent,
+		"bodyguard":bool(properties.get("v2_bodyguard",false)),
 		"capabilities": capabilities,
 		"original_count": valid_members.size(),
 		"last_slot_count": valid_members.size(),
@@ -188,7 +191,8 @@ func unregister_member(group_id: StringName, member: Node) -> void:
 
 
 func _process(delta: float) -> void:
-	threat_budget.call("prune")
+	var started := Time.get_ticks_usec()
+	threat_budget.call("prune_once")
 	for index in range(group_ids.size() - 1, -1, -1):
 		var group_id := group_ids[index]
 		if not groups.has(group_id):
@@ -209,6 +213,7 @@ func _process(delta: float) -> void:
 		state["elapsed"] = fmod(float(state["elapsed"]), interval)
 		_tick_group(group_id, state, elapsed)
 	_tick_debug_overlay(delta)
+	last_update_usec = Time.get_ticks_usec()-started
 
 
 func set_debug_overlay_enabled(enabled: bool) -> void:
@@ -296,7 +301,7 @@ func _tick_debug_overlay(delta: float) -> void:
 		+ "Conflits ancres %d  Attaquants %d  Attaques inversees %d\n" % [snapshot["anchor_conflicts"], snapshot["attackers"], snapshot["wrong_way_attacks"]]
 		+ "Contact %d  Soutien %d  Reserve %d  Approche %d  Escarmouche %d\n" % [roles.get(&"frontline", 0), roles.get(&"support", 0), roles.get(&"reserve", 0), roles.get(&"approach", 0), roles.get(&"skirmish", 0)]
 		+ "Tireurs %d  Geants %d\n" % [roles.get(&"ranged", 0), roles.get(&"giant", 0)]
-		+ "Fronts %d  Menace %d/6\n" % [snapshot["fronts"], snapshot["threat_cost"]]
+		+ "Fronts %d  Coût des attaques actives %d\n" % [snapshot["fronts"], snapshot["threat_cost"]]
 		+ "LOD0 %d  LOD1 %d  LOD2 %d  LOD3 %d  Imposteurs %d" % [lod_counts[0], lod_counts[1], lod_counts[2], lod_counts[3], snapshot["impostors"]]
 	)
 
@@ -339,6 +344,7 @@ func _tick_group(group_id: StringName, state: Dictionary, delta: float) -> void:
 	var right := Vector3.UP.cross(forward).normalized()
 	var cohesion_count := 0
 	var minimum_member_distance := INF
+	var engagement_distance := 10.0 if bool(state.get("bodyguard",false)) else GROUP_ENGAGEMENT_DISTANCE
 	var any_member_engaged := false
 	var engaged_count := 0
 	var close_combat_candidates: Array[Dictionary] = []
@@ -348,9 +354,10 @@ func _tick_group(group_id: StringName, state: Dictionary, delta: float) -> void:
 		if _planar_distance(member.global_position, slot_position) <= profile.cohesion_tolerance:
 			cohesion_count += 1
 		if target != null and is_instance_valid(target):
-			var member_distance := _planar_distance(member.global_position, target.global_position)
+			var personal_target: Node3D = member.combat_target if member.has_meta("v2_encounter") else target
+			var member_distance := _planar_distance(member.global_position, personal_target.global_position) if is_instance_valid(personal_target) else INF
 			minimum_member_distance = minf(minimum_member_distance, member_distance)
-			if member_distance <= GROUP_ENGAGEMENT_DISTANCE:
+			if member_distance <= engagement_distance:
 				close_combat_candidates.append({"id": member.get_instance_id(), "distance": member_distance})
 		if member.has_method("is_phalanx_combat_engaged") and bool(member.call("is_phalanx_combat_engaged")):
 			any_member_engaged = true
@@ -364,9 +371,13 @@ func _tick_group(group_id: StringName, state: Dictionary, delta: float) -> void:
 		close_combat_members.append(int(candidate["id"]))
 	state["cohesion"] = cohesion
 	var now_msec := Time.get_ticks_msec()
-	var local_reaction := _update_breach_state(state, target, anchor, forward, right, now_msec) if not persistent or capabilities.role == &"phalanx" else false
+	var breach_target := target
+	if persistent and battle_layout.records.get(group_id,{}).has("command_assignment"):
+		# Army focus is an abstract group objective, never a physical intruder.
+		breach_target = null
+	var local_reaction := _update_breach_state(state, breach_target, anchor, forward, right, now_msec) if not persistent or capabilities.role == &"phalanx" else false
 	var intrusion := int(state.get("breach_state", BreachState.CLOSED)) in [BreachState.CHANNEL, BreachState.FLANKED]
-	var group_engaged := any_member_engaged or minimum_member_distance <= GROUP_ENGAGEMENT_DISTANCE
+	var group_engaged := any_member_engaged or minimum_member_distance <= engagement_distance
 	state["intrusion"] = intrusion
 	state["group_engaged"] = group_engaged
 	var anchor_goal := anchor
@@ -384,9 +395,13 @@ func _tick_group(group_id: StringName, state: Dictionary, delta: float) -> void:
 	var stop_for_combat := local_reaction or group_engaged
 	if persistent:
 		stop_for_combat = local_reaction or bool(strategic.get("disorganized", false)) or engaged_count >= maxi(1, ceili(float(members.size()) * 0.4))
+	if persistent and capabilities.role == &"archer" and bool(strategic.get("engage",true)):
+		# A clear firing opportunity takes precedence over chasing a moving formation slot.
+		for i in range(mini(3,members.size())):
+			if members[i].can_accept_phalanx_attack(): stop_for_combat = true; break
 	if stop_for_combat:
 		next_state = PhalanxState.ENGAGE
-	elif cohesion < profile.minimum_cohesion_ratio:
+	elif cohesion < profile.minimum_cohesion_ratio and float(state.get("recovery_wait",0.0))<2.0:
 		next_state = PhalanxState.RECOVER if int(state["decision_ticks"]) > 6 else PhalanxState.ASSEMBLE
 	elif anchor_error > profile.target_distance_hysteresis:
 		next_state = PhalanxState.ADVANCE
@@ -394,6 +409,8 @@ func _tick_group(group_id: StringName, state: Dictionary, delta: float) -> void:
 		next_state = PhalanxState.ENGAGE
 	else:
 		next_state = PhalanxState.HOLD
+	if persistent and battle_layout.records.get(group_id,{}).has("command_assignment"):
+		state["recovery_wait"] = float(state.get("recovery_wait",0.0))+delta if cohesion < profile.minimum_cohesion_ratio and not stop_for_combat else 0.0
 	state["state"] = next_state
 	if next_state == PhalanxState.ADVANCE and not local_reaction and target != null and is_instance_valid(target):
 		var anchor_direction := _planar_direction(anchor, anchor_goal, forward)
@@ -440,8 +457,21 @@ func _tick_group(group_id: StringName, state: Dictionary, delta: float) -> void:
 		# reaction from walking or striking backwards after the player crosses a line.
 		if target != null and is_instance_valid(target) and (close_combat_members.has(member_id) or leases.has(member_id)):
 			member_facing = _planar_direction(member.global_position, target.global_position, member_facing)
+		if member.has_meta("v2_encounter") and capabilities.role in [&"phalanx",&"infantry"] and not state.has("manual_order"):
+			var opponent: Node3D = member.combat_target
+			if is_instance_valid(opponent) and opponent is HopliteEnemyActorV2 and not opponent.dead and member.global_position.distance_squared_to(opponent.global_position)<100.0:
+				var approach := member.global_position-opponent.global_position
+				approach.y = 0
+				if approach.length_squared()<0.01: approach = -forward
+				var contact := opponent.global_position+approach.normalized()*1.8
+				# Rear ranks close nearby fights instead of waiting at empty formation slots.
+				slot_position = slot_position.move_toward(contact,6.0)
 		if persistent and terrain_height_sampler.is_valid():
 			slot_position.y = float(terrain_height_sampler.call(slot_position))
+		if member.has_meta("v2_encounter") and is_instance_valid(member.combat_target):
+			member_facing = _planar_direction(member.global_position,member.combat_target.global_position,member_facing)
+		if persistent and member.has_meta("v2_encounter") and member.simulation_lod_level >= 3:
+			slot_position = member.global_position.move_toward(slot_position,member.effective_move_speed()*delta)
 		member.call(
 			"set_phalanx_intent",
 			slot_position,
@@ -473,31 +503,51 @@ func _update_attack_leases(state: Dictionary, delta: float, engaging: bool, elig
 	var profile := state["profile"] as HopliteV2PhalanxProfile
 	var front_rank: Array = eligible_override if not eligible_override.is_empty() else state["front_rank"] as Array
 	var members := state["members"] as Array
-	if front_rank.is_empty() or leases.size() >= profile.max_concurrent_attacks:
+	if front_rank.is_empty():
 		return
 	var members_by_id: Dictionary = {}
 	for member: Node3D in members:
 		members_by_id[member.get_instance_id()] = member
+	var limited_leases := 0
+	for leased_id: Variant in leases:
+		var leased_member: Node3D = members_by_id.get(leased_id)
+		if leased_member == null or not _uses_npc_attack_budget(state, leased_member):
+			limited_leases += 1
 	var attempts := 0
-	while leases.size() < profile.max_concurrent_attacks and attempts < front_rank.size():
+	while attempts < front_rank.size():
 		var cursor := int(state["attack_cursor"]) % front_rank.size()
 		var member_id := int(front_rank[cursor])
 		state["attack_cursor"] = (cursor + 1) % front_rank.size()
 		attempts += 1
 		if leases.has(member_id) or not members_by_id.has(member_id):
 			continue
-		var member := members_by_id[member_id] as Node
+		var member := members_by_id[member_id] as Node3D
+		var npc_attack := _uses_npc_attack_budget(state, member)
+		if not npc_attack and limited_leases >= profile.max_concurrent_attacks:
+			continue
 		if member.has_method("can_accept_phalanx_attack") and bool(member.call("can_accept_phalanx_attack")):
 			var duration := profile.attack_permission_seconds
 			if bool(state.get("persistent_fronts", false)):
 				var cap: EnemyV2UnitCapabilities = state["capabilities"]
-				var target: Node3D = state.get("target")
+				var target: Node3D = member.combat_target if member.has_meta("v2_encounter") else state.get("target")
 				var combat: Node = member.get("combat")
 				if combat != null and combat.has_method("attack_budget_seconds"):
 					duration = maxf(duration, float(combat.call("attack_budget_seconds")))
 				if target == null or not bool(threat_budget.call("request", member, target, cap.threat_kind, cap.threat_cost, duration)):
 					continue
 			leases[member_id] = duration
+			if not npc_attack:
+				limited_leases += 1
+
+	# Rotate priority even when the full eligible rank was visited.
+	state["attack_cursor"] = (int(state["attack_cursor"]) + 1) % front_rank.size()
+
+
+func _uses_npc_attack_budget(state: Dictionary, member: Node3D) -> bool:
+	if not bool(state.get("persistent_fronts", false)):
+		return false
+	var target: Node3D = member.get("combat_target") if member.has_meta("v2_encounter") else state.get("target")
+	return target is HopliteEnemyActorV2
 
 
 func _prune_members(group_id: StringName, state: Dictionary) -> void:
@@ -737,11 +787,13 @@ func is_fire_lane_clear(group_id: StringName, origin: Vector3, destination: Vect
 	if length <= 0.1:
 		return true
 	var direction := segment / length
-	var ids: Array = occupancy.call("nearby_group_ids", (origin + destination) * 0.5, length * 0.5 + 8.0)
+	var ids: Array = occupancy.call("groups_along_segment",origin,destination)
 	for id: Variant in ids:
 		if StringName(id) == group_id or not battle_layout.records.has(id):
 			continue
 		var record: Dictionary = battle_layout.records[id]
+		var own: Dictionary = battle_layout.records.get(group_id,{})
+		if own.has("faction") and record.has("faction") and own.faction != record.faction: continue
 		var offset: Vector3 = record["current_anchor"] - origin
 		var forward: Vector3 = record["forward"]
 		var right := Vector3.UP.cross(forward)
@@ -770,3 +822,10 @@ func is_fire_lane_clear(group_id: StringName, origin: Vector3, destination: Vect
 				continue
 			return false
 	return true
+
+func invalidate_target_permission(actor: Node3D) -> void:
+	# An uncommitted permit against a soldier cannot authorize a strike on the player.
+	var id := actor.get_instance_id()
+	threat_budget.release_if_idle(id)
+	var group: Dictionary = groups.get(actor.phalanx_group_id,{})
+	if not group.is_empty(): group.attack_leases.erase(id)

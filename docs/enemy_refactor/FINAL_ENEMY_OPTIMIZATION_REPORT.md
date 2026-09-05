@@ -1,5 +1,7 @@
 # Rapport final — audit, unification et optimisation des ennemis
 
+> Pour la composition et le commandement **V2 actuels**, commencer par [README.md](README.md). Ce document conserve le contexte de sa passe et ne remplace pas les nouveaux contrats.
+
 Date : 2026-08-26\
 Moteur : Godot 4.7 stable (`5b4e0cb0f`)\
 Renderer de validation : `gl_compatibility`\
