@@ -1,0 +1,17 @@
+{
+  "asset": "bridge_stone_12x6m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    7.231,
+    12.768,
+    4.694
+  ],
+  "triangles_lod0": 140962,
+  "triangles_lod1": 4536,
+  "triangles_lod2": 648,
+  "collision": "deck, two parapets, two end abutments and central-pier proxies",
+  "walkable_width_m": 5.68,
+  "identity": "twelve-meter twin-arch formation bridge with ceremonial lanes, military central pier and Greek-frieze parapets",
+  "textures_packed": true
+}

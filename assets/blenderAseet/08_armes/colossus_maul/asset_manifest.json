@@ -1,0 +1,25 @@
+{
+  "asset": "colossus_maul",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.803,
+    2.508,
+    0.46
+  ],
+  "triangles_lod0": 2934,
+  "triangles_lod1": 380,
+  "triangles_lod2": 216,
+  "collision": "haft box plus oversized head box",
+  "animation_root": "colossus_maul_GRIP_ROOT",
+  "grip_origin_m": [
+    0,
+    0.52,
+    0
+  ],
+  "attack_axis": "-Y",
+  "hands": 2,
+  "identity": "colossus two-hand maul with chipped marble core, dark impact faces, bronze compression bands and dual grips",
+  "textures_packed": true
+}

@@ -1,0 +1,26 @@
+{
+  "asset": "decor_olive_planter",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "cosy_decor",
+  "units": "meters",
+  "dimensions_m": [
+    1.3032,
+    1.3885,
+    2.2484
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 680,
+  "triangles_lod1": 428,
+  "triangles_lod2": 208,
+  "collision": "planter-only cylinder so the light canopy never blocks movement",
+  "forge_collision_enabled": false,
+  "forge_collision_shape": "cylinder",
+  "origin": "center of base",
+  "identity": "terracotta courtyard planter holding a compact windswept olive tree with clustered silver-green foliage",
+  "material_strategy": "shared flat PBR palette",
+  "textures_packed": true,
+  "seed": 240927,
+  "triangles_collision": 36
+}

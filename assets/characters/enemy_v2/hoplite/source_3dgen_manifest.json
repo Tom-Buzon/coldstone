@@ -1,0 +1,717 @@
+{
+  "schema_version": 1,
+  "rig_profile": "spartan_ual1_v1",
+  "bone_count": 53,
+  "body": "character_body.glb",
+  "body_textures": [
+    "textures/054a33cec0b68c16.png",
+    "textures/11b6d005e7d57465.png",
+    "textures/1eb8f8e2158d0b65.png",
+    "textures/218445191a589169.png",
+    "textures/28528b2d34cbdde5.png",
+    "textures/29a0b871f6256a96.png",
+    "textures/40c42509ac8a08b0.png",
+    "textures/49c8b6628b741177.png",
+    "textures/5be8be97968bc726.png",
+    "textures/6e5e557937f5e11c.png",
+    "textures/77eb3c0a7d774b2f.png",
+    "textures/78389fd7b1c31fe6.png",
+    "textures/8fb40e2cf73b74c5.png",
+    "textures/98b61641107f4a36.png",
+    "textures/b6ebd4b722772f42.png",
+    "textures/bf4beb7ce68bbb11.png",
+    "textures/cb11726b577df6e6.png",
+    "textures/cbcdaacc8b8af186.png",
+    "textures/e17f386b96de5328.png",
+    "textures/e2221fae993be353.png",
+    "textures/f9456946a1ffb94e.png",
+    "textures/fd1bdabe143f63cb.png"
+  ],
+  "animations": [],
+  "shared_textures": [
+    {
+      "path": "textures/054a33cec0b68c16.png",
+      "sha256": "054a33cec0b68c161ddd913eee55d6c21beef0aec5df6c48edc3672bf0dc036a",
+      "bytes": 1093978
+    },
+    {
+      "path": "textures/11b6d005e7d57465.png",
+      "sha256": "11b6d005e7d574650421914ac64403aa4e5d0289cdd8f35bd6d92d45044f2c78",
+      "bytes": 1278411
+    },
+    {
+      "path": "textures/1eb8f8e2158d0b65.png",
+      "sha256": "1eb8f8e2158d0b659eb5a05a3234ba6ebc01efbe79935340b338d72767cf1c65",
+      "bytes": 1426208
+    },
+    {
+      "path": "textures/218445191a589169.png",
+      "sha256": "218445191a589169db6fa72c4e86cb0fa49b4f055958c33951650a7b24c04576",
+      "bytes": 676765
+    },
+    {
+      "path": "textures/28528b2d34cbdde5.png",
+      "sha256": "28528b2d34cbdde5bb311308fe749f65e55098ca6f9a12ca807a975ab27392ef",
+      "bytes": 1174821
+    },
+    {
+      "path": "textures/29a0b871f6256a96.png",
+      "sha256": "29a0b871f6256a96b996fae6f45a52e49438f2f81b23b66c63ff135cf822d126",
+      "bytes": 1207487
+    },
+    {
+      "path": "textures/40c42509ac8a08b0.png",
+      "sha256": "40c42509ac8a08b0087c72cd92d87a4f6e72f006ce619fb7234af04b8f5ec341",
+      "bytes": 1580680
+    },
+    {
+      "path": "textures/49c8b6628b741177.png",
+      "sha256": "49c8b6628b741177cce663cdedcf69263fc7a8b04b8a5c910ba1a43394404962",
+      "bytes": 980531
+    },
+    {
+      "path": "textures/5be8be97968bc726.png",
+      "sha256": "5be8be97968bc726a4404e569ad8023fa8f1bba54612a72500f228bdc599c7b6",
+      "bytes": 167579
+    },
+    {
+      "path": "textures/6e5e557937f5e11c.png",
+      "sha256": "6e5e557937f5e11c38e1325f1fb299dc82ad81fef3519af49120fad5eea5843e",
+      "bytes": 289128
+    },
+    {
+      "path": "textures/77eb3c0a7d774b2f.png",
+      "sha256": "77eb3c0a7d774b2fd2aa5b3ba3cfcd3452b9750abc1daaeec15f02fb088eeef7",
+      "bytes": 1042120
+    },
+    {
+      "path": "textures/78389fd7b1c31fe6.png",
+      "sha256": "78389fd7b1c31fe6e018d22c059964d72ab256ee783cf5dfb63d217a208e3417",
+      "bytes": 246664
+    },
+    {
+      "path": "textures/8fb40e2cf73b74c5.png",
+      "sha256": "8fb40e2cf73b74c56ffbf65fe3ba8fae3ff8e46ff4c5d3436cb8fcc52053c773",
+      "bytes": 892407
+    },
+    {
+      "path": "textures/98b61641107f4a36.png",
+      "sha256": "98b61641107f4a3677a21e716e8bb7bab7675290ef804c2e492658401817f168",
+      "bytes": 65817
+    },
+    {
+      "path": "textures/b6ebd4b722772f42.png",
+      "sha256": "b6ebd4b722772f427bbaf3f198edf662217e6605c1374df11df304f94068d822",
+      "bytes": 1274103
+    },
+    {
+      "path": "textures/bf4beb7ce68bbb11.png",
+      "sha256": "bf4beb7ce68bbb1197c5e4dea4fcf17a96a8f068d9f5ffe30742e1507792be19",
+      "bytes": 997733
+    },
+    {
+      "path": "textures/cb11726b577df6e6.png",
+      "sha256": "cb11726b577df6e6cdf128d608dfd22eec50b668003c9fbbe2d05383b8266712",
+      "bytes": 1195654
+    },
+    {
+      "path": "textures/cbcdaacc8b8af186.png",
+      "sha256": "cbcdaacc8b8af186e1117a9f43b54d59e04c486077559c717677c7a739b3cab3",
+      "bytes": 188356
+    },
+    {
+      "path": "textures/e17f386b96de5328.png",
+      "sha256": "e17f386b96de5328ea95f0e55ae6adb8342a4783274734b165afbc8dda5eb8cf",
+      "bytes": 415674
+    },
+    {
+      "path": "textures/e2221fae993be353.png",
+      "sha256": "e2221fae993be35383c1e56b849c4c681555d8be3c4f479bbb135e11ad9bc980",
+      "bytes": 1593717
+    },
+    {
+      "path": "textures/f9456946a1ffb94e.png",
+      "sha256": "f9456946a1ffb94e0a9803620dcab40c5382f21cbd1eed16d55ac9dbe132e27d",
+      "bytes": 425484
+    },
+    {
+      "path": "textures/fd1bdabe143f63cb.png",
+      "sha256": "fd1bdabe143f63cbd6474f9190e5e837ba25e5d75f8089bd6ae6d294065df1df",
+      "bytes": 1796189
+    }
+  ],
+  "zone_attribute": {
+    "semantic": "TEXCOORD_2",
+    "channel": "x",
+    "encoding": "float32_zone_id",
+    "values": {
+      "torso": 0,
+      "head": 1,
+      "upper_arm_l": 2,
+      "forearm_l": 3,
+      "upper_arm_r": 4,
+      "forearm_r": 5,
+      "thigh_l": 6,
+      "shin_l": 7,
+      "thigh_r": 8,
+      "shin_r": 9
+    },
+    "vertex_boundary_policy": "corner-domain duplicates prevent interpolation across zone boundaries"
+  },
+  "zones": [
+    {
+      "id": 0,
+      "name": "torso",
+      "root_bone": "DEF-hips",
+      "descendants": [],
+      "triangles": 18063,
+      "body_cap": null
+    },
+    {
+      "id": 1,
+      "name": "head",
+      "root_bone": "DEF-head",
+      "descendants": [],
+      "triangles": 5008,
+      "body_cap": "SPARTAN_gore_cap_head_body"
+    },
+    {
+      "id": 2,
+      "name": "upper_arm_l",
+      "root_bone": "DEF-upper_arm.L",
+      "descendants": [
+        "forearm_l"
+      ],
+      "triangles": 684,
+      "body_cap": "SPARTAN_gore_cap_upper_arm_l_body"
+    },
+    {
+      "id": 3,
+      "name": "forearm_l",
+      "root_bone": "DEF-forearm.L",
+      "descendants": [],
+      "triangles": 4362,
+      "body_cap": "SPARTAN_gore_cap_forearm_l_body"
+    },
+    {
+      "id": 4,
+      "name": "upper_arm_r",
+      "root_bone": "DEF-upper_arm.R",
+      "descendants": [
+        "forearm_r"
+      ],
+      "triangles": 603,
+      "body_cap": "SPARTAN_gore_cap_upper_arm_r_body"
+    },
+    {
+      "id": 5,
+      "name": "forearm_r",
+      "root_bone": "DEF-forearm.R",
+      "descendants": [],
+      "triangles": 4388,
+      "body_cap": "SPARTAN_gore_cap_forearm_r_body"
+    },
+    {
+      "id": 6,
+      "name": "thigh_l",
+      "root_bone": "DEF-thigh.L",
+      "descendants": [
+        "shin_l"
+      ],
+      "triangles": 2019,
+      "body_cap": "SPARTAN_gore_cap_thigh_l_body"
+    },
+    {
+      "id": 7,
+      "name": "shin_l",
+      "root_bone": "DEF-shin.L",
+      "descendants": [],
+      "triangles": 4260,
+      "body_cap": "SPARTAN_gore_cap_shin_l_body"
+    },
+    {
+      "id": 8,
+      "name": "thigh_r",
+      "root_bone": "DEF-thigh.R",
+      "descendants": [
+        "shin_r"
+      ],
+      "triangles": 1992,
+      "body_cap": "SPARTAN_gore_cap_thigh_r_body"
+    },
+    {
+      "id": 9,
+      "name": "shin_r",
+      "root_bone": "DEF-shin.R",
+      "descendants": [],
+      "triangles": 4262,
+      "body_cap": "SPARTAN_gore_cap_shin_r_body"
+    }
+  ],
+  "fragments": {
+    "head": {
+      "path": "fragments/head.glb",
+      "zone_id": 1,
+      "included_zones": [
+        "head"
+      ],
+      "descendants": [],
+      "pivot": {
+        "position": [
+          -0.0,
+          -0.0051,
+          1.5687
+        ],
+        "normal": [
+          0.0,
+          -0.032517,
+          0.999471
+        ]
+      },
+      "cap": {
+        "side": "limb",
+        "radius": 0.15
+      },
+      "collision": {
+        "shape": "sphere",
+        "radius": 0.217898,
+        "length": 0.34212
+      },
+      "mass_kg": 5.0,
+      "skeleton": [],
+      "weights": {
+        "unweighted": 0,
+        "max_influences": 0
+      },
+      "rig_profile": "spartan_ual1_v1",
+      "textures": [
+        "textures/11b6d005e7d57465.png",
+        "textures/1eb8f8e2158d0b65.png",
+        "textures/218445191a589169.png",
+        "textures/29a0b871f6256a96.png",
+        "textures/40c42509ac8a08b0.png",
+        "textures/49c8b6628b741177.png",
+        "textures/5be8be97968bc726.png",
+        "textures/78389fd7b1c31fe6.png",
+        "textures/98b61641107f4a36.png",
+        "textures/b6ebd4b722772f42.png",
+        "textures/bf4beb7ce68bbb11.png",
+        "textures/cbcdaacc8b8af186.png",
+        "textures/e17f386b96de5328.png",
+        "textures/f9456946a1ffb94e.png",
+        "textures/fd1bdabe143f63cb.png"
+      ]
+    },
+    "upper_arm_l": {
+      "path": "fragments/upper_arm_l.glb",
+      "zone_id": 2,
+      "included_zones": [
+        "upper_arm_l",
+        "forearm_l"
+      ],
+      "descendants": [
+        "forearm_l"
+      ],
+      "pivot": {
+        "position": [
+          0.1919,
+          0.0654,
+          1.440801
+        ],
+        "normal": [
+          0.999853,
+          0.017125,
+          0.0
+        ]
+      },
+      "cap": {
+        "side": "limb",
+        "radius": 0.16
+      },
+      "collision": {
+        "shape": "capsule",
+        "radius": 0.091176,
+        "length": 0.774976
+      },
+      "mass_kg": 4.5,
+      "skeleton": [
+        "DEF-upper_arm.L",
+        "DEF-forearm.L"
+      ],
+      "weights": {
+        "unweighted": 0,
+        "max_influences": 2
+      },
+      "rig_profile": "spartan_ual1_v1",
+      "textures": [
+        "textures/28528b2d34cbdde5.png",
+        "textures/40c42509ac8a08b0.png",
+        "textures/6e5e557937f5e11c.png",
+        "textures/77eb3c0a7d774b2f.png",
+        "textures/8fb40e2cf73b74c5.png",
+        "textures/b6ebd4b722772f42.png",
+        "textures/cb11726b577df6e6.png",
+        "textures/e2221fae993be353.png",
+        "textures/fd1bdabe143f63cb.png"
+      ]
+    },
+    "forearm_l": {
+      "path": "fragments/forearm_l.glb",
+      "zone_id": 3,
+      "included_zones": [
+        "forearm_l"
+      ],
+      "descendants": [],
+      "pivot": {
+        "position": [
+          0.4663,
+          0.0701,
+          1.440801
+        ],
+        "normal": [
+          0.999851,
+          -0.017239,
+          0.0
+        ]
+      },
+      "cap": {
+        "side": "limb",
+        "radius": 0.14
+      },
+      "collision": {
+        "shape": "capsule",
+        "radius": 0.079181,
+        "length": 0.474849
+      },
+      "mass_kg": 2.5,
+      "skeleton": [],
+      "weights": {
+        "unweighted": 0,
+        "max_influences": 0
+      },
+      "rig_profile": "spartan_ual1_v1",
+      "textures": [
+        "textures/28528b2d34cbdde5.png",
+        "textures/40c42509ac8a08b0.png",
+        "textures/6e5e557937f5e11c.png",
+        "textures/77eb3c0a7d774b2f.png",
+        "textures/8fb40e2cf73b74c5.png",
+        "textures/b6ebd4b722772f42.png",
+        "textures/cb11726b577df6e6.png",
+        "textures/e2221fae993be353.png",
+        "textures/fd1bdabe143f63cb.png"
+      ]
+    },
+    "upper_arm_r": {
+      "path": "fragments/upper_arm_r.glb",
+      "zone_id": 4,
+      "included_zones": [
+        "upper_arm_r",
+        "forearm_r"
+      ],
+      "descendants": [
+        "forearm_r"
+      ],
+      "pivot": {
+        "position": [
+          -0.1919,
+          0.0654,
+          1.440801
+        ],
+        "normal": [
+          -0.999853,
+          0.017126,
+          0.0
+        ]
+      },
+      "cap": {
+        "side": "limb",
+        "radius": 0.16
+      },
+      "collision": {
+        "shape": "capsule",
+        "radius": 0.091329,
+        "length": 0.751865
+      },
+      "mass_kg": 4.5,
+      "skeleton": [
+        "DEF-upper_arm.R",
+        "DEF-forearm.R"
+      ],
+      "weights": {
+        "unweighted": 0,
+        "max_influences": 2
+      },
+      "rig_profile": "spartan_ual1_v1",
+      "textures": [
+        "textures/28528b2d34cbdde5.png",
+        "textures/40c42509ac8a08b0.png",
+        "textures/6e5e557937f5e11c.png",
+        "textures/77eb3c0a7d774b2f.png",
+        "textures/8fb40e2cf73b74c5.png",
+        "textures/b6ebd4b722772f42.png",
+        "textures/cb11726b577df6e6.png",
+        "textures/e2221fae993be353.png",
+        "textures/fd1bdabe143f63cb.png"
+      ]
+    },
+    "forearm_r": {
+      "path": "fragments/forearm_r.glb",
+      "zone_id": 5,
+      "included_zones": [
+        "forearm_r"
+      ],
+      "descendants": [],
+      "pivot": {
+        "position": [
+          -0.4663,
+          0.0701,
+          1.440801
+        ],
+        "normal": [
+          -0.999851,
+          -0.017239,
+          0.0
+        ]
+      },
+      "cap": {
+        "side": "limb",
+        "radius": 0.14
+      },
+      "collision": {
+        "shape": "capsule",
+        "radius": 0.079439,
+        "length": 0.472788
+      },
+      "mass_kg": 2.5,
+      "skeleton": [],
+      "weights": {
+        "unweighted": 0,
+        "max_influences": 0
+      },
+      "rig_profile": "spartan_ual1_v1",
+      "textures": [
+        "textures/28528b2d34cbdde5.png",
+        "textures/40c42509ac8a08b0.png",
+        "textures/6e5e557937f5e11c.png",
+        "textures/77eb3c0a7d774b2f.png",
+        "textures/8fb40e2cf73b74c5.png",
+        "textures/b6ebd4b722772f42.png",
+        "textures/cb11726b577df6e6.png",
+        "textures/e2221fae993be353.png",
+        "textures/fd1bdabe143f63cb.png"
+      ]
+    },
+    "thigh_l": {
+      "path": "fragments/thigh_l.glb",
+      "zone_id": 6,
+      "included_zones": [
+        "thigh_l",
+        "shin_l"
+      ],
+      "descendants": [
+        "shin_l"
+      ],
+      "pivot": {
+        "position": [
+          0.089,
+          -0.0014,
+          0.9321
+        ],
+        "normal": [
+          0.0,
+          0.006995,
+          -0.999975
+        ]
+      },
+      "cap": {
+        "side": "limb",
+        "radius": 0.21
+      },
+      "collision": {
+        "shape": "capsule",
+        "radius": 0.160403,
+        "length": 0.966683
+      },
+      "mass_kg": 8.0,
+      "skeleton": [
+        "DEF-thigh.L",
+        "DEF-shin.L"
+      ],
+      "weights": {
+        "unweighted": 0,
+        "max_influences": 2
+      },
+      "rig_profile": "spartan_ual1_v1",
+      "textures": [
+        "textures/28528b2d34cbdde5.png",
+        "textures/40c42509ac8a08b0.png",
+        "textures/6e5e557937f5e11c.png",
+        "textures/77eb3c0a7d774b2f.png",
+        "textures/8fb40e2cf73b74c5.png",
+        "textures/b6ebd4b722772f42.png",
+        "textures/cb11726b577df6e6.png",
+        "textures/e2221fae993be353.png",
+        "textures/fd1bdabe143f63cb.png"
+      ]
+    },
+    "shin_l": {
+      "path": "fragments/shin_l.glb",
+      "zone_id": 7,
+      "included_zones": [
+        "shin_l"
+      ],
+      "descendants": [],
+      "pivot": {
+        "position": [
+          0.089,
+          0.0014,
+          0.5318
+        ],
+        "normal": [
+          0.0,
+          0.080097,
+          -0.996787
+        ]
+      },
+      "cap": {
+        "side": "limb",
+        "radius": 0.18
+      },
+      "collision": {
+        "shape": "capsule",
+        "radius": 0.115995,
+        "length": 0.540896
+      },
+      "mass_kg": 5.0,
+      "skeleton": [],
+      "weights": {
+        "unweighted": 0,
+        "max_influences": 0
+      },
+      "rig_profile": "spartan_ual1_v1",
+      "textures": [
+        "textures/28528b2d34cbdde5.png",
+        "textures/40c42509ac8a08b0.png",
+        "textures/6e5e557937f5e11c.png",
+        "textures/77eb3c0a7d774b2f.png",
+        "textures/8fb40e2cf73b74c5.png",
+        "textures/b6ebd4b722772f42.png",
+        "textures/cb11726b577df6e6.png",
+        "textures/e2221fae993be353.png",
+        "textures/fd1bdabe143f63cb.png"
+      ]
+    },
+    "thigh_r": {
+      "path": "fragments/thigh_r.glb",
+      "zone_id": 8,
+      "included_zones": [
+        "thigh_r",
+        "shin_r"
+      ],
+      "descendants": [
+        "shin_r"
+      ],
+      "pivot": {
+        "position": [
+          -0.089,
+          -0.0014,
+          0.9321
+        ],
+        "normal": [
+          0.0,
+          0.006995,
+          -0.999976
+        ]
+      },
+      "cap": {
+        "side": "limb",
+        "radius": 0.21
+      },
+      "collision": {
+        "shape": "capsule",
+        "radius": 0.162531,
+        "length": 0.965326
+      },
+      "mass_kg": 8.0,
+      "skeleton": [
+        "DEF-thigh.R",
+        "DEF-shin.R"
+      ],
+      "weights": {
+        "unweighted": 0,
+        "max_influences": 2
+      },
+      "rig_profile": "spartan_ual1_v1",
+      "textures": [
+        "textures/28528b2d34cbdde5.png",
+        "textures/40c42509ac8a08b0.png",
+        "textures/6e5e557937f5e11c.png",
+        "textures/77eb3c0a7d774b2f.png",
+        "textures/8fb40e2cf73b74c5.png",
+        "textures/b6ebd4b722772f42.png",
+        "textures/cb11726b577df6e6.png",
+        "textures/e2221fae993be353.png",
+        "textures/fd1bdabe143f63cb.png"
+      ]
+    },
+    "shin_r": {
+      "path": "fragments/shin_r.glb",
+      "zone_id": 9,
+      "included_zones": [
+        "shin_r"
+      ],
+      "descendants": [],
+      "pivot": {
+        "position": [
+          -0.089,
+          0.0014,
+          0.5318
+        ],
+        "normal": [
+          0.0,
+          0.080097,
+          -0.996787
+        ]
+      },
+      "cap": {
+        "side": "limb",
+        "radius": 0.18
+      },
+      "collision": {
+        "shape": "capsule",
+        "radius": 0.116697,
+        "length": 0.550369
+      },
+      "mass_kg": 5.0,
+      "skeleton": [],
+      "weights": {
+        "unweighted": 0,
+        "max_influences": 0
+      },
+      "rig_profile": "spartan_ual1_v1",
+      "textures": [
+        "textures/28528b2d34cbdde5.png",
+        "textures/40c42509ac8a08b0.png",
+        "textures/6e5e557937f5e11c.png",
+        "textures/77eb3c0a7d774b2f.png",
+        "textures/8fb40e2cf73b74c5.png",
+        "textures/b6ebd4b722772f42.png",
+        "textures/cb11726b577df6e6.png",
+        "textures/e2221fae993be353.png",
+        "textures/fd1bdabe143f63cb.png"
+      ]
+    }
+  },
+  "source_asset_id": "145",
+  "source_hash": "e8cf9c86c20b8d01711740ff314700f5842c4d388346647bf50b921c70400199",
+  "generator_version": "3dgen-spartan-2.0",
+  "weight_contract": {
+    "unweighted": 0,
+    "max_influences": 4
+  },
+  "zone_assignment_validation": {
+    "faces": 45641,
+    "assigned_once": true
+  }
+}

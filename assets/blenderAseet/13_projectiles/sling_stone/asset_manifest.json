@@ -1,0 +1,20 @@
+{
+  "asset": "sling_stone",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.162,
+    0.256,
+    0.135
+  ],
+  "triangles_lod0": 1432,
+  "triangles_lod1": 80,
+  "triangles_lod2": 20,
+  "collision": "single low-poly convex ellipsoid",
+  "projectile_root": "sling_stone_PROJECTILE_ROOT",
+  "projectile_axis": "-Y",
+  "mass_hint_kg": 0.085,
+  "identity": "hand-shaped biconical river-stone sling bullet with a flat pouch seat, hand-pecked surface, one embedded side chip and restrained red-ochre lambda ownership mark",
+  "textures_packed": true
+}

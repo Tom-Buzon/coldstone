@@ -1,0 +1,17 @@
+{
+  "asset": "parapet_combat_corner_inner",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    2.639,
+    2.634,
+    1.373
+  ],
+  "triangles_lod0": 7472,
+  "triangles_lod1": 540,
+  "triangles_lod2": 216,
+  "collision": "two L-wall and two quadrant firing-step proxies",
+  "origin": "corner pivot",
+  "identity": "concave combat corner with joined defender steps and command roundel",
+  "textures_packed": true
+}

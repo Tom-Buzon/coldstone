@@ -1,0 +1,26 @@
+{
+  "asset": "battle_standard_bronze_sun",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "battlefield",
+  "units": "meters",
+  "dimensions_m": [
+    1.46,
+    0.5,
+    4.945
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 922,
+  "triangles_lod1": 530,
+  "triangles_lod2": 148,
+  "triangles_collision": 28,
+  "collision": "slender cylinder around the planted pole; disabled in Forge to preserve crowd flow",
+  "forge_collision_enabled": false,
+  "forge_collision_shape": "cylinder",
+  "origin": "center of base",
+  "identity": "ceremonial bronze sun standard with helmet core, spear finial and paired crimson ribbons",
+  "material_strategy": "shared flat PBR battlefield palette",
+  "textures_packed": true,
+  "seed": 260828
+}

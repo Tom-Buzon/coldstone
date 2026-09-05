@@ -1,0 +1,19 @@
+{
+  "asset": "shield_barricade_corner",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.985,
+    2.962,
+    1.048
+  ],
+  "triangles_lod0": 9024,
+  "triangles_lod1": 360,
+  "triangles_lod2": 216,
+  "collision": "two simple perpendicular cover boxes",
+  "cover_height_m": 1.1,
+  "formation_gap_recommendation_m": 4.0,
+  "identity": "right-angle shield barricade with two overlapping aspis ranks, continuous timber rails, alternating elite colors and a reinforced inside corner",
+  "textures_packed": true
+}

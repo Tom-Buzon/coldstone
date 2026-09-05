@@ -1,0 +1,20 @@
+{
+  "asset": "greek_house_arcade",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    7.082,
+    3.456,
+    4.166
+  ],
+  "triangles_lod0": 28080,
+  "triangles_lod1": 756,
+  "triangles_lod2": 756,
+  "collision": "four piers, upper band, rear wall and roof slab; three bays stay free",
+  "occluder": "rear wall only",
+  "open_bays": 3,
+  "walkable_roof": true,
+  "identity": "three-bay Greek domestic arcade with dressed arches, shaded paved porch, niches and terracotta walkable roof",
+  "textures_packed": true
+}

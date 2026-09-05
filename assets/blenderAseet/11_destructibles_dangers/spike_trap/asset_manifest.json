@@ -1,0 +1,24 @@
+{
+  "asset": "spike_trap",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.365,
+    2.613,
+    0.97
+  ],
+  "triangles_lod0": 4116,
+  "triangles_lod1": 216,
+  "collision": "four static kerb boxes; central rack handled as animated hazard",
+  "danger_type": "spikes",
+  "rack_export": "spike_trap_spike_rack.glb",
+  "rack_root": "SpikeRack_ROOT",
+  "rack_travel_m": 0.58,
+  "safe_offset_m": -0.58,
+  "hazard_export": "spike_trap_hazard.glb",
+  "trigger_export": "spike_trap_trigger.glb",
+  "spike_count": 16,
+  "identity": "retractable sixteen-spike floor trap with shared vertical rack, bronze sockets, pressure plates, warning chevrons, inspection hatch and reset lever",
+  "textures_packed": true
+}

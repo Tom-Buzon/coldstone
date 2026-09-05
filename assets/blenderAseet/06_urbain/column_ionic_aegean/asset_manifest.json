@@ -1,0 +1,26 @@
+{
+  "asset": "column_ionic_aegean",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "greek_columns",
+  "units": "meters",
+  "dimensions_m": [
+    1.27,
+    1.18,
+    4.31
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 1748,
+  "triangles_lod1": 732,
+  "triangles_lod2": 148,
+  "collision": "single coarse cylinder covering shaft and volutes",
+  "forge_collision_enabled": true,
+  "forge_collision_shape": "cylinder",
+  "origin": "center of base",
+  "identity": "slender Ionic column with readable twin volutes, layered circular base and blue Aegean capital accents",
+  "material_strategy": "shared flat PBR palette",
+  "textures_packed": true,
+  "seed": 240927,
+  "triangles_collision": 36
+}

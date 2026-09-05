@@ -1,0 +1,20 @@
+{
+  "asset": "fortress_square_tower_walkable",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    6.87,
+    6.914,
+    8.495
+  ],
+  "triangles_lod0": 99088,
+  "triangles_lod1": 648,
+  "triangles_lod2": 648,
+  "collision": "one square core plus five parapet boxes preserving south access",
+  "occluder": "one square tower box",
+  "walkable_top": true,
+  "access_gap_m": 2.2,
+  "identity": "walkable square fortress tower with marble quoins, arrow slits, banner sockets and south wallwalk access",
+  "textures_packed": true
+}

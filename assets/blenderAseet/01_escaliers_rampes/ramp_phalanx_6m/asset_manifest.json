@@ -1,0 +1,16 @@
+{
+  "asset": "ramp_phalanx_6m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    7.24,
+    9.227,
+    3.687
+  ],
+  "triangles_lod0": 47820,
+  "triangles_lod1": 240,
+  "collision": "single 5.92 m ramp proxy",
+  "origin": "center of base",
+  "identity": "formation ramp with twin marble lanes, shield buttresses and clear six-meter route",
+  "textures_packed": true
+}

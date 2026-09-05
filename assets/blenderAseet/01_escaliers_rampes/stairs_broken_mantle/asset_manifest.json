@@ -1,0 +1,16 @@
+{
+  "asset": "stairs_broken_mantle",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    5.133,
+    6.065,
+    3.069
+  ],
+  "triangles_lod0": 39880,
+  "triangles_lod1": 1620,
+  "collision": "lower ramp, vertical mantle face, upper ramp",
+  "mantle_lip_height_m": 1.75,
+  "identity": "battle-broken stair with a genuine non-walkable rupture and strongly readable mantle lip",
+  "textures_packed": true
+}

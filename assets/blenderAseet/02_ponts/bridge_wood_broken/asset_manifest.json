@@ -1,0 +1,17 @@
+{
+  "asset": "bridge_wood_broken",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    4.108,
+    8.269,
+    2.497
+  ],
+  "triangles_lod0": 13466,
+  "triangles_lod1": 864,
+  "triangles_lod2": 432,
+  "collision": "two isolated deck halves and surviving left rails; the central rupture is intentionally open",
+  "gameplay_gap_m": 2.08,
+  "identity": "fire-damaged field bridge with torn trusses, hanging stringers, exposed splinters and a true impassable central breach",
+  "textures_packed": true
+}

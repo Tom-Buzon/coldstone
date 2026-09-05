@@ -1,0 +1,20 @@
+{
+  "asset": "fortress_round_tower_walkable",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    7.201,
+    7.294,
+    8.426
+  ],
+  "triangles_lod0": 50352,
+  "triangles_lod1": 1892,
+  "triangles_lod2": 1748,
+  "collision": "one 32-sided tower core plus segmented circular parapet boxes",
+  "occluder": "one 20-sided cylinder",
+  "walkable_top": true,
+  "access_gap_m": 2.25,
+  "identity": "walkable round fortress tower with radial ashlar, arrow slits, shield boss and south wallwalk socket",
+  "textures_packed": true
+}

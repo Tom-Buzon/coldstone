@@ -1,0 +1,20 @@
+{
+  "asset": "archer_platform_access_ramp",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.985,
+    8.061,
+    4.664
+  ],
+  "triangles_lod0": 5084,
+  "triangles_lod1": 8,
+  "triangles_lod2": 8,
+  "collision": "single clean four-metre wedge",
+  "walkable": true,
+  "identity": "eight-metre timber archer access ramp with settled planks, trestles, rails and four-metre socket",
+  "textures_packed": true,
+  "walkable_width_m": 1.76,
+  "landing_height_m": 4.0
+}

@@ -1,0 +1,71 @@
+{
+  "collection": "cosy_greek_collection",
+  "status": "PASS",
+  "asset_count": 9,
+  "seed": 240927,
+  "assets": [
+    {
+      "asset": "column_doric_weathered",
+      "family": "greek_columns",
+      "triangles_lod0": 1028,
+      "materials": 3,
+      "manifest": "greek_columns\\column_doric_weathered\\asset_manifest.json"
+    },
+    {
+      "asset": "column_ionic_aegean",
+      "family": "greek_columns",
+      "triangles_lod0": 1748,
+      "materials": 2,
+      "manifest": "greek_columns\\column_ionic_aegean\\asset_manifest.json"
+    },
+    {
+      "asset": "column_corinthian_garden",
+      "family": "greek_columns",
+      "triangles_lod0": 2012,
+      "materials": 3,
+      "manifest": "greek_columns\\column_corinthian_garden\\asset_manifest.json"
+    },
+    {
+      "asset": "decor_amphora_cluster",
+      "family": "cosy_decor",
+      "triangles_lod0": 1340,
+      "materials": 3,
+      "manifest": "cosy_decor\\decor_amphora_cluster\\asset_manifest.json"
+    },
+    {
+      "asset": "decor_olive_planter",
+      "family": "cosy_decor",
+      "triangles_lod0": 680,
+      "materials": 4,
+      "manifest": "cosy_decor\\decor_olive_planter\\asset_manifest.json"
+    },
+    {
+      "asset": "decor_courtyard_bench",
+      "family": "cosy_decor",
+      "triangles_lod0": 692,
+      "materials": 4,
+      "manifest": "cosy_decor\\decor_courtyard_bench\\asset_manifest.json"
+    },
+    {
+      "asset": "decor_tripod_brazier",
+      "family": "cosy_decor",
+      "triangles_lod0": 680,
+      "materials": 2,
+      "manifest": "cosy_decor\\decor_tripod_brazier\\asset_manifest.json"
+    },
+    {
+      "asset": "decor_mosaic_roundel",
+      "family": "cosy_decor",
+      "triangles_lod0": 952,
+      "materials": 4,
+      "manifest": "cosy_decor\\decor_mosaic_roundel\\asset_manifest.json"
+    },
+    {
+      "asset": "decor_courtyard_fountain",
+      "family": "cosy_decor",
+      "triangles_lod0": 956,
+      "materials": 4,
+      "manifest": "cosy_decor\\decor_courtyard_fountain\\asset_manifest.json"
+    }
+  ]
+}

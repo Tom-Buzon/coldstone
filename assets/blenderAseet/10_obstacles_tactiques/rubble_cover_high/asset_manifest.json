@@ -1,0 +1,19 @@
+{
+  "asset": "rubble_cover_high",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    3.232,
+    1.167,
+    2.105
+  ],
+  "triangles_lod0": 3174,
+  "triangles_lod1": 216,
+  "triangles_lod2": 108,
+  "collision": "single simple crowd-safe cover box",
+  "cover_height_m": 1.68,
+  "cover_type": "high_mantle",
+  "identity": "high breached-wall cover with jagged teeth, rubble shoulders, split column, half-buried veteran shield, torn standard and structural cracks",
+  "textures_packed": true
+}

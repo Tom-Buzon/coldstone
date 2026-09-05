@@ -1,0 +1,21 @@
+{
+  "asset": "ruin_wallrun_6m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    6.395,
+    1.117,
+    2.637
+  ],
+  "triangles_lod0": 19488,
+  "triangles_lod1": 108,
+  "triangles_lod2": 108,
+  "collision": "single continuous wall box",
+  "wallrun_band_z_m": [
+    0.48,
+    2.1
+  ],
+  "maximum_visual_relief_m": 0.039,
+  "identity": "six-meter continuous wallrun ruin with flush marble veneer, faded runner fresco and snag-free collision",
+  "textures_packed": true
+}

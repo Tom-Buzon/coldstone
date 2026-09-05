@@ -1,0 +1,24 @@
+{
+  "asset": "stairs_stone_narrow_2m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.483,
+    4.424,
+    2.146
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 28640,
+  "triangles_lod1": 3888,
+  "collision": "single ramp proxy",
+  "origin": "center of base",
+  "passes": [
+    "gameplay blockout",
+    "architecture/forms",
+    "materials/story",
+    "LOD/collision/export"
+  ],
+  "textures_packed": true
+}

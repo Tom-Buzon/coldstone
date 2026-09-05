@@ -1,0 +1,20 @@
+{
+  "asset": "archer_platform_low_2m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    4.6,
+    3.481,
+    3.312
+  ],
+  "triangles_lod0": 11520,
+  "triangles_lod1": 324,
+  "triangles_lod2": 324,
+  "collision": "clean deck/support primitives",
+  "walkable": true,
+  "identity": "two-metre stone archer perch with cedar deck, firing screen and bronze ladder",
+  "textures_packed": true,
+  "deck_height_m": 2.0,
+  "rear_access_width_m": 1.82
+}

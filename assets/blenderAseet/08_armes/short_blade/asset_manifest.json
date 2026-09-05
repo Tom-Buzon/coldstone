@@ -1,0 +1,24 @@
+{
+  "asset": "short_blade",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.252,
+    1.049,
+    0.18
+  ],
+  "triangles_lod0": 1472,
+  "triangles_lod1": 244,
+  "triangles_lod2": 188,
+  "collision": "blade box plus grip box",
+  "animation_root": "short_blade_GRIP_ROOT",
+  "grip_origin_m": [
+    0,
+    0.085,
+    0
+  ],
+  "blade_axis": "-Y",
+  "identity": "compact symmetrical Greek leaf dagger with double polished edge, bronze fuller, bone scales and disc pommel",
+  "textures_packed": true
+}

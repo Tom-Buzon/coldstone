@@ -1,0 +1,100 @@
+{
+  "schema_version": 2,
+  "package_id": "hoplite_v2",
+  "source_kind": "3dgen",
+  "compatible_archetypes": ["ngeneral", "ngeneral_veteran"],
+  "runtime_status": "forge_lab_atlased_body_animation_equipment_combat_dismemberment_runtime_lods_ready",
+  "migration_ready": false,
+  "blockers": [
+    "bone-branch masking is connected; exact TEXCOORD_2 shader masking still needs visual validation for all nine zones",
+    "combat AI and phalanx parity are not validated",
+    "V1 versus V2 crowd benchmark is not validated"
+  ],
+  "rig": {
+    "id": "spartan_enemy_v2_23",
+    "bone_count": 23,
+    "finger_bones": 0,
+    "maximum_influences": 4
+  },
+  "body": {
+    "path": "res://assets/characters/enemy_v2/hoplite/atlased/lods/hoplite_body_lod0_22k_atlas.gltf",
+    "mesh_name": "SPARTAN_character_body",
+    "triangles": 22820,
+    "material_surfaces": 2,
+    "shared_texture_count": 3,
+    "role": "runtime_lod0"
+  },
+  "lods": {
+    "strategy": "three meshes bound to one shared 23-bone skeleton; runtime distances and culling follow the global enemy LOD profile",
+    "fade_margin_m": 2.0,
+    "levels": [
+      {
+        "level": 0,
+        "path": "res://assets/characters/enemy_v2/hoplite/atlased/lods/hoplite_body_lod0_22k_atlas.gltf",
+        "triangles": 22820,
+        "begin_m": 0.0,
+        "end_m": 20.0
+      },
+      {
+        "level": 1,
+        "path": "res://assets/characters/enemy_v2/hoplite/atlased/lods/hoplite_body_lod1_8k_atlas.gltf",
+        "triangles": 8127,
+        "begin_m": 20.0,
+        "end_m": 55.0
+      },
+      {
+        "level": 2,
+        "path": "res://assets/characters/enemy_v2/hoplite/atlased/lods/hoplite_body_lod2_2k_atlas.gltf",
+        "triangles": 2560,
+        "begin_m": 55.0,
+        "end_m": 0.0
+      }
+    ]
+  },
+  "animations": {
+    "library": "res://assets/animations/enemy_v2/hoplite/hoplite_v2_animation_library.res",
+    "report": "res://assets/animations/enemy_v2/hoplite/hoplite_v2_animation_library.report.json"
+  },
+  "zone_attribute": {
+    "semantic": "TEXCOORD_2",
+    "channel": "x",
+    "encoding": "float32_zone_id"
+  },
+  "zones": {
+    "torso": 0,
+    "head": 1,
+    "upper_arm_l": 2,
+    "forearm_l": 3,
+    "upper_arm_r": 4,
+    "forearm_r": 5,
+    "thigh_l": 6,
+    "shin_l": 7,
+    "thigh_r": 8,
+    "shin_r": 9
+  },
+  "fragments": {
+    "status": "ready_shared_textures",
+    "required": [
+      "head",
+      "upper_arm_l",
+      "forearm_l",
+      "upper_arm_r",
+      "forearm_r",
+      "thigh_l",
+      "shin_l",
+      "thigh_r",
+      "shin_r"
+    ],
+    "runtime_paths": {
+      "head": "res://assets/characters/enemy_v2/hoplite/fragments/head.glb",
+      "upper_arm_l": "res://assets/characters/enemy_v2/hoplite/fragments/upper_arm_l.glb",
+      "forearm_l": "res://assets/characters/enemy_v2/hoplite/fragments/forearm_l.glb",
+      "upper_arm_r": "res://assets/characters/enemy_v2/hoplite/fragments/upper_arm_r.glb",
+      "forearm_r": "res://assets/characters/enemy_v2/hoplite/fragments/forearm_r.glb",
+      "thigh_l": "res://assets/characters/enemy_v2/hoplite/fragments/thigh_l.glb",
+      "shin_l": "res://assets/characters/enemy_v2/hoplite/fragments/shin_l.glb",
+      "thigh_r": "res://assets/characters/enemy_v2/hoplite/fragments/thigh_r.glb",
+      "shin_r": "res://assets/characters/enemy_v2/hoplite/fragments/shin_r.glb"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "asset": "fortress_wallwalk_corner_inner",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    5.489,
+    5.442,
+    4.298
+  ],
+  "triangles_lod0": 44022,
+  "triangles_lod1": 648,
+  "triangles_lod2": 648,
+  "collision": "two overlapping L-arm masses plus four parapet boxes",
+  "occluder": "two L-arm boxes",
+  "walkable_width_m": 2.26,
+  "turn_degrees": 90,
+  "identity": "concave Hellenic wallwalk corner with explicit paved turn, marble quoin and earthquake staples",
+  "textures_packed": true
+}

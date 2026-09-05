@@ -1,0 +1,25 @@
+{
+  "asset": "battering_ram",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.96,
+    5.83,
+    3.335
+  ],
+  "triangles_lod0": 6648,
+  "triangles_lod1": 272,
+  "collision": "simple chassis and canopy boxes",
+  "articulated": true,
+  "ram_pivot": "RamSwingPivot",
+  "swing_limit_deg": [
+    -18,
+    18
+  ],
+  "wheel_pivot_count": 4,
+  "impact_marker": "MARKER_RamImpact",
+  "attack_axis": "-Y",
+  "identity": "covered wheeled battering ram with wet-hide gabled canopy, suspended oak beam, bronze horned head, crew grips, side shields and exact swing pivot",
+  "textures_packed": true
+}

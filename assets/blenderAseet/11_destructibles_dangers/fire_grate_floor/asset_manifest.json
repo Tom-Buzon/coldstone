@@ -1,0 +1,26 @@
+{
+  "asset": "fire_grate_floor",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.408,
+    2.324,
+    0.523
+  ],
+  "triangles_lod0": 2892,
+  "triangles_lod1": 216,
+  "collision": "four simple kerb boxes; recessed center remains traversable by hazard logic",
+  "danger_type": "fire",
+  "hazard_export": "fire_grate_floor_hazard.glb",
+  "hazard_size_m": [
+    1.64,
+    0.52,
+    1.64
+  ],
+  "vfx_marker": "MARKER_FireVFXOrigin",
+  "bar_fragments_export": "fire_grate_floor_bar_fragments.glb",
+  "bar_fragment_count": 14,
+  "identity": "recessed Greek fire grate with soot-dark kerbs, fourteen removable iron bars, ember bed, Compatibility-safe flame reference and bronze meander keys",
+  "textures_packed": true
+}

@@ -1,0 +1,20 @@
+{
+  "asset": "fortress_breach_ramp",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    6.121,
+    6.994,
+    5.081
+  ],
+  "triangles_lod0": 38984,
+  "triangles_lod1": 224,
+  "triangles_lod2": 224,
+  "collision": "one clean breach wedge plus two shoulder boxes",
+  "occluder": "two shoulder boxes",
+  "walkable_lane_m": 2.7,
+  "landing_height_m": 3.05,
+  "identity": "six-metre siege breach ascent between jagged wall shoulders with settled slabs and exposed bronze ties",
+  "textures_packed": true
+}

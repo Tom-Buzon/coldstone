@@ -1,0 +1,16 @@
+{
+  "asset": "bridge_stone_6x4m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    4.993,
+    6.717,
+    3.8
+  ],
+  "triangles_lod0": 48138,
+  "triangles_lod1": 2052,
+  "collision": "deck, two parapets and two abutment proxies",
+  "walkable_width_m": 3.7,
+  "identity": "six-meter stone bridge with a genuine barrel arch, paved deck and Greek-frieze parapets",
+  "textures_packed": true
+}

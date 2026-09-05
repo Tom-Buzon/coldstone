@@ -1,0 +1,25 @@
+{
+  "asset": "levy_pitchfork",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.494,
+    2.68,
+    0.227
+  ],
+  "triangles_lod0": 1884,
+  "triangles_lod1": 624,
+  "triangles_lod2": 216,
+  "collision": "shaft capsule proxy plus forged-head box",
+  "animation_root": "levy_pitchfork_GRIP_ROOT",
+  "grip_origin_m": [
+    0,
+    0.37,
+    0
+  ],
+  "attack_axis": "-Y",
+  "hands": 2,
+  "identity": "improvised Greek levy pitchfork with bent forged shoulders, three polished tines, rawhide field repairs and bronze levy token",
+  "textures_packed": true
+}

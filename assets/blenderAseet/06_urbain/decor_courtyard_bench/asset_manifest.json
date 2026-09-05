@@ -1,0 +1,26 @@
+{
+  "asset": "decor_courtyard_bench",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "cosy_decor",
+  "units": "meters",
+  "dimensions_m": [
+    2.2,
+    0.724,
+    1.4411
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 692,
+  "triangles_lod1": 220,
+  "triangles_lod2": 36,
+  "collision": "single crowd-safe box covering the bench",
+  "forge_collision_enabled": true,
+  "forge_collision_shape": "box",
+  "origin": "center of base",
+  "identity": "low marble courtyard bench with warm saffron cushion, sloped back and small bronze scroll arms",
+  "material_strategy": "shared flat PBR palette",
+  "textures_packed": true,
+  "seed": 240927,
+  "triangles_collision": 12
+}

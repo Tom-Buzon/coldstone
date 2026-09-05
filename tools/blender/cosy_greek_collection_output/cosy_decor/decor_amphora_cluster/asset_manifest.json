@@ -1,0 +1,26 @@
+{
+  "asset": "decor_amphora_cluster",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "cosy_decor",
+  "units": "meters",
+  "dimensions_m": [
+    1.1562,
+    0.7898,
+    0.985
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 1340,
+  "triangles_lod1": 908,
+  "triangles_lod2": 312,
+  "collision": "two simple cylinder proxies matching the amphora bodies",
+  "forge_collision_enabled": false,
+  "forge_collision_shape": "cylinder",
+  "origin": "center of base",
+  "identity": "asymmetric pair of sun-warmed amphorae with loop handles and a small Aegean offering cup",
+  "material_strategy": "shared flat PBR palette",
+  "textures_packed": true,
+  "seed": 240927,
+  "triangles_collision": 56
+}

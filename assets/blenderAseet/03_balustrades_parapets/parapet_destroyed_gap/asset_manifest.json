@@ -1,0 +1,17 @@
+{
+  "asset": "parapet_destroyed_gap",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    4.209,
+    1.769,
+    1.382
+  ],
+  "triangles_lod0": 10214,
+  "triangles_lod1": 540,
+  "triangles_lod2": 324,
+  "collision": "isolated left/right wall and step proxies plus a 0.22m low rubble passage; no hidden vertical blocker",
+  "open_gap_width_m": 1.32,
+  "identity": "blast-breached combat parapet with ragged bonding, fallen coping, torn iron tie, soot and a traversable rubble threshold",
+  "textures_packed": true
+}

@@ -1,0 +1,111 @@
+{
+	"schema_version": 1,
+	"status": "PASS",
+	"source_library": "res://assets/animations/enemy_v2/hoplite/hoplite_v2_source_53.res",
+	"target_scene": "res://assets/characters/enemy_v2/hoplite/hoplite_body_v2.gltf",
+	"target_rig_id": "spartan_enemy_v2_23",
+	"target_bone_count": 23,
+	"required_clips": [
+		"Idle",
+		"Jog_Fwd",
+		"Sprint",
+		"Death01",
+		"ual2_idle_shield",
+		"ual2_shield_one_shot",
+		"ual2_sword_block",
+		"lancer_right_arm_thrust",
+		"spear_thrust",
+		"spear_thrust_low",
+		"spear_bayonet_step",
+		"shield_bash",
+		"block_idle",
+		"block_impact"
+	],
+	"clips": {
+		"Idle": {
+			"length": 2.5,
+			"loop_mode": 1,
+			"tracks": 23,
+			"idle_pose_tracks_added": 0
+		},
+		"Jog_Fwd": {
+			"length": 0.933333337306976,
+			"loop_mode": 1,
+			"tracks": 23,
+			"idle_pose_tracks_added": 0
+		},
+		"Sprint": {
+			"length": 0.666666686534882,
+			"loop_mode": 1,
+			"tracks": 23,
+			"idle_pose_tracks_added": 0
+		},
+		"Death01": {
+			"length": 2.40000009536743,
+			"loop_mode": 0,
+			"tracks": 23,
+			"idle_pose_tracks_added": 0
+		},
+		"ual2_idle_shield": {
+			"length": 2.5,
+			"loop_mode": 1,
+			"tracks": 23,
+			"idle_pose_tracks_added": 10
+		},
+		"ual2_shield_one_shot": {
+			"length": 0.833333313465118,
+			"loop_mode": 0,
+			"tracks": 23,
+			"idle_pose_tracks_added": 10
+		},
+		"ual2_sword_block": {
+			"length": 1.23333334922791,
+			"loop_mode": 0,
+			"tracks": 23,
+			"idle_pose_tracks_added": 10
+		},
+		"lancer_right_arm_thrust": {
+			"length": 1.45833337306976,
+			"loop_mode": 0,
+			"tracks": 24,
+			"idle_pose_tracks_added": 20
+		},
+		"spear_thrust": {
+			"length": 1.45833337306976,
+			"loop_mode": 0,
+			"tracks": 24,
+			"idle_pose_tracks_added": 10
+		},
+		"spear_thrust_low": {
+			"length": 1.45833337306976,
+			"loop_mode": 0,
+			"tracks": 24,
+			"idle_pose_tracks_added": 10
+		},
+		"spear_bayonet_step": {
+			"length": 3.26666666666667,
+			"loop_mode": 0,
+			"tracks": 23,
+			"idle_pose_tracks_added": 0
+		},
+		"shield_bash": {
+			"length": 0.833333313465118,
+			"loop_mode": 0,
+			"tracks": 23,
+			"idle_pose_tracks_added": 10
+		},
+		"block_idle": {
+			"length": 2.5,
+			"loop_mode": 1,
+			"tracks": 23,
+			"idle_pose_tracks_added": 10
+		},
+		"block_impact": {
+			"length": 1.23333334922791,
+			"loop_mode": 0,
+			"tracks": 23,
+			"idle_pose_tracks_added": 10
+		}
+	},
+	"errors": []
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "validated_at": "2026-08-25",
+  "engine": "Godot 4.7 stable",
+  "bundle_standard": "V2_HERO",
+  "source_asset_count": 92,
+  "glb_count": 398,
+  "glb_import_sidecar_count": 398,
+  "extracted_texture_source_count": 295,
+  "texture_import_sidecar_count": 295,
+  "godot_import_cache_missing_count": 0,
+  "loaded_packed_scene_count": 398,
+  "instantiated_node3d_count": 398,
+  "lod0_count": 92,
+  "mesh_instance_count": 16984,
+  "source_target_sha256_compared_file_count": 491,
+  "source_target_sha256_mismatch_count": 0,
+  "bundle_total_bytes_after_godot_import": 2127762239,
+  "status": "PASS"
+}

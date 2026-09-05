@@ -1,0 +1,26 @@
+{
+  "asset": "decor_courtyard_fountain",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "cosy_decor",
+  "units": "meters",
+  "dimensions_m": [
+    2.44,
+    2.44,
+    2.26
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 956,
+  "triangles_lod1": 588,
+  "triangles_lod2": 180,
+  "collision": "single coarse cylinder; fountain is treated as a solid obstacle",
+  "forge_collision_enabled": true,
+  "forge_collision_shape": "cylinder",
+  "origin": "center of base",
+  "identity": "small welcoming courtyard fountain with annular limestone basin, warm bronze trim, still water and bronze finial",
+  "material_strategy": "shared flat PBR palette",
+  "textures_packed": true,
+  "seed": 240927,
+  "triangles_collision": 44
+}

@@ -1,0 +1,26 @@
+{
+  "asset": "battle_spear_shield_rack",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "battlefield",
+  "units": "meters",
+  "dimensions_m": [
+    1.8589,
+    0.6023,
+    2.7799
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 476,
+  "triangles_lod1": 290,
+  "triangles_lod2": 184,
+  "triangles_collision": 12,
+  "collision": "single coarse box covering shield and spear bundle",
+  "forge_collision_enabled": true,
+  "forge_collision_shape": "box",
+  "origin": "center of base",
+  "identity": "compact field rack of bronze-tipped spears behind a battered crimson aspis",
+  "material_strategy": "shared flat PBR battlefield palette",
+  "textures_packed": true,
+  "seed": 260828
+}

@@ -1,0 +1,25 @@
+{
+  "asset": "decor_mosaic_roundel",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "cosy_decor",
+  "units": "meters",
+  "dimensions_m": [
+    2.4,
+    2.4,
+    0.061
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 952,
+  "triangles_lod1": 424,
+  "triangles_lod2": 232,
+  "collision": "none; flush decorative ground element",
+  "forge_collision_enabled": false,
+  "forge_collision_shape": "box",
+  "origin": "center of base",
+  "identity": "flush courtyard mosaic roundel with concentric marble, terracotta and Aegean-blue geometry",
+  "material_strategy": "shared flat PBR palette",
+  "textures_packed": true,
+  "seed": 240927
+}

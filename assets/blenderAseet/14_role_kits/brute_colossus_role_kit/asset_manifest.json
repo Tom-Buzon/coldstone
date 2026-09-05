@@ -1,0 +1,29 @@
+{
+  "asset": "brute_colossus_role_kit",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.917,
+    0.503,
+    2.207
+  ],
+  "triangles_lod0": 5954,
+  "triangles_lod1": 432,
+  "collision": "shoulder span, maul haft and maul head boxes",
+  "role": "brute_colossus",
+  "attachment_slots": [
+    "shoulder_left",
+    "shoulder_right",
+    "two_hand",
+    "hand_left",
+    "hand_right"
+  ],
+  "reused_assets": [
+    "colossus_maul_LOD0"
+  ],
+  "hands": 2,
+  "shield_allowed": false,
+  "identity": "shieldless Colossus silhouette with oversized two-hand marble maul, black-iron shoulder cages, outward bone tusks, fur neck ring, cross harness, abdominal lamellae and open-face brow mask",
+  "textures_packed": true
+}

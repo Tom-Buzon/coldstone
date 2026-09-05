@@ -1,0 +1,21 @@
+{
+  "asset": "wood_barricade_breakable",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.844,
+    0.819,
+    1.456
+  ],
+  "triangles_lod0": 2388,
+  "triangles_lod1": 216,
+  "collision": "one intact cover box plus simple boxes for each rigid board",
+  "destructible": true,
+  "intact_export": "wood_barricade_breakable_intact.glb",
+  "fractured_export": "wood_barricade_breakable_fractured.glb",
+  "fracture_piece_count": 9,
+  "activation_event": "health_depleted",
+  "identity": "breakable three-rail oak barricade with crossed rear braces, ground feet, hemp lashings, iron nails, torn warning strip and embedded battle damage",
+  "textures_packed": true
+}

@@ -1,0 +1,23 @@
+{
+  "asset": "fortress_tower_roof_platform",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    6.762,
+    6.661,
+    3.191
+  ],
+  "triangles_lod0": 25692,
+  "triangles_lod1": 864,
+  "triangles_lod2": 864,
+  "collision": "four deck slabs preserving a real central hatch plus four parapet boxes",
+  "occluder": "four slab boxes preserving hatch",
+  "walkable": true,
+  "hatch_clearance_m": [
+    1.45,
+    1.45
+  ],
+  "identity": "modular tower roof platform with genuine ladder hatch, marble fascia, corbels and drainage spouts",
+  "textures_packed": true
+}

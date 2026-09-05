@@ -1,0 +1,26 @@
+{
+  "asset": "archer_role_kit",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.21,
+    0.421,
+    1.125
+  ],
+  "triangles_lod0": 10020,
+  "triangles_lod1": 324,
+  "collision": "torso and quiver proxy boxes",
+  "role": "archer",
+  "attachment_slots": [
+    "chest",
+    "back_quiver",
+    "forearm_right",
+    "shoulder_left"
+  ],
+  "reused_assets": [
+    "quiver_full_LOD0"
+  ],
+  "identity": "light archer linothorax with linen pteruges, asymmetric shoulder guard, drawing bracer, red role scarf and reduced full campaign quiver",
+  "textures_packed": true
+}

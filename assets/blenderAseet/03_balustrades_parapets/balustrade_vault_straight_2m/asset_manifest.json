@@ -1,0 +1,17 @@
+{
+  "asset": "balustrade_vault_straight_2m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    2.161,
+    0.478,
+    1.232
+  ],
+  "triangles_lod0": 8092,
+  "triangles_lod1": 360,
+  "triangles_lod2": 108,
+  "collision": "single full-height barrier proxy",
+  "module_length_m": 2.0,
+  "identity": "two-meter vaulted balustrade with turned marble balusters, ashlar plinth, polychrome meander and bronze anchors",
+  "textures_packed": true
+}

@@ -1,0 +1,23 @@
+{
+  "asset": "fortress_gatehouse",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    10.564,
+    5.427,
+    7.66
+  ],
+  "triangles_lod0": 96338,
+  "triangles_lod1": 540,
+  "triangles_lod2": 540,
+  "collision": "two side masses, upper bridge and two parapets; gate void remains open",
+  "occluder": "three gatehouse mass boxes preserving the opening",
+  "gate_clearance_m": [
+    3.15,
+    4.62
+  ],
+  "walkable_top": true,
+  "identity": "monumental twin-mass Hellenic gatehouse with true arched passage, portcullis guides and dedication plaque",
+  "textures_packed": true
+}

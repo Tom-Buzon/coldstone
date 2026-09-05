@@ -1,0 +1,19 @@
+{
+  "asset": "rubble_cover_low",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.797,
+    1.409,
+    0.76
+  ],
+  "triangles_lod0": 1980,
+  "triangles_lod1": 108,
+  "triangles_lod2": 108,
+  "collision": "single simple crowd-safe cover box",
+  "cover_height_m": 0.78,
+  "cover_type": "low_vault",
+  "identity": "collapsed low limestone cover with layered masonry, fallen fluted column drum, broken amphora, shield-rim fragment and embedded spear",
+  "textures_packed": true
+}

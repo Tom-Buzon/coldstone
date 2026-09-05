@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cydi24tgt72oi"
-path="res://.godot/imported/oldsbir1-1787330035666_Image_1.png-fab243db04ea6828269899801f37e60a.ctex"
+path.s3tc="res://.godot/imported/oldsbir1-1787330035666_Image_1.png-fab243db04ea6828269899801f37e60a.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b1ca61390d9b137dfe94a600ecea63bd"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/characters/3dgen_demo/oldsbir1-1787330035666_Image_1.png"
-dest_files=["res://.godot/imported/oldsbir1-1787330035666_Image_1.png-fab243db04ea6828269899801f37e60a.ctex"]
+dest_files=["res://.godot/imported/oldsbir1-1787330035666_Image_1.png-fab243db04ea6828269899801f37e60a.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
+process/size_limit=2048
 detect_3d/compress_to=0

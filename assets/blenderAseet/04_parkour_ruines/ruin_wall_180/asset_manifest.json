@@ -1,0 +1,20 @@
+{
+  "asset": "ruin_wall_180",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    4.08,
+    1.423,
+    1.964
+  ],
+  "triangles_lod0": 8304,
+  "triangles_lod1": 648,
+  "triangles_lod2": 540,
+  "collision": "segmented vertical profile boxes matching the broken skyline",
+  "maximum_height_m": 1.8,
+  "mantle_ledges_m": [
+    0.92
+  ],
+  "identity": "1.80m fast-vault ruin wall with broad grab course, faded meander and descending breach profile",
+  "textures_packed": true
+}

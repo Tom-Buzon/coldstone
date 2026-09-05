@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://d2trc0ooubkbq"
+path="res://.godot/imported/Crown of Brass.mp3-a7225c1bfa68daec222bb12bf70b3331.mp3str"
+
+[deps]
+
+source_file="res://audio/track/Crown of Brass.mp3"
+dest_files=["res://.godot/imported/Crown of Brass.mp3-a7225c1bfa68daec222bb12bf70b3331.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

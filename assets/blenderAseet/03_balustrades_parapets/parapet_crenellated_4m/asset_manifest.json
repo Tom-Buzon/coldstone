@@ -1,0 +1,17 @@
+{
+  "asset": "parapet_crenellated_4m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    4.259,
+    1.431,
+    1.654
+  ],
+  "triangles_lod0": 10046,
+  "triangles_lod1": 648,
+  "triangles_lod2": 540,
+  "collision": "continuous low base, firing step and four individual merlon proxies",
+  "crenel_width_m": 0.45,
+  "identity": "four-meter battlement with four masonry merlons, usable crenels, bow rests, range marks and siege scars",
+  "textures_packed": true
+}

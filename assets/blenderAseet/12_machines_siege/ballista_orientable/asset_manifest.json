@@ -1,0 +1,30 @@
+{
+  "asset": "ballista_orientable",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.688,
+    3.27,
+    1.945
+  ],
+  "triangles_lod0": 3428,
+  "triangles_lod1": 216,
+  "collision": "simple cruciform base box plus upper weapon box",
+  "articulated": true,
+  "yaw_pivot": "BallistaYawPivot",
+  "yaw_limit_deg": [
+    -70,
+    70
+  ],
+  "elevation_pivot": "BallistaElevationPivot",
+  "elevation_limit_deg": [
+    -8,
+    42
+  ],
+  "winch_pivot": "BallistaWinchPivot",
+  "launch_marker": "MARKER_LaunchOrigin",
+  "launch_axis": "-Y",
+  "identity": "orientable torsion ballista with bronze yaw race, true nested yaw/elevation hierarchy, recurved twin arms, rear draw winch, loaded heavy bolt and sighting ticks",
+  "textures_packed": true
+}

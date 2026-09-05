@@ -1,0 +1,52 @@
+{
+  "atlas": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\hoplite_lod1_atlas.png",
+  "atlas_bytes": 1225401,
+  "atlas_size": 2048,
+  "bones": 23,
+  "candidate": "C:\\Users\\suean\\Downloads\\spartanLow15k.glb",
+  "candidate_bytes": 722064,
+  "errors": [],
+  "generator": "build_hoplite_lod1",
+  "generator_version": "1.0.0",
+  "materials": 1,
+  "output": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\lods\\hoplite_body_lod1_15k.gltf",
+  "output_bytes": 993832,
+  "schema_version": 1,
+  "source": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\hoplite_body_v2.gltf",
+  "status": "PASS",
+  "triangles": 14993,
+  "uv_layers": [
+    "LOD1_Atlas"
+  ],
+  "vertices": 10422,
+  "weights": {
+    "maximum_influences": 4,
+    "unknown_groups": [],
+    "unweighted_vertices": 0,
+    "vertex_groups": [
+      "DEF-foot.L",
+      "DEF-foot.R",
+      "DEF-forearm.L",
+      "DEF-forearm.R",
+      "DEF-hand.L",
+      "DEF-hand.R",
+      "DEF-head",
+      "DEF-hips",
+      "DEF-neck",
+      "DEF-shin.L",
+      "DEF-shin.R",
+      "DEF-shoulder.L",
+      "DEF-shoulder.R",
+      "DEF-spine.001",
+      "DEF-spine.002",
+      "DEF-spine.003",
+      "DEF-thigh.L",
+      "DEF-thigh.R",
+      "DEF-toe.L",
+      "DEF-toe.R",
+      "DEF-upper_arm.L",
+      "DEF-upper_arm.R",
+      "root"
+    ]
+  }
+}

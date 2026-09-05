@@ -1,0 +1,26 @@
+{
+  "asset": "door_wood_pivot",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.438,
+    0.44,
+    2.52
+  ],
+  "triangles_lod0": 3728,
+  "triangles_lod1": 216,
+  "triangles_lod2": 108,
+  "collision": "single door-leaf box",
+  "animation_root": "door_wood_pivot_HINGE_ROOT",
+  "pivot_location_m": [
+    0,
+    0,
+    0
+  ],
+  "pivot_axis": "+Z",
+  "hinge_side": "left",
+  "swing_ready": true,
+  "identity": "olive-wood seven-plank Greek pivot door with Z brace, three strap hinges, bronze ring and battle repairs",
+  "textures_packed": true
+}

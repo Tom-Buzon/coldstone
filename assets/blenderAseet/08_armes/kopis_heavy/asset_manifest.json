@@ -1,0 +1,25 @@
+{
+  "asset": "kopis_heavy",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.32,
+    1.397,
+    0.152
+  ],
+  "triangles_lod0": 1504,
+  "triangles_lod1": 360,
+  "triangles_lod2": 240,
+  "collision": "blade box plus grip box",
+  "animation_root": "kopis_heavy_GRIP_ROOT",
+  "grip_origin_m": [
+    0,
+    0.1,
+    0
+  ],
+  "blade_axis": "-Y",
+  "grip_axis": "+Y",
+  "identity": "forward-heavy Greek kopis with swollen steel belly, polished edge, red leather wrap and hooked horse pommel",
+  "textures_packed": true
+}

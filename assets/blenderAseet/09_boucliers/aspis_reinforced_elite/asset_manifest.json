@@ -1,0 +1,21 @@
+{
+  "asset": "aspis_reinforced_elite",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.04,
+    0.448,
+    1.225
+  ],
+  "triangles_lod0": 9292,
+  "triangles_lod1": 1488,
+  "triangles_lod2": 236,
+  "collision": "low-sided convex cylinder",
+  "animation_root": "aspis_reinforced_elite_GRIP_ROOT",
+  "attachment_slot": "left_hand",
+  "guard_radius_m": 0.54,
+  "shield_class": "elite_heavy",
+  "identity": "elite convex aspis with heavy bronze rim, command boss, black lambda, victory wings, twelve guard studs, rear porpax and reinforcement ribs",
+  "textures_packed": true
+}

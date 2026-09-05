@@ -1,0 +1,20 @@
+{
+  "asset": "sling",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.854,
+    1.399,
+    0.246
+  ],
+  "triangles_lod0": 1344,
+  "triangles_lod1": 204,
+  "triangles_lod2": 156,
+  "collision": "pouch-only gameplay box; cords are non-colliding",
+  "grip_root": "SlingGripRoot",
+  "release_root": "SlingReleaseRoot",
+  "stone_socket": "StoneSocket",
+  "identity": "Greek war sling with cupped stitched leather pouch, tricolor braided retention and release cords, finger loop and bone release toggle",
+  "textures_packed": true
+}

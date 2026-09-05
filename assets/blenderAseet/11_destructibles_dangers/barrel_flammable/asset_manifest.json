@@ -1,0 +1,23 @@
+{
+  "asset": "barrel_flammable",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.83,
+    0.793,
+    1.169
+  ],
+  "triangles_lod0": 6424,
+  "triangles_lod1": 492,
+  "collision": "single intact box plus one simple box per stave or lid fragment",
+  "destructible": true,
+  "flammable": true,
+  "intact_export": "barrel_flammable_intact.glb",
+  "fractured_export": "barrel_flammable_fractured.glb",
+  "fracture_piece_count": 26,
+  "activation_event": "health_depleted",
+  "ignition_marker": "MARKER_IgnitionOrigin",
+  "identity": "pitch-sealed oil barrel built from eighteen real staves with four iron hoops, fuse, warning lambda, oil seepage, cloth tag and exact-pose fracture set",
+  "textures_packed": true
+}

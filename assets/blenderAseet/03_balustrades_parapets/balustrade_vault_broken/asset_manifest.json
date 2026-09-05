@@ -1,0 +1,17 @@
+{
+  "asset": "balustrade_vault_broken",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    2.208,
+    1.108,
+    1.843
+  ],
+  "triangles_lod0": 7164,
+  "triangles_lod1": 396,
+  "triangles_lod2": 216,
+  "collision": "continuous low plinth plus isolated surviving left barrier and right pier; upper breach is open",
+  "traversable_gap_width_m": 0.72,
+  "identity": "asymmetrically shattered vault balustrade with fallen spindle, hanging coping, chipped plinth and surviving paint",
+  "textures_packed": true
+}

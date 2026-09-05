@@ -1,0 +1,31 @@
+{
+  "asset": "portal_saved_world",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "portals",
+  "portal_role": "saved_world",
+  "units": "meters",
+  "dimensions_m": [
+    6.4521,
+    1.2121,
+    5.3436
+  ],
+  "opening_m": [
+    3.4,
+    3.25
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 1632,
+  "triangles_lod1": 1132,
+  "triangles_lod2": 844,
+  "triangles_collision": 36,
+  "collision": "three closed box components covering both jambs and upper frame while preserving the playable opening",
+  "forge_collision_enabled": false,
+  "forge_collision_shape": "box",
+  "origin": "center of base",
+  "identity": "mystical cartographer portal with slate monoliths, floating memory tablets, amber routes and blue archive energy",
+  "material_strategy": "four shared flat PBR materials including one emissive energy material",
+  "textures_packed": true,
+  "seed": 260827
+}

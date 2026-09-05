@@ -1,0 +1,26 @@
+{
+  "asset": "pelekys_axe_2h",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.657,
+    2.259,
+    0.156
+  ],
+  "triangles_lod0": 1400,
+  "triangles_lod1": 732,
+  "triangles_lod2": 216,
+  "collision": "haft box plus double-head box",
+  "animation_root": "pelekys_axe_2h_GRIP_ROOT",
+  "grip_origin_m": [
+    0,
+    0.48,
+    0
+  ],
+  "attack_axis": "-Y",
+  "edge_axis": "+/-X",
+  "hands": 2,
+  "identity": "long two-hand labrys with twin steel crescents, dual leather grips and reinforced bronze socket",
+  "textures_packed": true
+}

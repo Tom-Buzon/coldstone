@@ -1,0 +1,21 @@
+{
+  "asset": "pelte_light_shield",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.945,
+    0.36,
+    0.888
+  ],
+  "triangles_lod0": 2168,
+  "triangles_lod1": 204,
+  "triangles_lod2": 164,
+  "collision": "single conservative convex guard box",
+  "animation_root": "pelte_light_shield_GRIP_ROOT",
+  "attachment_slot": "left_hand",
+  "guard_radius_m": 0.46,
+  "shield_class": "light",
+  "identity": "light crescent pelte with twin-lobed willow core, oxblood hide, wing emblem, bronze boss, rear porpax and campaign tassel",
+  "textures_packed": true
+}

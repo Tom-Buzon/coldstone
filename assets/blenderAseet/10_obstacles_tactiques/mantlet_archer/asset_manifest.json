@@ -1,0 +1,20 @@
+{
+  "asset": "mantlet_archer",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.24,
+    1.082,
+    1.925
+  ],
+  "triangles_lod0": 6656,
+  "triangles_lod1": 544,
+  "triangles_lod2": 108,
+  "collision": "single simple crowd-safe cover box",
+  "cover_height_m": 1.82,
+  "firing_slit_height_m": 1.38,
+  "mobile_visual": true,
+  "identity": "mobile archer mantlet with real firing slit, seven cypress boards, hide joint armor, wheeled rear A-frame, bronze command badge and embedded arrows",
+  "textures_packed": true
+}

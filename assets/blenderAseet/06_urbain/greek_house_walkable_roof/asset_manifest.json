@@ -1,0 +1,20 @@
+{
+  "asset": "greek_house_walkable_roof",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    6.655,
+    5.49,
+    4.188
+  ],
+  "triangles_lod0": 28632,
+  "triangles_lod1": 540,
+  "triangles_lod2": 540,
+  "collision": "one house mass plus four roof parapet boxes",
+  "occluder": "one house-mass box",
+  "walkable_roof": true,
+  "roof_height_m": 3.15,
+  "identity": "limewashed Greek urban house with terracotta combat roof, low parapet, shutters, laundry and Aegean band",
+  "textures_packed": true
+}

@@ -1,0 +1,26 @@
+{
+  "asset": "battle_banner_crimson_lambda",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "battlefield",
+  "units": "meters",
+  "dimensions_m": [
+    2.12,
+    0.48,
+    4.57
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 660,
+  "triangles_lod1": 216,
+  "triangles_lod2": 92,
+  "triangles_collision": 28,
+  "collision": "slender cylinder around the planted pole; disabled in Forge to preserve crowd flow",
+  "forge_collision_enabled": false,
+  "forge_collision_shape": "cylinder",
+  "origin": "center of base",
+  "identity": "tall crimson hoplite banner with bronze crossbar, swallowtail cloth and ivory lambda",
+  "material_strategy": "shared flat PBR battlefield palette",
+  "textures_packed": true,
+  "seed": 260828
+}

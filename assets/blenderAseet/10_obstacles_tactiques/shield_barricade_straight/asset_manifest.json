@@ -1,0 +1,19 @@
+{
+  "asset": "shield_barricade_straight",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    4.18,
+    0.745,
+    1.046
+  ],
+  "triangles_lod0": 7376,
+  "triangles_lod1": 300,
+  "triangles_lod2": 108,
+  "collision": "one simple cover box",
+  "cover_height_m": 1.1,
+  "formation_gap_recommendation_m": 4.0,
+  "identity": "five overlapping battlefield aspis shields on twin timber rails with alternating command colors, bronze bosses and stable ground feet",
+  "textures_packed": true
+}

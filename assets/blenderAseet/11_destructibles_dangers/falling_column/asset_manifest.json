@@ -1,0 +1,25 @@
+{
+  "asset": "falling_column",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.16,
+    1.16,
+    4.507
+  ],
+  "triangles_lod0": 5236,
+  "triangles_lod1": 272,
+  "collision": "base box plus simple standing shaft box; separate fall sweep hazard",
+  "triggerable": true,
+  "fall_pivot": "FallingColumnPivot",
+  "fall_axis": "+X",
+  "fall_direction": "-Y",
+  "fall_angle_degrees": 88.0,
+  "hazard_export": "falling_column_hazard.glb",
+  "impact_marker": "MARKER_ImpactPoint",
+  "fragments_export": "falling_column_fragments.glb",
+  "impact_fragment_count": 8,
+  "identity": "condemned four-meter Doric column with five drums, fluting, cracked hinge, ancient iron clamps, warning rope, exact base pivot and rigid impact fragments",
+  "textures_packed": true
+}

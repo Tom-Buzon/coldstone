@@ -1,0 +1,26 @@
+{
+  "asset": "battle_weapon_debris",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "battlefield",
+  "units": "meters",
+  "dimensions_m": [
+    2.521,
+    1.5164,
+    0.3706
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 228,
+  "triangles_lod1": 168,
+  "triangles_lod2": 76,
+  "triangles_collision": 12,
+  "collision": "thin ground box; disabled in Forge so debris never snags navigation",
+  "forge_collision_enabled": false,
+  "forge_collision_shape": "box",
+  "origin": "center of base",
+  "identity": "ground-hugging story cluster of broken spears, fallen sword and battered shield",
+  "material_strategy": "shared flat PBR battlefield palette",
+  "textures_packed": true,
+  "seed": 260828
+}

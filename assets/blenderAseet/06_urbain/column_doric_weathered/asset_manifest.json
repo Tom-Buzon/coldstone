@@ -1,0 +1,26 @@
+{
+  "asset": "column_doric_weathered",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "greek_columns",
+  "units": "meters",
+  "dimensions_m": [
+    1.08,
+    1.08,
+    3.93
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 1028,
+  "triangles_lod1": 512,
+  "triangles_lod2": 144,
+  "collision": "single coarse cylinder covering shaft and capital",
+  "forge_collision_enabled": true,
+  "forge_collision_shape": "cylinder",
+  "origin": "center of base",
+  "identity": "sturdy fluted Doric column with broad echinus, weathered warm stone and a restrained Aegean dedication band",
+  "material_strategy": "shared flat PBR palette",
+  "textures_packed": true,
+  "seed": 240927,
+  "triangles_collision": 36
+}

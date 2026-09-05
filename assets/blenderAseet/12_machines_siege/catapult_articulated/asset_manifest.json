@@ -1,0 +1,26 @@
+{
+  "asset": "catapult_articulated",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.35,
+    3.417,
+    2.875
+  ],
+  "triangles_lod0": 11116,
+  "triangles_lod1": 356,
+  "collision": "two simple chassis/frame boxes",
+  "articulated": true,
+  "arm_pivot": "CatapultArmPivot",
+  "winch_pivot": "CatapultWinchPivot",
+  "trigger_pivot": "CatapultTriggerPivot",
+  "wheel_pivot_count": 4,
+  "launch_marker": "MARKER_LaunchOrigin",
+  "launch_axis": "-Y",
+  "legacy_source_evaluated": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\_source\\environment_props_raw\\catapulte\\catapulte.glb",
+  "legacy_mesh_reused": false,
+  "legacy_reuse_reason": "single fused normalized mesh without usable articulated sub-objects",
+  "identity": "full-scale Greek torsion catapult with wheeled oak chassis, true arm/winch/trigger pivots, torsion bundle, sling cup, ratchet handles, loaded stone and command markings",
+  "textures_packed": true
+}

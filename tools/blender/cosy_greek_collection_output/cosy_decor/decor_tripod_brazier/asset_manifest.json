@@ -1,0 +1,26 @@
+{
+  "asset": "decor_tripod_brazier",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "cosy_decor",
+  "units": "meters",
+  "dimensions_m": [
+    1.05,
+    1.05,
+    1.2228
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 680,
+  "triangles_lod1": 444,
+  "triangles_lod2": 124,
+  "collision": "single coarse cylinder covering legs and bowl",
+  "forge_collision_enabled": true,
+  "forge_collision_shape": "cylinder",
+  "origin": "center of base",
+  "identity": "aged-bronze tripod brazier with broad ceremonial bowl and gently emissive coals",
+  "material_strategy": "shared flat PBR palette",
+  "textures_packed": true,
+  "seed": 240927,
+  "triangles_collision": 36
+}

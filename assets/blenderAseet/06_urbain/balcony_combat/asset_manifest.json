@@ -1,0 +1,27 @@
+{
+  "asset": "balcony_combat",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    4.54,
+    2.731,
+    3.841
+  ],
+  "triangles_lod0": 11904,
+  "triangles_lod1": 540,
+  "triangles_lod2": 540,
+  "collision": "rear wall pieces preserving doorway, deck slab and front guard",
+  "occluder": "rear facade pieces only",
+  "walkable_area_m": [
+    4.0,
+    1.85
+  ],
+  "deck_height_m": 2.25,
+  "rear_access_m": [
+    1.45,
+    2.45
+  ],
+  "identity": "four-metre Greek combat balcony with mixed paving, stone cover front, cedar side rails and carved corbels",
+  "textures_packed": true
+}

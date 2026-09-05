@@ -1,0 +1,16 @@
+{
+  "asset": "ramp_combat_4m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    5.356,
+    7.121,
+    3.093
+  ],
+  "triangles_lod0": 29290,
+  "triangles_lod1": 132,
+  "collision": "single 3.92 m ramp proxy",
+  "origin": "center of base",
+  "identity": "combat ramp with central marble drain, wheel wear and asymmetric impact damage",
+  "textures_packed": true
+}

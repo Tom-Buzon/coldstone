@@ -1,0 +1,56 @@
+{
+  "collection": "battlefield_dressing",
+  "status": "PASS",
+  "asset_count": 8,
+  "seed": 260828,
+  "assets": [
+    {
+      "asset": "battle_banner_crimson_lambda",
+      "triangles_lod0": 660,
+      "materials": 4,
+      "manifest": "battlefield\\battle_banner_crimson_lambda\\asset_manifest.json"
+    },
+    {
+      "asset": "battle_banner_aegean_owl",
+      "triangles_lod0": 914,
+      "materials": 4,
+      "manifest": "battlefield\\battle_banner_aegean_owl\\asset_manifest.json"
+    },
+    {
+      "asset": "battle_standard_bronze_sun",
+      "triangles_lod0": 922,
+      "materials": 4,
+      "manifest": "battlefield\\battle_standard_bronze_sun\\asset_manifest.json"
+    },
+    {
+      "asset": "battle_spiked_field_barricade",
+      "triangles_lod0": 714,
+      "materials": 4,
+      "manifest": "battlefield\\battle_spiked_field_barricade\\asset_manifest.json"
+    },
+    {
+      "asset": "battle_spear_shield_rack",
+      "triangles_lod0": 476,
+      "materials": 4,
+      "manifest": "battlefield\\battle_spear_shield_rack\\asset_manifest.json"
+    },
+    {
+      "asset": "battle_signal_brazier",
+      "triangles_lod0": 616,
+      "materials": 4,
+      "manifest": "battlefield\\battle_signal_brazier\\asset_manifest.json"
+    },
+    {
+      "asset": "battle_weapon_debris",
+      "triangles_lod0": 228,
+      "materials": 4,
+      "manifest": "battlefield\\battle_weapon_debris\\asset_manifest.json"
+    },
+    {
+      "asset": "battle_fallen_hoplite_memorial",
+      "triangles_lod0": 410,
+      "materials": 4,
+      "manifest": "battlefield\\battle_fallen_hoplite_memorial\\asset_manifest.json"
+    }
+  ]
+}

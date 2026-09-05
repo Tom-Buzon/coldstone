@@ -1,0 +1,21 @@
+{
+  "asset": "crate_destructible",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.908,
+    1.046,
+    0.827
+  ],
+  "triangles_lod0": 5004,
+  "triangles_lod1": 324,
+  "collision": "single intact box plus one simple convex box per fragment",
+  "destructible": true,
+  "intact_export": "crate_destructible_intact.glb",
+  "fractured_export": "crate_destructible_fractured.glb",
+  "fracture_piece_count": 32,
+  "activation_event": "health_depleted",
+  "identity": "olive-wood military crate with independent boards and rails, iron nails, rope handles, Athenian owl stamp and exact-pose prefracture set",
+  "textures_packed": true
+}

@@ -1,0 +1,17 @@
+{
+  "asset": "balustrade_vault_corner",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    2.373,
+    2.373,
+    1.31
+  ],
+  "triangles_lod0": 14888,
+  "triangles_lod1": 828,
+  "triangles_lod2": 216,
+  "collision": "two narrow L-arm proxies; corner square remains free",
+  "origin": "inside corner pivot",
+  "identity": "two-meter L-shaped vaulted balustrade with eight turned balusters, structural corner capital, rosette and lamp socket",
+  "textures_packed": true
+}

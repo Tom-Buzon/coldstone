@@ -1,0 +1,16 @@
+{
+  "asset": "stairs_stone_phalanx_6m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    7.021,
+    7.071,
+    3.667
+  ],
+  "triangles_lod0": 77132,
+  "triangles_lod1": 8640,
+  "collision": "single 5.92 m ramp proxy",
+  "origin": "center of base",
+  "identity": "monumental formation stair with twin marble lanes, shield roundels and clear six-meter route",
+  "textures_packed": true
+}

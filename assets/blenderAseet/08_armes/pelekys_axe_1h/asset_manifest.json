@@ -1,0 +1,26 @@
+{
+  "asset": "pelekys_axe_1h",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.453,
+    1.004,
+    0.122
+  ],
+  "triangles_lod0": 1280,
+  "triangles_lod1": 732,
+  "triangles_lod2": 216,
+  "collision": "haft box plus double-head box",
+  "animation_root": "pelekys_axe_1h_GRIP_ROOT",
+  "grip_origin_m": [
+    0,
+    0.18,
+    0
+  ],
+  "attack_axis": "-Y",
+  "edge_axis": "+/-X",
+  "hands": 1,
+  "identity": "compact one-hand pelekys with twin steel crescents, leather grip and bronze labrys mark",
+  "textures_packed": true
+}

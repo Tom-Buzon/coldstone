@@ -1,0 +1,25 @@
+{
+  "asset": "greek_composite_bow",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.691,
+    0.553,
+    0.13
+  ],
+  "triangles_lod0": 1784,
+  "triangles_lod1": 288,
+  "triangles_lod2": 72,
+  "collision": "single conservative bow-plane box",
+  "animation_root": "greek_composite_bow_GRIP_ROOT",
+  "grip_origin_m": [
+    0,
+    -0.04,
+    0
+  ],
+  "projectile_axis": "-Y",
+  "hands": 2,
+  "identity": "compact Greek composite recurve bow with yew core, horn belly, sinew backing, bronze arrow pass, limb bindings and red campaign tassel",
+  "textures_packed": true
+}

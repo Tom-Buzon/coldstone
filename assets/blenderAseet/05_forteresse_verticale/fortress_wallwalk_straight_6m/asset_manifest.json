@@ -1,0 +1,22 @@
+{
+  "asset": "fortress_wallwalk_straight_6m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    4.211,
+    6.007,
+    4.312
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 40774,
+  "triangles_lod1": 432,
+  "triangles_lod2": 324,
+  "collision": "wall mass plus two parapet boxes",
+  "occluder": "single wall-mass box",
+  "walkable_width_m": 2.26,
+  "snap_length_m": 6.0,
+  "identity": "six-meter Hellenic wallwalk with dressed ashlar, marble string courses, drains and bronze earthquake repairs",
+  "textures_packed": true
+}

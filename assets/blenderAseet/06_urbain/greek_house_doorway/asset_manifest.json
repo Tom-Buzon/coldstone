@@ -1,0 +1,23 @@
+{
+  "asset": "greek_house_doorway",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    4.348,
+    0.978,
+    3.496
+  ],
+  "triangles_lod0": 6936,
+  "triangles_lod1": 324,
+  "triangles_lod2": 324,
+  "collision": "left jamb mass, right jamb mass and lintel; opening stays free",
+  "occluder": "same three wall pieces preserving opening",
+  "clear_opening_m": [
+    1.38,
+    2.42
+  ],
+  "door_socket": "left pivot",
+  "identity": "limewashed Greek doorway module with true opening, marble portal, terracotta hood and separate door pivot sockets",
+  "textures_packed": true
+}

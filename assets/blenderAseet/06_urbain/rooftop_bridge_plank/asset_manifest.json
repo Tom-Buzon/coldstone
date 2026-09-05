@@ -1,0 +1,19 @@
+{
+  "asset": "rooftop_bridge_plank",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.969,
+    5.97,
+    1.425
+  ],
+  "triangles_lod0": 4536,
+  "triangles_lod1": 108,
+  "triangles_lod2": 108,
+  "collision": "single clean walk box below independent boards",
+  "walkable_width_m": 1.46,
+  "span_m": 5.2,
+  "identity": "five-metre improvised rooftop cedar bridge with seven boards, stone sockets, bronze clamps and asymmetric rope rail",
+  "textures_packed": true
+}

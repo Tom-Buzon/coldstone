@@ -1,0 +1,23 @@
+{
+  "asset": "captain_role_kit",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.211,
+    0.476,
+    1.449
+  ],
+  "triangles_lod0": 6702,
+  "triangles_lod1": 384,
+  "collision": "transverse crest and shoulder-span boxes",
+  "role": "captain",
+  "attachment_slots": [
+    "head",
+    "shoulder_left",
+    "shoulder_right",
+    "chest_clasp"
+  ],
+  "identity": "captain silhouette with broad transverse black-red horsehair fan, laurel brow band, triple-layer burnished pauldrons, command gorget and crimson cloak clasp",
+  "textures_packed": true
+}

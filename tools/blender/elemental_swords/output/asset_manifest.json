@@ -1,0 +1,129 @@
+{
+  "source": "elemental_swords.glb",
+  "status": "PASS",
+  "units": "meters",
+  "origin": "grip center",
+  "blade_axis_godot": "+Y",
+  "sword_count": 7,
+  "swords": [
+    {
+      "id": "elemental_blood_sword",
+      "display_name": "Épée sanguine",
+      "file": "elemental_blood_sword.glb",
+      "mesh": "SM_Elemental_BloodSword",
+      "material": "MAT_Elemental_Blood",
+      "dimensions_m_blender_xyz": [
+        0.27643,
+        0.0567,
+        1.68
+      ],
+      "triangles": 10256,
+      "materials": 1,
+      "blade_base_y": 0.30186,
+      "blade_tip_y": 1.43818,
+      "hit_radius": 0.14
+    },
+    {
+      "id": "elemental_thin_sword",
+      "display_name": "Rapière élémentaire",
+      "file": "elemental_thin_sword.glb",
+      "mesh": "SM_Elemental_ThinSword",
+      "material": "MAT_Elemental_Thin",
+      "dimensions_m_blender_xyz": [
+        0.36035,
+        0.0533,
+        1.58
+      ],
+      "triangles": 21164,
+      "materials": 1,
+      "blade_base_y": 0.51121,
+      "blade_tip_y": 1.31305,
+      "hit_radius": 0.1
+    },
+    {
+      "id": "elemental_sun_sword",
+      "display_name": "Épée solaire",
+      "file": "elemental_sun_sword.glb",
+      "mesh": "SM_Elemental_SunSword",
+      "material": "MAT_Elemental_Sun",
+      "dimensions_m_blender_xyz": [
+        0.60433,
+        0.12384,
+        1.7
+      ],
+      "triangles": 4876,
+      "materials": 1,
+      "blade_base_y": 0.53815,
+      "blade_tip_y": 1.38153,
+      "hit_radius": 0.17
+    },
+    {
+      "id": "elemental_meteor_sword",
+      "display_name": "Épée météore",
+      "file": "elemental_meteor_sword.glb",
+      "mesh": "SM_Elemental_MeteorSword",
+      "material": "MAT_Elemental_Meteor",
+      "dimensions_m_blender_xyz": [
+        0.59282,
+        0.62775,
+        1.78
+      ],
+      "triangles": 10706,
+      "materials": 1,
+      "blade_base_y": 0.65107,
+      "blade_tip_y": 1.532,
+      "hit_radius": 0.22
+    },
+    {
+      "id": "elemental_ice_sword",
+      "display_name": "Épée de glace",
+      "file": "elemental_ice_sword.glb",
+      "mesh": "SM_Elemental_IceSword",
+      "material": "MAT_Elemental_Ice",
+      "dimensions_m_blender_xyz": [
+        0.4494,
+        0.07936,
+        1.66
+      ],
+      "triangles": 5476,
+      "materials": 1,
+      "blade_base_y": 0.50941,
+      "blade_tip_y": 1.3404,
+      "hit_radius": 0.16
+    },
+    {
+      "id": "elemental_space_sword",
+      "display_name": "Épée cosmique",
+      "file": "elemental_space_sword.glb",
+      "mesh": "SM_Elemental_SpaceSword",
+      "material": "MAT_Elemental_Space",
+      "dimensions_m_blender_xyz": [
+        0.21734,
+        0.05174,
+        1.72
+      ],
+      "triangles": 15308,
+      "materials": 1,
+      "blade_base_y": 0.52326,
+      "blade_tip_y": 1.46954,
+      "hit_radius": 0.13
+    },
+    {
+      "id": "elemental_lava_sword",
+      "display_name": "Épée de lave",
+      "file": "elemental_lava_sword.glb",
+      "mesh": "SM_Elemental_LavaSword",
+      "material": "MAT_Elemental_Lava",
+      "dimensions_m_blender_xyz": [
+        0.28875,
+        0.12842,
+        1.78
+      ],
+      "triangles": 9260,
+      "materials": 1,
+      "blade_base_y": 0.5217,
+      "blade_tip_y": 1.48751,
+      "hit_radius": 0.2
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "asset": "parapet_combat_straight_4m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    4.164,
+    1.404,
+    1.366
+  ],
+  "triangles_lod0": 8264,
+  "triangles_lod1": 432,
+  "triangles_lod2": 108,
+  "collision": "one wall and one defender firing-step proxy",
+  "defender_side": "+Y",
+  "identity": "four-meter combat parapet with staggered ashlar, tiled firing step, shield sockets, siege wear and lambda dedication",
+  "textures_packed": true
+}

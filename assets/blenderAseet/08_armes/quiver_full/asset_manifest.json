@@ -1,0 +1,20 @@
+{
+  "asset": "quiver_full",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.576,
+    1.405,
+    0.333
+  ],
+  "triangles_lod0": 8288,
+  "triangles_lod1": 1428,
+  "triangles_lod2": 384,
+  "collision": "body and arrow-cluster boxes",
+  "attachment_root": "quiver_full_BACK_ROOT",
+  "attachment_slot": "back_quiver",
+  "arrow_count_visual": 9,
+  "identity": "full oxblood campaign quiver with bronze rim and toe, nine fanned arrows, stitched seam, shoulder harness, lambda badge and tassel",
+  "textures_packed": true
+}

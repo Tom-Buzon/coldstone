@@ -1,0 +1,17 @@
+{
+  "asset": "collapsed_masonry_ramp",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    3.974,
+    5.245,
+    2.057
+  ],
+  "triangles_lod0": 22348,
+  "triangles_lod1": 8,
+  "triangles_lod2": 8,
+  "collision": "single clean wedge ramp",
+  "walkable": true,
+  "identity": "five-meter collapsed masonry ascent with settled central slabs, arch debris and clear wedge collision",
+  "textures_packed": true
+}

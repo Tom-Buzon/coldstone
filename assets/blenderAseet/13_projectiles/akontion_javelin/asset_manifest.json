@@ -1,0 +1,24 @@
+{
+  "asset": "akontion_javelin",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.288,
+    2.472,
+    0.074
+  ],
+  "triangles_lod0": 3256,
+  "triangles_lod1": 464,
+  "triangles_lod2": 216,
+  "collision": "single swept projectile box",
+  "grip_root": "akontion_javelin_GRIP_ROOT",
+  "projectile_axis": "-Y",
+  "tip_position_m": [
+    0,
+    -1.405,
+    0
+  ],
+  "identity": "Greek akontion with ash shaft, willow-leaf iron head, counterweight butt-spike, leather amentum throwing loop and red campaign bindings",
+  "textures_packed": true
+}

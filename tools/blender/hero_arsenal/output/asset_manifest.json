@@ -1,0 +1,40 @@
+{
+  "asset": "player_hero_arsenal",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "identity": "long runic sword and tapered titan shield with bronze, obsidian, crimson and cyan accents",
+  "sword": {
+    "object": "SM_Aegis_Fang",
+    "dimensions_m_blender_xyz": [
+      0.5351,
+      0.115,
+      1.8237
+    ],
+    "triangles": 3530,
+    "materials": 4
+  },
+  "shield": {
+    "object": "SM_Titan_Aegis",
+    "dimensions_m_blender_xyz": [
+      0.9,
+      0.3865,
+      1.1476
+    ],
+    "triangles": 2004,
+    "materials": 4
+  },
+  "sword_contact_segment_godot_y": [
+    0.16,
+    1.45
+  ],
+  "collision": "visual equipment only; player combat uses authored swept blade markers and directional shield block",
+  "textures_packed": false,
+  "materials_embedded": true,
+  "outputs": [
+    "assets/weapons/aegis_fang.glb",
+    "assets/weapons/titan_aegis.glb"
+  ]
+}

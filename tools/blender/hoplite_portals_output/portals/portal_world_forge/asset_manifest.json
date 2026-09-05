@@ -1,0 +1,31 @@
+{
+  "asset": "portal_world_forge",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "portals",
+  "portal_role": "world_editor",
+  "units": "meters",
+  "dimensions_m": [
+    5.22,
+    1.4071,
+    5.85
+  ],
+  "opening_m": [
+    3.4,
+    3.25
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 1776,
+  "triangles_lod1": 1036,
+  "triangles_lod2": 528,
+  "triangles_collision": 36,
+  "collision": "three closed box components covering both jambs and upper frame while preserving the playable opening",
+  "forge_collision_enabled": false,
+  "forge_collision_shape": "box",
+  "origin": "center of base",
+  "identity": "triumphant sunlit forge portal with ivory pylons, bronze mechanism and turquoise creative energy",
+  "material_strategy": "four shared flat PBR materials including one emissive energy material",
+  "textures_packed": true,
+  "seed": 260827
+}

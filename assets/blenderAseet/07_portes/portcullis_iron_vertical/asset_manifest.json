@@ -1,0 +1,21 @@
+{
+  "asset": "portcullis_iron_vertical",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    3.23,
+    0.315,
+    4.158
+  ],
+  "triangles_lod0": 8884,
+  "triangles_lod1": 1724,
+  "triangles_lod2": 1216,
+  "collision": "single lifting gate box",
+  "animation_root": "portcullis_iron_vertical_SLIDE_ROOT",
+  "motion_axis": "+Z",
+  "travel_m": 3.35,
+  "slide_ready": true,
+  "identity": "nine-bar forged iron portcullis with spear feet, bronze rivets, lifting eyes, chain tails and rust story",
+  "textures_packed": true
+}

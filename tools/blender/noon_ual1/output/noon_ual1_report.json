@@ -1,0 +1,53 @@
+{
+  "status": "DRAFT_REQUIRES_MANUAL_WEIGHT_REVIEW",
+  "blender": "5.2.0 LTS",
+  "sources": {
+    "ual1": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\runtime\\ual1\\UAL1_Standard.glb",
+    "noon": "C:\\Users\\suean\\Downloads\\p-0r_noon.glb"
+  },
+  "outputs": {
+    "blend": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\tools\\blender\\noon_ual1\\output\\noon_ual1_autorig_draft.blend",
+    "rest_preview": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\tools\\blender\\noon_ual1\\output\\noon_ual1_rest_preview.png",
+    "animation_preview": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\tools\\blender\\noon_ual1\\output\\noon_ual1_animation_preview.png"
+  },
+  "alignment": {
+    "uniform_scale": 0.9118680988693344,
+    "reference_height_m": 1.828716660675127,
+    "arm_rotations_degrees": {
+      "L": -64.22765139838167,
+      "R": 64.23379165045394
+    }
+  },
+  "rig": {
+    "name": "UAL1_Rig",
+    "bones": 53,
+    "actions": 46,
+    "preview_action": "Idle_Loop"
+  },
+  "meshes": {
+    "body": {
+      "vertices": 10468,
+      "triangles": 19484,
+      "materials": 1,
+      "vertex_groups": 53,
+      "unweighted_vertices": 0
+    },
+    "clothing": {
+      "vertices": 4910,
+      "triangles": 8748,
+      "materials": 1,
+      "vertex_groups": 55,
+      "unweighted_vertices": 0,
+      "panel_vertices": 1877,
+      "pin_vertices": 724
+    }
+  },
+  "manual_review": [
+    "shoulders and armpits",
+    "elbows and wrists",
+    "hips and upper legs",
+    "finger weights",
+    "clothing/body intersections",
+    "long garment panels before any SoftBody3D conversion"
+  ]
+}

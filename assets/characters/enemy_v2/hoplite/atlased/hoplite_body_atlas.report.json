@@ -1,0 +1,305 @@
+{
+  "status": "PASS",
+  "resolution": 4096,
+  "source_uv": "UVMap",
+  "atlas_uv": "UVMap.001",
+  "zone_uv": "UVMap.002",
+  "material_layout": {
+    "M_Armor3.001": {
+      "slot": 0,
+      "bounds": [
+        0.0053397417068481445,
+        0.0020159482955932617,
+        0.9961249828338623,
+        0.996467649936676
+      ],
+      "cell": [
+        0,
+        0
+      ],
+      "offset": [
+        0.00390625,
+        0.00390625
+      ],
+      "scale": [
+        0.2421875,
+        0.3255208333333333
+      ]
+    },
+    "M_Face.001": {
+      "slot": 1,
+      "bounds": [
+        0.002848000032827258,
+        0.012915492057800293,
+        0.9971519708633423,
+        0.992225706577301
+      ],
+      "cell": [
+        1,
+        0
+      ],
+      "offset": [
+        0.25390625,
+        0.00390625
+      ],
+      "scale": [
+        0.2421875,
+        0.3255208333333333
+      ]
+    },
+    "M_Eyes.001": {
+      "slot": 2,
+      "bounds": [
+        1.0107669830322266,
+        0.010766983032226562,
+        1.9892239570617676,
+        0.9892280101776123
+      ],
+      "cell": [
+        2,
+        0
+      ],
+      "offset": [
+        0.50390625,
+        0.00390625
+      ],
+      "scale": [
+        0.2421875,
+        0.3255208333333333
+      ]
+    },
+    "M_Body.001": {
+      "slot": 3,
+      "bounds": [
+        0.0095750093460083,
+        0.0072969794273376465,
+        0.9904249906539917,
+        0.9937400221824646
+      ],
+      "cell": [
+        3,
+        0
+      ],
+      "offset": [
+        0.75390625,
+        0.00390625
+      ],
+      "scale": [
+        0.2421875,
+        0.3255208333333333
+      ]
+    },
+    "M_Armor.001": {
+      "slot": 4,
+      "bounds": [
+        0.008495383895933628,
+        0.006630241870880127,
+        0.8666346669197083,
+        0.988207221031189
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "offset": [
+        0.00390625,
+        0.3372395833333333
+      ],
+      "scale": [
+        0.2421875,
+        0.3255208333333333
+      ]
+    },
+    "M_Armor2.001": {
+      "slot": 5,
+      "bounds": [
+        0.00442051887512207,
+        0.0020083189010620117,
+        0.9929648041725159,
+        0.9945058822631836
+      ],
+      "cell": [
+        1,
+        1
+      ],
+      "offset": [
+        0.25390625,
+        0.3372395833333333
+      ],
+      "scale": [
+        0.2421875,
+        0.3255208333333333
+      ]
+    },
+    "M_Sclera.001": {
+      "slot": 6,
+      "bounds": [
+        1.0107669830322266,
+        0.010766983032226562,
+        1.9892239570617676,
+        0.9892280101776123
+      ],
+      "cell": [
+        2,
+        1
+      ],
+      "offset": [
+        0.50390625,
+        0.3372395833333333
+      ],
+      "scale": [
+        0.2421875,
+        0.3255208333333333
+      ]
+    },
+    "M_Crest.001": {
+      "slot": 7,
+      "bounds": [
+        0.4493156969547272,
+        0.010806083679199219,
+        1.0,
+        0.9897301197052002
+      ],
+      "cell": [
+        3,
+        1
+      ],
+      "offset": [
+        0.75390625,
+        0.3372395833333333
+      ],
+      "scale": [
+        0.2421875,
+        0.3255208333333333
+      ]
+    },
+    "Armor.001": {
+      "slot": 8,
+      "bounds": [
+        0.6902719140052795,
+        0.06874221563339233,
+        0.996015727519989,
+        0.6577563285827637
+      ],
+      "cell": [
+        0,
+        2
+      ],
+      "offset": [
+        0.00390625,
+        0.6705729166666666
+      ],
+      "scale": [
+        0.2421875,
+        0.3255208333333333
+      ]
+    },
+    "Armor2.001": {
+      "slot": 9,
+      "bounds": [
+        0.11595827341079712,
+        0.2654021978378296,
+        0.9763206839561462,
+        0.9966093301773071
+      ],
+      "cell": [
+        1,
+        2
+      ],
+      "offset": [
+        0.25390625,
+        0.6705729166666666
+      ],
+      "scale": [
+        0.2421875,
+        0.3255208333333333
+      ]
+    }
+  },
+  "warm_metal_stabilization": {
+    "adjusted_texels": 1785544,
+    "metallic_sum_before": 1618728.8202910423,
+    "metallic_sum_after": 1240796.2797016157,
+    "maximum_metallic": 0.72,
+    "minimum_roughness": 0.3,
+    "gamma": 0.56,
+    "linear_colour_floor": [
+      0.34,
+      0.25,
+      0.11
+    ]
+  },
+  "textures": {
+    "base": {
+      "path": "assets\\characters\\enemy_v2\\hoplite\\atlased\\textures\\hoplite_body_atlas_basecolor.png",
+      "sha256": "06a5d40d7070bd24e71fb9ab8dd157c799529d9b67d2d438c3e9c80db0a25be2"
+    },
+    "normal": {
+      "path": "assets\\characters\\enemy_v2\\hoplite\\atlased\\textures\\hoplite_body_atlas_normal.png",
+      "sha256": "7f13e33ca7dd4055fd1481a178744697562ea34bc640ab57295c2444901dc9a6"
+    },
+    "mr": {
+      "path": "assets\\characters\\enemy_v2\\hoplite\\atlased\\textures\\hoplite_body_atlas_metallic_roughness.png",
+      "sha256": "d7a2210eaf460d742d41b996c4ae67b2f1e768b3fc487da22cd32bfdaa5b2c57"
+    }
+  },
+  "lods": [
+    {
+      "source": "assets\\characters\\enemy_v2\\hoplite\\lods\\hoplite_body_lod0_22k.gltf",
+      "triangles": 22820,
+      "vertices": 17955,
+      "body_materials": 2,
+      "body_material_names": [
+        "HopliteBodyAtlas_Opaque",
+        "HopliteBodyAtlas_Cutout"
+      ],
+      "vertex_groups": 23,
+      "bones": 23,
+      "uv_layers": [
+        "UVMap",
+        "UVMap.001",
+        "UVMap.002"
+      ],
+      "zone_uv_max": 9.000000953674316,
+      "output": "assets\\characters\\enemy_v2\\hoplite\\atlased\\lods\\hoplite_body_lod0_22k_atlas.gltf"
+    },
+    {
+      "source": "assets\\characters\\enemy_v2\\hoplite\\lods\\hoplite_body_lod1_8k.gltf",
+      "triangles": 8127,
+      "vertices": 8892,
+      "body_materials": 2,
+      "body_material_names": [
+        "HopliteBodyAtlas_Opaque",
+        "HopliteBodyAtlas_Cutout"
+      ],
+      "vertex_groups": 23,
+      "bones": 23,
+      "uv_layers": [
+        "UVMap",
+        "UVMap.001",
+        "UVMap.002"
+      ],
+      "zone_uv_max": 9.000000953674316,
+      "output": "assets\\characters\\enemy_v2\\hoplite\\atlased\\lods\\hoplite_body_lod1_8k_atlas.gltf"
+    },
+    {
+      "source": "assets\\characters\\enemy_v2\\hoplite\\lods\\hoplite_body_lod2_2k.gltf",
+      "triangles": 2560,
+      "vertices": 4014,
+      "body_materials": 2,
+      "body_material_names": [
+        "HopliteBodyAtlas_Opaque",
+        "HopliteBodyAtlas_Cutout"
+      ],
+      "vertex_groups": 23,
+      "bones": 23,
+      "uv_layers": [
+        "UVMap",
+        "UVMap.001",
+        "UVMap.002"
+      ],
+      "zone_uv_max": 9.000001907348633,
+      "output": "assets\\characters\\enemy_v2\\hoplite\\atlased\\lods\\hoplite_body_lod2_2k_atlas.gltf"
+    }
+  ]
+}

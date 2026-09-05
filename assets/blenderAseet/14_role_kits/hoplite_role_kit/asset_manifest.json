@@ -1,0 +1,22 @@
+{
+  "asset": "hoplite_role_kit",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.455,
+    0.461,
+    2.562
+  ],
+  "triangles_lod0": 4536,
+  "triangles_lod1": 336,
+  "collision": "shield and spear proxy boxes",
+  "role": "hoplite",
+  "attachment_slots": [
+    "head",
+    "hand_left",
+    "hand_right"
+  ],
+  "identity": "standard hoplite silhouette with cut-face Corinthian helmet, restrained longitudinal horsehair crest, lambda aspis and ash dory with leaf head and sauroter",
+  "textures_packed": true
+}

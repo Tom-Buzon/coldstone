@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "role": "giant",
+  "source_kind": "3dgen",
+  "body": "res://assets/characters/3dgen_demo/geant1-1787584159710.glb",
+  "rig": "spartan_ual1_v1",
+  "bone_count": 53,
+  "animation_library": "res://assets/animations/enemy_v2/giant/giant_v2_animation_library.res",
+  "geometry_lod": "source_import_generated",
+  "migration_ready": false
+}

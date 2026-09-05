@@ -1,0 +1,17 @@
+{
+  "asset": "fallen_column_walkable",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    5.805,
+    1.908,
+    1.644
+  ],
+  "triangles_lod0": 13672,
+  "triangles_lod1": 296,
+  "triangles_lod2": 108,
+  "collision": "single inclined flattened walk box",
+  "walkable": true,
+  "identity": "five-meter fallen Doric column with separate drums, fluting, capital, repair clamp and flattened walk proxy",
+  "textures_packed": true
+}

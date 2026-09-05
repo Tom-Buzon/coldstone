@@ -1,0 +1,26 @@
+{
+  "asset": "cracked_wall_destructible",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.974,
+    1.077,
+    2.137
+  ],
+  "triangles_lod0": 3104,
+  "triangles_lod1": 144,
+  "collision": "one intact wall box plus one simple box per masonry fragment",
+  "destructible": true,
+  "intact_export": "cracked_wall_destructible_intact.glb",
+  "fractured_export": "cracked_wall_destructible_fractured.glb",
+  "fracture_piece_count": 21,
+  "activation_event": "health_depleted",
+  "weakpoint_marker_m": [
+    0,
+    -0.29,
+    0.84
+  ],
+  "identity": "shored destructible ashlar wall with jagged crown, branching structural fault, red marked weak point and individually rigid chipped blocks",
+  "textures_packed": true
+}

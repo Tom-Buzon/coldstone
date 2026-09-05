@@ -1,0 +1,26 @@
+{
+  "asset": "column_corinthian_garden",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "greek_columns",
+  "units": "meters",
+  "dimensions_m": [
+    1.28,
+    1.28,
+    4.735
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 2012,
+  "triangles_lod1": 740,
+  "triangles_lod2": 164,
+  "collision": "single coarse cylinder covering shaft and leaf capital",
+  "forge_collision_enabled": true,
+  "forge_collision_shape": "cylinder",
+  "origin": "center of base",
+  "identity": "garden Corinthian column with simplified acanthus crown, bronze curls and elegant tapered shaft",
+  "material_strategy": "shared flat PBR palette",
+  "textures_packed": true,
+  "seed": 240927,
+  "triangles_collision": 36
+}

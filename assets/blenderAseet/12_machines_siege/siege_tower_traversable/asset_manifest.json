@@ -1,0 +1,27 @@
+{
+  "asset": "siege_tower_traversable",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    5.05,
+    6.396,
+    8.925
+  ],
+  "triangles_lod0": 14844,
+  "triangles_lod1": 216,
+  "collision": "simple chassis, floor and three ramp boxes",
+  "traversable": true,
+  "floor_heights_m": [
+    0.72,
+    3.02,
+    5.32,
+    7.62
+  ],
+  "interior_ramp_count": 3,
+  "bridge_pivot": "SiegeTowerBridgePivot",
+  "bridge_deployed_angle_deg": 0.0,
+  "wheel_pivot_count": 4,
+  "identity": "eight-meter traversable siege tower with three alternating internal ramps, four combat floors, wet-hide side armor, top parapet, pivoting assault bridge and command banners",
+  "textures_packed": true
+}

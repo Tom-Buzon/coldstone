@@ -1,0 +1,24 @@
+{
+  "asset": "veteran_role_kit",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    1.284,
+    0.523,
+    1.844
+  ],
+  "triangles_lod0": 12002,
+  "triangles_lod1": 344,
+  "collision": "reinforced shield and crest proxy boxes",
+  "role": "veteran",
+  "attachment_slots": [
+    "head",
+    "hand_left"
+  ],
+  "reused_assets": [
+    "aspis_reinforced_elite_LOD0"
+  ],
+  "identity": "veteran Corinthian helmet with tall longitudinal black-red horsehair crest, victory brow band, battle scars, rank cords and reinforced elite aspis",
+  "textures_packed": true
+}

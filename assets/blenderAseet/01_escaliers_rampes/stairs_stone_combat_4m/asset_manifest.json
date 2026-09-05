@@ -1,0 +1,16 @@
+{
+  "asset": "stairs_stone_combat_4m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    4.587,
+    5.573,
+    2.685
+  ],
+  "triangles_lod0": 49094,
+  "triangles_lod1": 6048,
+  "collision": "single 3.92 m ramp proxy",
+  "origin": "center of base",
+  "identity": "broad military stair with marble processional spine and asymmetric battle damage",
+  "textures_packed": true
+}

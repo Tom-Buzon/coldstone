@@ -1,0 +1,21 @@
+{
+  "asset": "ruin_wallrun_corner_inner",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    3.823,
+    3.822,
+    2.614
+  ],
+  "triangles_lod0": 18780,
+  "triangles_lod1": 216,
+  "triangles_lod2": 216,
+  "collision": "two simple L wall boxes",
+  "wallrun_band_z_m": [
+    0.48,
+    2.1
+  ],
+  "maximum_visual_relief_m": 0.039,
+  "identity": "concave three-meter wallrun corner with flush twin fresco surfaces and outside-only buttress",
+  "textures_packed": true
+}

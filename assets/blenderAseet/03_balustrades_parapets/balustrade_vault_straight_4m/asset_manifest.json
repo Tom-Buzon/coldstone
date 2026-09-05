@@ -1,0 +1,17 @@
+{
+  "asset": "balustrade_vault_straight_4m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    4.162,
+    0.478,
+    1.213
+  ],
+  "triangles_lod0": 15412,
+  "triangles_lod1": 828,
+  "triangles_lod2": 108,
+  "collision": "single full-height barrier proxy",
+  "module_length_m": 4.0,
+  "identity": "four-meter double-bay vaulted balustrade with eight turned balusters, central shield dedication and preserved polychromy",
+  "textures_packed": true
+}

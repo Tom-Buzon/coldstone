@@ -1,0 +1,17 @@
+{
+  "asset": "bridge_wood_8x3m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    3.994,
+    8.655,
+    1.744
+  ],
+  "triangles_lod0": 31628,
+  "triangles_lod1": 3456,
+  "triangles_lod2": 324,
+  "collision": "continuous deck and two rail proxies",
+  "walkable_width_m": 2.78,
+  "identity": "eight-meter field bridge with aged-oak Howe trusses, forged joints, lashings and a visible campaign repair",
+  "textures_packed": true
+}

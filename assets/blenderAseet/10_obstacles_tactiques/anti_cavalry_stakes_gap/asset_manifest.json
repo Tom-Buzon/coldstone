@@ -1,0 +1,19 @@
+{
+  "asset": "anti_cavalry_stakes_gap",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    6.15,
+    1.935,
+    1.363
+  ],
+  "triangles_lod0": 8432,
+  "triangles_lod1": 1872,
+  "triangles_lod2": 216,
+  "collision": "two simple section boxes preserving the central breach",
+  "clear_gap_m": 2.0,
+  "formation_gap_recommendation_m": 4.0,
+  "identity": "paired chevaux-de-frise sections with six forward cavalry pikes, lateral teeth, iron tips, rope bindings and red gap streamers",
+  "textures_packed": true
+}

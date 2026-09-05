@@ -1,0 +1,20 @@
+{
+  "asset": "archer_platform_high_4m",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    5.145,
+    3.793,
+    5.327
+  ],
+  "triangles_lod0": 23400,
+  "triangles_lod1": 432,
+  "triangles_lod2": 432,
+  "collision": "clean deck/support primitives",
+  "walkable": true,
+  "identity": "four-metre twin-pier archer perch with cross-braced cedar deck and dedicated rear ramp socket",
+  "textures_packed": true,
+  "deck_height_m": 4.0,
+  "rear_access_width_m": 1.82
+}

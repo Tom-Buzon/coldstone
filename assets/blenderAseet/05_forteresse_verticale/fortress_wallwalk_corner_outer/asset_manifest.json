@@ -1,0 +1,20 @@
+{
+  "asset": "fortress_wallwalk_corner_outer",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    6.716,
+    6.715,
+    4.323
+  ],
+  "triangles_lod0": 51048,
+  "triangles_lod1": 976,
+  "triangles_lod2": 976,
+  "collision": "one convex octagonal bastion prism plus seven parapet boxes",
+  "occluder": "one convex octagonal prism",
+  "walkable_width_m": 2.26,
+  "turn_degrees": 90,
+  "identity": "projecting octagonal outer wallwalk corner with faceted parapet and bronze garrison insignia",
+  "textures_packed": true
+}

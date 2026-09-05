@@ -1,0 +1,24 @@
+{
+  "asset": "arrow_gameplay",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.179,
+    1.282,
+    0.108
+  ],
+  "triangles_lod0": 2120,
+  "triangles_lod1": 492,
+  "triangles_lod2": 216,
+  "collision": "single swept projectile box",
+  "projectile_root": "arrow_gameplay_PROJECTILE_ROOT",
+  "projectile_axis": "-Y",
+  "tip_position_m": [
+    0,
+    -0.72,
+    0
+  ],
+  "identity": "gameplay arrow with forged Greek leaf head, raven tri-fletching, bone nock and red-bronze unit cresting",
+  "textures_packed": true
+}

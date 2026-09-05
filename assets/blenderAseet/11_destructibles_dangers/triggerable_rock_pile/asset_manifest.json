@@ -1,0 +1,24 @@
+{
+  "asset": "triggerable_rock_pile",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.382,
+    2.066,
+    1.781
+  ],
+  "triangles_lod0": 1764,
+  "triangles_lod1": 216,
+  "collision": "one held-state mass box plus one simple box per released rock or wedge",
+  "triggerable": true,
+  "held_export": "triggerable_rock_pile_held.glb",
+  "released_export": "triggerable_rock_pile_released.glb",
+  "released_piece_count": 16,
+  "activation_event": "trigger_release",
+  "trigger_marker": "MARKER_Trigger",
+  "release_marker": "MARKER_ReleaseDirection",
+  "release_axis": "-Y",
+  "identity": "triggerable limestone rock pile on a timber cradle with removable wedge, rope safety net, red pull cord and individually rigid irregular stones",
+  "textures_packed": true
+}

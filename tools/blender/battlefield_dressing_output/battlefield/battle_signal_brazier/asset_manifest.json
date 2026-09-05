@@ -1,0 +1,26 @@
+{
+  "asset": "battle_signal_brazier",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "battlefield",
+  "units": "meters",
+  "dimensions_m": [
+    1.43,
+    1.44,
+    2.3171
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 616,
+  "triangles_lod1": 372,
+  "triangles_lod2": 212,
+  "triangles_collision": 28,
+  "collision": "single cylinder covering the tripod and hot bowl",
+  "forge_collision_enabled": true,
+  "forge_collision_shape": "cylinder",
+  "origin": "center of base",
+  "identity": "high bronze signal brazier on black-iron tripod with hot coals and stylized flame",
+  "material_strategy": "shared flat PBR battlefield palette",
+  "textures_packed": true,
+  "seed": 260828
+}

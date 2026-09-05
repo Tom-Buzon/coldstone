@@ -1,0 +1,21 @@
+{
+  "asset": "door_stone_sliding",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    2.273,
+    0.725,
+    2.861
+  ],
+  "triangles_lod0": 2928,
+  "triangles_lod1": 216,
+  "triangles_lod2": 108,
+  "collision": "single stone door slab box",
+  "animation_root": "door_stone_sliding_SLIDE_ROOT",
+  "motion_axis": "+X",
+  "travel_m": 2.35,
+  "slide_ready": true,
+  "identity": "fifteen-block marble sliding gate with bronze shoes, recessed pull, carved bands and earthquake clamps",
+  "textures_packed": true
+}

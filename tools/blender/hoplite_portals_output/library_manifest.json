@@ -1,0 +1,26 @@
+{
+  "collection": "hoplite_portals",
+  "status": "PASS",
+  "asset_count": 3,
+  "seed": 260827,
+  "assets": [
+    {
+      "asset": "portal_world_forge",
+      "role": "world_editor",
+      "triangles_lod0": 1776,
+      "manifest": "portals\\portal_world_forge\\asset_manifest.json"
+    },
+    {
+      "asset": "portal_saved_world",
+      "role": "saved_world",
+      "triangles_lod0": 1632,
+      "manifest": "portals\\portal_saved_world\\asset_manifest.json"
+    },
+    {
+      "asset": "portal_official_campaign",
+      "role": "official_campaign",
+      "triangles_lod0": 1364,
+      "manifest": "portals\\portal_official_campaign\\asset_manifest.json"
+    }
+  ]
+}

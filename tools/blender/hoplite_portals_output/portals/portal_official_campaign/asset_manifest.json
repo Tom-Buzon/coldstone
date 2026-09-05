@@ -1,0 +1,31 @@
+{
+  "asset": "portal_official_campaign",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "portals",
+  "portal_role": "official_campaign",
+  "units": "meters",
+  "dimensions_m": [
+    5.9617,
+    1.52,
+    6.0609
+  ],
+  "opening_m": [
+    3.4,
+    3.25
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 1364,
+  "triangles_lod1": 784,
+  "triangles_lod2": 640,
+  "triangles_collision": 36,
+  "collision": "three closed box components covering both jambs and upper frame while preserving the playable opening",
+  "forge_collision_enabled": false,
+  "forge_collision_shape": "box",
+  "origin": "center of base",
+  "identity": "lugubrious obsidian necropolis gate with blackened ribs, ritual spikes, horned helm and crimson-violet void",
+  "material_strategy": "four shared flat PBR materials including one emissive energy material",
+  "textures_packed": true,
+  "seed": 260827
+}

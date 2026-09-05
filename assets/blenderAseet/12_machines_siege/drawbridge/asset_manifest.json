@@ -1,0 +1,26 @@
+{
+  "asset": "drawbridge",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    5.205,
+    6.474,
+    4.385
+  ],
+  "triangles_lod0": 5704,
+  "triangles_lod1": 216,
+  "collision": "two static pier boxes plus separate deployed deck box",
+  "articulated": true,
+  "deck_pivot": "DrawbridgeDeckPivot",
+  "deployed_angle_deg": 0.0,
+  "raised_angle_deg": 82.0,
+  "winch_pivot": "DrawbridgeWinchPivot",
+  "counterweight_pivots": [
+    "DrawbridgeCounterweight_L_Pivot",
+    "DrawbridgeCounterweight_R_Pivot"
+  ],
+  "clear_width_m": 3.6,
+  "identity": "fortress drawbridge with stone gate cheeks, real cross-planked oak deck, bronze impact edge, twin lifting chains, shared winch, paired counterweights and lock bar",
+  "textures_packed": true
+}

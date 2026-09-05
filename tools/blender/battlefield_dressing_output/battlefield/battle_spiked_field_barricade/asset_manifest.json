@@ -1,0 +1,26 @@
+{
+  "asset": "battle_spiked_field_barricade",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "family": "battlefield",
+  "units": "meters",
+  "dimensions_m": [
+    3.5,
+    1.24,
+    1.7929
+  ],
+  "forward_blender": "-Y",
+  "forward_godot": "-Z",
+  "triangles_lod0": 714,
+  "triangles_lod1": 286,
+  "triangles_lod2": 176,
+  "triangles_collision": 12,
+  "collision": "single crowd-safe box covering the defensive obstacle",
+  "forge_collision_enabled": true,
+  "forge_collision_shape": "box",
+  "origin": "center of base",
+  "identity": "weathered cheval-de-frise with crossed spear stakes, A-frame feet and rope bindings",
+  "material_strategy": "shared flat PBR battlefield palette",
+  "textures_packed": true,
+  "seed": 260828
+}

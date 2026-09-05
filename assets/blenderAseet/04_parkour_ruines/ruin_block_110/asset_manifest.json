@@ -1,0 +1,17 @@
+{
+  "asset": "ruin_block_110",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    1.61,
+    1.521,
+    1.203
+  ],
+  "triangles_lod0": 2802,
+  "triangles_lod1": 216,
+  "triangles_lod2": 108,
+  "collision": "single inset traversal box",
+  "parkour_height_m": 1.06,
+  "identity": "1.10m toppled entablature block with dentils, ancient clamp and readable climb top",
+  "textures_packed": true
+}

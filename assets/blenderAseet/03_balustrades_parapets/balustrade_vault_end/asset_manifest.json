@@ -1,0 +1,17 @@
+{
+  "asset": "balustrade_vault_end",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "dimensions_m": [
+    1.406,
+    0.491,
+    1.571
+  ],
+  "triangles_lod0": 5684,
+  "triangles_lod1": 396,
+  "triangles_lod2": 108,
+  "collision": "single terminal barrier proxy",
+  "origin": "open modular connection",
+  "identity": "vault balustrade termination with twin turned balusters, reinforced civic pier, marble palmette and bronze end plaque",
+  "textures_packed": true
+}

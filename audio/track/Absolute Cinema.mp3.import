@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dabxam3mr8kho"
+path="res://.godot/imported/Absolute Cinema.mp3-16c4e28170ebce5b8a7b108369a81687.mp3str"
+
+[deps]
+
+source_file="res://audio/track/Absolute Cinema.mp3"
+dest_files=["res://.godot/imported/Absolute Cinema.mp3-16c4e28170ebce5b8a7b108369a81687.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

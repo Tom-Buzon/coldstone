@@ -1,0 +1,23 @@
+{
+  "asset": "amphora_oil_flammable",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    0.781,
+    0.63,
+    1.018
+  ],
+  "triangles_lod0": 5304,
+  "triangles_lod1": 486,
+  "collision": "single intact convex box plus simple shard boxes",
+  "destructible": true,
+  "flammable": true,
+  "intact_export": "amphora_oil_flammable_intact.glb",
+  "fractured_export": "amphora_oil_flammable_fractured.glb",
+  "fracture_piece_count": 14,
+  "activation_event": "health_depleted",
+  "ignition_marker": "MARKER_IgnitionOrigin",
+  "identity": "sealed oil amphora with pitch cork, ignition marker, warning bands, black-figure warrior and exact-pose ceramic prefracture",
+  "textures_packed": true
+}

@@ -1,0 +1,24 @@
+{
+  "asset": "market_colonnade_walkable",
+  "status": "PASS",
+  "quality": "V2_HERO",
+  "units": "meters",
+  "dimensions_m": [
+    8.402,
+    4.969,
+    5.071
+  ],
+  "triangles_lod0": 43956,
+  "triangles_lod1": 2580,
+  "triangles_lod2": 2004,
+  "collision": "twelve low-poly column cylinders, roof slab and two parapet boxes",
+  "occluder": "roof slab only",
+  "walkable_roof": true,
+  "roof_lane_m": [
+    7.9,
+    3.1
+  ],
+  "open_ground_level": true,
+  "identity": "eight-metre double-row Greek market stoa with fluted Doric columns, open paving, awning remnants and combat roof",
+  "textures_packed": true
+}
