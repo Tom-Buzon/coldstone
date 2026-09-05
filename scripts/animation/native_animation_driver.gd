@@ -1,9 +1,16 @@
 extends Node
 class_name HopliteNativeAnimationDriver
 
+signal combat_action_started(action: Dictionary)
+signal combat_action_finished(action: Dictionary, reason: StringName)
+signal combat_actions_cancelled(actions: Array[Dictionary], reason: StringName)
+
 const UAL2_PATH := "res://assets/runtime/ual2/UAL2_Standard.glb"
 const BridgeScript = preload("res://scripts/animation/authored_pose_bridge.gd")
 const ExternalBankScript = preload("res://scripts/animation/external_animation_bank.gd")
+const VERBOSE_SETTING := "debug/hoplite/verbose_animation"
+
+static var _ready_reported: bool = false
 
 var target_scene: Node
 var target_skeleton: Skeleton3D
@@ -51,6 +58,8 @@ var attack_blend_in: float = 0.06
 var attack_blend_out: float = 0.12
 var attack_queue: Array[Dictionary] = []
 var current_attack_chain_point: float = 0.58
+var current_action_metadata: Dictionary = {}
+var _next_action_request_id: int = 1
 
 var charge_active: bool = false
 var charge_clip: StringName = StringName()
@@ -90,8 +99,47 @@ var full_body_timer: float = 0.0
 var full_body_duration: float = 0.0
 var speed_blend: float = 0.0
 var configured: bool = false
+var simulation_lod: int = 0
+var simulation_interval: float = 0.0
+var simulation_accumulator: float = 0.0
+var simulation_sample_count: int = 0
 
-func configure(visible_scene: Node, skeleton: Skeleton3D, player: AnimationPlayer, enable_external_bank: bool = true, external_keys: Array = []) -> bool:
+func _physics_process(delta: float) -> void:
+	if not configured or animation_tree == null or not animation_tree.active or simulation_lod >= 3:
+		return
+	if simulation_interval <= 0.0:
+		_advance_simulation(maxf(delta, 0.0))
+		return
+	simulation_accumulator += maxf(delta, 0.0)
+	if simulation_accumulator >= simulation_interval:
+		_advance_simulation(simulation_accumulator)
+		simulation_accumulator = 0.0
+
+func set_simulation_lod(level: int) -> void:
+	simulation_lod = clampi(level, 0, 3)
+	simulation_interval = 0.0
+	if simulation_lod == 1:
+		simulation_interval = 1.0 / 30.0
+	elif simulation_lod == 2:
+		simulation_interval = 1.0 / 12.0
+	simulation_accumulator = 0.0
+	if animation_tree != null:
+		animation_tree.active = simulation_lod < 3
+
+func force_simulation_sample() -> void:
+	if not configured or animation_tree == null:
+		return
+	var should_pause := simulation_lod >= 3
+	animation_tree.active = true
+	_advance_simulation(0.0)
+	if should_pause:
+		animation_tree.active = false
+
+func _advance_simulation(delta: float) -> void:
+	animation_tree.advance(maxf(delta, 0.0))
+	simulation_sample_count += 1
+
+func configure(visible_scene: Node, skeleton: Skeleton3D, player: AnimationPlayer, enable_external_bank: bool = true, external_keys: Array = [], enable_wall_movement: bool = true, profile_id: StringName = StringName()) -> bool:
 	target_scene = visible_scene
 	target_skeleton = skeleton
 	target_player = player
@@ -157,20 +205,24 @@ func configure(visible_scene: Node, skeleton: Skeleton3D, player: AnimationPlaye
 		external_bank = ExternalBankScript.new()
 		external_bank.name = "ExternalAnimationBank"
 		add_child(external_bank)
-		external_bank.configure(target_skeleton, external_keys)
+		external_bank.configure(target_skeleton, external_keys, profile_id)
 
-		wall_movement_bank = ExternalBankScript.new()
-		wall_movement_bank.name = "WallRunAnimationBank"
-		add_child(wall_movement_bank)
-		wall_movement_bank.configure(target_skeleton, [&"wall_run", &"wall_run_diagonal", &"wall_run_vertical", &"wall_run_detach_twist"])
-		wall_movement_bank.move_pose_bridges_before(pose_bridge)
+		if enable_wall_movement:
+			wall_movement_bank = ExternalBankScript.new()
+			wall_movement_bank.name = "WallRunAnimationBank"
+			add_child(wall_movement_bank)
+			wall_movement_bank.configure(target_skeleton, [&"wall_run", &"wall_run_diagonal", &"wall_run_vertical", &"wall_run_detach_twist"])
+			wall_movement_bank.move_pose_bridges_before(pose_bridge)
 
 	_build_slot_map()
 	if not _build_locomotion_tree():
 		return false
 	configured = true
-	print("[UAL NATIVE V0.0.5] READY - fast buffered lights + vertical attack aim")
-	print("[UAL NATIVE V2.12] slots: ", slot_debug())
+	if not _ready_reported:
+		print("[UAL NATIVE V2.12] READY - native retarget driver")
+		_ready_reported = true
+	if _verbose_diagnostics():
+		print("[UAL NATIVE V2.12] slots: ", slot_debug())
 	_print_variant_summary()
 	return true
 
@@ -216,7 +268,9 @@ func tick(delta: float) -> void:
 					float(queued.get("blend", 0.07)),
 					float(queued.get("hips", 0.35)),
 					float(queued.get("start_fraction", 0.0)),
-					bool(queued.get("fast", false))
+					bool(queued.get("fast", false)),
+					queued.get("metadata", {}) as Dictionary,
+					&"chained"
 				)
 			else:
 				_start_attack_clip(
@@ -228,10 +282,12 @@ func tick(delta: float) -> void:
 					float(queued.get("blend", 0.07)),
 					float(queued.get("hips", 0.35)),
 					float(queued.get("start_fraction", 0.0)),
-					bool(queued.get("fast", false))
+					bool(queued.get("fast", false)),
+					queued.get("metadata", {}) as Dictionary,
+					&"chained"
 				)
 		elif attack_timer <= 0.0:
-			_finish_attack()
+			_finish_attack(&"finished")
 	else:
 		_set_active_attack_weight(0.0, false, 0.0)
 
@@ -292,7 +348,7 @@ func begin_block() -> bool:
 		return false
 	if block_active:
 		return true
-	_finish_attack()
+	_finish_attack(&"block")
 	if external_bank != null and external_bank.hold(&"block_idle", 0.46, false, 0.72):
 		block_active = true
 		block_clip = &"external:block_idle"
@@ -359,7 +415,7 @@ func play_attack_variant(slot: StringName, context: StringName, force_full_body:
 # Explicit fallback used for attacks whose silhouette must remain recognizable.
 # It keeps the gameplay slot/context intact (unlike signature enemy actions) and
 # never silently substitutes an unrelated dash or multi-hit combo animation.
-func play_attack_exact(slot: StringName, context: StringName, candidates: Array, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false) -> bool:
+func play_attack_exact(slot: StringName, context: StringName, candidates: Array, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false, action_metadata: Dictionary = {}) -> bool:
 	if not configured or source_player == null:
 		return false
 	end_block()
@@ -371,7 +427,7 @@ func play_attack_exact(slot: StringName, context: StringName, candidates: Array,
 	var speed_value: float = custom_speed if custom_speed > 0.0 else float(profile.get("speed", 1.0))
 	var blend_value: float = custom_blend if custom_blend >= 0.0 else float(profile.get("blend", 0.07))
 	var hips_value: float = hips_weight if hips_weight >= 0.0 else float(profile.get("hips", 0.35))
-	return _start_attack_clip(slot, context, clip, full_body_value, speed_value, blend_value, hips_value, 0.0, fast)
+	return _start_attack_clip(slot, context, clip, full_body_value, speed_value, blend_value, hips_value, 0.0, fast, action_metadata)
 
 func has_external_clip(key: StringName) -> bool:
 	return external_bank != null and external_bank.has_clip(key)
@@ -379,7 +435,7 @@ func has_external_clip(key: StringName) -> bool:
 func external_clip_length(key: StringName) -> float:
 	return float(external_bank.clip_length(key)) if external_bank != null and external_bank.has_clip(key) else 0.0
 
-func play_external_attack(key: StringName, slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false, start_fraction: float = 0.0) -> bool:
+func play_external_attack(key: StringName, slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false, start_fraction: float = 0.0, action_metadata: Dictionary = {}) -> bool:
 	if not configured or external_bank == null or not external_bank.has_clip(key):
 		return false
 	end_block()
@@ -388,9 +444,9 @@ func play_external_attack(key: StringName, slot: StringName, context: StringName
 	var speed_value: float = custom_speed if custom_speed > 0.0 else float(profile.get("speed", 1.0))
 	var blend_value: float = custom_blend if custom_blend >= 0.0 else float(profile.get("blend", 0.07))
 	var hips_value: float = hips_weight if hips_weight >= 0.0 else float(profile.get("hips", 0.35))
-	return _start_external_attack(key, slot, context, full_body_value, speed_value, blend_value, hips_value, start_fraction, fast)
+	return _start_external_attack(key, slot, context, full_body_value, speed_value, blend_value, hips_value, start_fraction, fast, action_metadata)
 
-func request_external_attack(key: StringName, slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false, start_fraction: float = 0.0) -> bool:
+func request_external_attack(key: StringName, slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false, start_fraction: float = 0.0, action_metadata: Dictionary = {}) -> bool:
 	if not configured or external_bank == null or not external_bank.has_clip(key):
 		return false
 	end_block()
@@ -399,8 +455,9 @@ func request_external_attack(key: StringName, slot: StringName, context: StringN
 	var speed_value: float = custom_speed if custom_speed > 0.0 else float(profile.get("speed", 1.0))
 	var blend_value: float = custom_blend if custom_blend >= 0.0 else float(profile.get("blend", 0.07))
 	var hips_value: float = hips_weight if hips_weight >= 0.0 else float(profile.get("hips", 0.35))
+	var metadata := _normalize_action_metadata(slot, context, action_metadata)
 	if attack_timer <= 0.0 and not charge_active:
-		return _start_external_attack(key, slot, context, full_body_value, speed_value, blend_value, hips_value, start_fraction, fast)
+		return _start_external_attack(key, slot, context, full_body_value, speed_value, blend_value, hips_value, start_fraction, fast, metadata)
 	if attack_queue.size() >= 3:
 		return false
 	attack_queue.append({
@@ -413,11 +470,12 @@ func request_external_attack(key: StringName, slot: StringName, context: StringN
 		"blend": blend_value,
 		"hips": hips_value,
 		"start_fraction": start_fraction,
-		"fast": fast
+		"fast": fast,
+		"metadata": metadata,
 	})
 	return true
 
-func request_attack_variant(slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false) -> bool:
+func request_attack_variant(slot: StringName, context: StringName, force_full_body: bool = false, custom_speed: float = -1.0, custom_blend: float = -1.0, hips_weight: float = -1.0, fast: bool = false, action_metadata: Dictionary = {}) -> bool:
 	if not configured:
 		return false
 	end_block()
@@ -429,8 +487,9 @@ func request_attack_variant(slot: StringName, context: StringName, force_full_bo
 	var speed_value: float = custom_speed if custom_speed > 0.0 else float(profile.get("speed", 1.0))
 	var blend_value: float = custom_blend if custom_blend >= 0.0 else float(profile.get("blend", 0.07))
 	var hips_value: float = hips_weight if hips_weight >= 0.0 else float(profile.get("hips", 0.35))
+	var metadata := _normalize_action_metadata(slot, context, action_metadata)
 	if attack_timer <= 0.0 and not charge_active:
-		return _start_attack_clip(slot, context, clip, full_body_value, speed_value, blend_value, hips_value, 0.0, fast)
+		return _start_attack_clip(slot, context, clip, full_body_value, speed_value, blend_value, hips_value, 0.0, fast, metadata)
 	# Three buffered attacks is enough for very fast clicking without storing a
 	# long autopilot combo. Earlier versions only kept two and could visibly drop
 	# a click when the player tapped faster than the authored chain point.
@@ -445,7 +504,8 @@ func request_attack_variant(slot: StringName, context: StringName, force_full_bo
 		"blend": blend_value,
 		"hips": hips_value,
 		"start_fraction": 0.0,
-		"fast": fast
+		"fast": fast,
+		"metadata": metadata,
 	})
 	return true
 
@@ -473,7 +533,7 @@ func begin_heavy_charge(context: StringName) -> bool:
 	if not configured:
 		return false
 	end_block()
-	_finish_attack()
+	_finish_attack(&"heavy_charge")
 	charge_context = context
 	charge_clip = _choose_attack_variant(&"heavy", context)
 	if charge_clip == StringName() or not source_player.has_animation(charge_clip):
@@ -492,6 +552,8 @@ func begin_heavy_charge(context: StringName) -> bool:
 	current_attack_slot = &"charge"
 	current_attack_context = context
 	current_attack_clip = charge_clip
+	current_action_metadata = _normalize_action_metadata(&"charge", context, {})
+	combat_action_started.emit(current_action_metadata.duplicate(true))
 	return true
 
 func update_heavy_charge(ratio: float) -> void:
@@ -519,7 +581,7 @@ func release_heavy_charge(context: StringName, ratio: float, fast_combo: bool = 
 	charge_clip = StringName()
 	source_player.stop(true)
 	if clip == StringName():
-		_finish_attack()
+		_finish_attack(&"heavy_release_failed")
 		return false
 	var profile: Dictionary = _attack_profile(&"heavy", context, fast_combo)
 	var speed_value: float = 1.45 if fast_combo else lerpf(1.05, 0.86, final_ratio)
@@ -541,6 +603,7 @@ func cancel_heavy_charge() -> void:
 	source_player.stop()
 	current_attack_slot = StringName()
 	current_attack_clip = StringName()
+	_emit_current_action_finished(&"cancelled")
 	if pose_bridge != null:
 		pose_bridge.set_attack_weight(0.0, false, 0.0)
 
@@ -902,7 +965,8 @@ func _play_exact_movement_action(clip: StringName, slot: StringName, speed: floa
 	donor_action_slot = slot
 	if movement_pose_bridge != null:
 		movement_pose_bridge.set_attack_weight(0.001, true, 1.0)
-	print("[UAL NATIVE] MOVEMENT ACTION ", slot, " -> ", clip, " duration=", donor_action_duration)
+	if _verbose_diagnostics():
+		print("[UAL NATIVE] MOVEMENT ACTION ", slot, " -> ", clip, " duration=", donor_action_duration)
 	return donor_action_duration
 
 func _finish_donor_action(force: bool = false) -> void:
@@ -917,10 +981,30 @@ func _finish_donor_action(force: bool = false) -> void:
 	if movement_pose_bridge != null:
 		movement_pose_bridge.set_attack_weight(0.0, false, 0.0)
 
-func _start_attack_clip(slot: StringName, context: StringName, clip: StringName, full_body_value: bool, speed_value: float, blend_value: float, hips_value: float, start_fraction: float, fast: bool) -> bool:
+func _normalize_action_metadata(slot: StringName, context: StringName, metadata: Dictionary) -> Dictionary:
+	var result: Dictionary = metadata.duplicate(true)
+	result[&"slot"] = slot
+	result[&"context"] = context
+	if int(result.get(&"request_id", 0)) <= 0:
+		result[&"request_id"] = _next_action_request_id
+		_next_action_request_id += 1
+	return result
+
+
+func _emit_current_action_finished(reason: StringName) -> void:
+	if current_action_metadata.is_empty():
+		return
+	var finished_action := current_action_metadata.duplicate(true)
+	current_action_metadata.clear()
+	combat_action_finished.emit(finished_action, reason)
+
+
+func _start_attack_clip(slot: StringName, context: StringName, clip: StringName, full_body_value: bool, speed_value: float, blend_value: float, hips_value: float, start_fraction: float, fast: bool, action_metadata: Dictionary = {}, replacement_reason: StringName = &"replaced") -> bool:
 	if clip == StringName() or not source_player.has_animation(clip):
-		print("[UAL NATIVE] missing attack clip ", slot, " / ", context, " -> ", clip)
+		if _verbose_diagnostics():
+			print("[UAL NATIVE] missing attack clip ", slot, " / ", context, " -> ", clip)
 		return false
+	_emit_current_action_finished(replacement_reason)
 	if external_bank != null:
 		external_bank.stop()
 	attack_uses_external_donor = false
@@ -943,12 +1027,15 @@ func _start_attack_clip(slot: StringName, context: StringName, clip: StringName,
 	current_attack_chain_point = float(profile.get("chain", 0.58))
 	attack_duration = maxf((anim.length * (1.0 - fraction)) / maxf(absf(speed_value), 0.05), 0.12)
 	attack_timer = attack_duration
+	current_action_metadata = _normalize_action_metadata(slot, context, action_metadata)
 	if pose_bridge != null:
 		pose_bridge.set_attack_weight(0.001, attack_full_body, attack_hips_weight)
-	print("[UAL NATIVE] ATTACK ", slot, "/", context, " -> ", clip, " speed=", speed_value, " fast=", fast)
+	combat_action_started.emit(current_action_metadata.duplicate(true))
+	if _verbose_diagnostics():
+		print("[UAL NATIVE] ATTACK ", slot, "/", context, " -> ", clip, " speed=", speed_value, " fast=", fast)
 	return true
 
-func _start_external_attack(key: StringName, slot: StringName, context: StringName, full_body_value: bool, speed_value: float, blend_value: float, hips_value: float, start_fraction: float, fast: bool) -> bool:
+func _start_external_attack(key: StringName, slot: StringName, context: StringName, full_body_value: bool, speed_value: float, blend_value: float, hips_value: float, start_fraction: float, fast: bool, action_metadata: Dictionary = {}, replacement_reason: StringName = &"replaced") -> bool:
 	if external_bank == null or not external_bank.has_clip(key):
 		return false
 	if source_player != null:
@@ -958,6 +1045,7 @@ func _start_external_attack(key: StringName, slot: StringName, context: StringNa
 	var duration: float = external_bank.play(key, blend_value, speed_value, full_body_value, hips_value, start_fraction)
 	if duration <= 0.0:
 		return false
+	_emit_current_action_finished(replacement_reason)
 	attack_uses_external_donor = true
 	current_attack_slot = slot
 	current_attack_context = context
@@ -971,7 +1059,10 @@ func _start_external_attack(key: StringName, slot: StringName, context: StringNa
 	current_attack_chain_point = float(profile.get("chain", 0.58))
 	attack_duration = duration
 	attack_timer = duration
-	print("[UAL NATIVE] EXTERNAL ATTACK ", slot, "/", context, " -> ", key, " duration=", snappedf(duration, 0.001))
+	current_action_metadata = _normalize_action_metadata(slot, context, action_metadata)
+	combat_action_started.emit(current_action_metadata.duplicate(true))
+	if _verbose_diagnostics():
+		print("[UAL NATIVE] EXTERNAL ATTACK ", slot, "/", context, " -> ", key, " duration=", snappedf(duration, 0.001))
 	return true
 
 func _set_active_attack_weight(value: float, full_body_value: bool, hips_value: float) -> void:
@@ -980,7 +1071,13 @@ func _set_active_attack_weight(value: float, full_body_value: bool, hips_value: 
 	elif pose_bridge != null:
 		pose_bridge.set_attack_weight(value, full_body_value, hips_value)
 
-func _finish_attack() -> void:
+func _finish_attack(reason: StringName = &"cancelled") -> void:
+	var cancelled_actions: Array[Dictionary] = []
+	for queued: Dictionary in attack_queue:
+		var metadata := queued.get("metadata", {}) as Dictionary
+		if not metadata.is_empty():
+			cancelled_actions.append(metadata.duplicate(true))
+	_emit_current_action_finished(reason)
 	if external_bank != null:
 		external_bank.stop()
 	attack_uses_external_donor = false
@@ -992,6 +1089,8 @@ func _finish_attack() -> void:
 	attack_full_body = false
 	attack_hips_weight = 0.0
 	attack_queue.clear()
+	if not cancelled_actions.is_empty() or reason != &"finished":
+		combat_actions_cancelled.emit(cancelled_actions, reason)
 	if not charge_active and source_player != null:
 		source_player.stop()
 	if pose_bridge != null and not charge_active:
@@ -1086,6 +1185,16 @@ func current_attack_slot_name() -> StringName:
 func current_attack_context_name() -> StringName:
 	return current_attack_context
 
+
+func current_combat_action_metadata() -> Dictionary:
+	return current_action_metadata.duplicate(true)
+
+
+func current_action_blocks(capability: StringName) -> bool:
+	var blocked_capabilities := current_action_metadata.get(&"blocked_capabilities", []) as Array
+	return blocked_capabilities.has(capability)
+
+
 func current_attack_progress() -> float:
 	if attack_duration <= 0.001 or attack_timer <= 0.0:
 		return 0.0
@@ -1126,7 +1235,8 @@ func preview_play() -> bool:
 	attack_full_body = true
 	if pose_bridge != null:
 		pose_bridge.set_attack_weight(0.001, true, 1.0)
-	print("[UAL NATIVE PREVIEW FULL BODY] ", clip)
+	if _verbose_diagnostics():
+		print("[UAL NATIVE PREVIEW FULL BODY] ", clip)
 	return true
 
 func slot_debug() -> String:
@@ -1379,13 +1489,18 @@ func _print_variant_summary() -> void:
 		var names: Array[String] = []
 		for value: Variant in pool:
 			names.append(String(value))
-		print("[UAL VARIANTS] ", String(key), " = ", ", ".join(names))
+		if _verbose_diagnostics():
+			print("[UAL VARIANTS] ", String(key), " = ", ", ".join(names))
 	for key: Variant in movement_pools.keys():
 		var pool: Array = movement_pools[key]
 		var names: Array[String] = []
 		for value: Variant in pool:
 			names.append(String(value))
-		print("[UAL PARKOUR] ", String(key), " = ", ", ".join(names))
+		if _verbose_diagnostics():
+			print("[UAL PARKOUR] ", String(key), " = ", ", ".join(names))
+
+func _verbose_diagnostics() -> bool:
+	return bool(ProjectSettings.get_setting(VERBOSE_SETTING, false))
 
 func _build_locomotion_tree() -> bool:
 	var idle_clip: StringName = StringName(slot_map.get(&"idle", StringName()))
@@ -1430,6 +1545,7 @@ func _build_locomotion_tree() -> bool:
 	add_child(animation_tree)
 	animation_tree.anim_player = animation_tree.get_path_to(target_player)
 	animation_tree.tree_root = tree_root
+	animation_tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	target_player.stop()
 	animation_tree.active = true
 	animation_tree.set("parameters/Locomotion/blend_position", 0.0)

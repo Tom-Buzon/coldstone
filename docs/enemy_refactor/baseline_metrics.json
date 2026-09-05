@@ -1,0 +1,39 @@
+{
+  "captured_at": "2026-08-26",
+  "engine": "4.7.stable.official.5b4e0cb0f",
+  "renderer": "gl_compatibility",
+  "display_server": "headless",
+  "seed": 13371,
+  "warmup_frames": 120,
+  "sample_frames": 120,
+  "mass_battle_threshold_preserved": 28,
+  "measurement_log": ".tmp_tools/enemy_refactor/mission_baseline_counts_1_5_15_28_36_both.log",
+  "diagnostic_note": "FPS/process/physics are slow-refresh snapshots; use structural counters, spawn time, wall tick distribution and teardown for comparisons.",
+  "scenarios": [
+    {"mode":"idle","count":1,"spawn_ms":279.767,"process_ms_snapshot":0.227,"physics_ms_snapshot":0.429,"fps_snapshot":145.0,"nodes":37,"objects":1632,"memory_static_bytes":85591030,"active_bodies":0,"tick_p95_ms":20.707,"cleanup":true},
+    {"mode":"idle","count":5,"spawn_ms":300.998,"process_ms_snapshot":0.508,"physics_ms_snapshot":1.135,"fps_snapshot":145.0,"nodes":161,"objects":1852,"memory_static_bytes":87354246,"active_bodies":0,"tick_p95_ms":20.706,"cleanup":true},
+    {"mode":"idle","count":15,"spawn_ms":392.733,"process_ms_snapshot":1.374,"physics_ms_snapshot":1.268,"fps_snapshot":145.0,"nodes":471,"objects":2402,"memory_static_bytes":91795496,"active_bodies":0,"tick_p95_ms":20.709,"cleanup":true},
+    {"mode":"idle","count":28,"spawn_ms":512.665,"process_ms_snapshot":2.380,"physics_ms_snapshot":2.251,"fps_snapshot":145.0,"nodes":874,"objects":3117,"memory_static_bytes":97587567,"active_bodies":0,"tick_p95_ms":20.702,"cleanup":true},
+    {"mode":"idle","count":36,"spawn_ms":590.141,"process_ms_snapshot":2.654,"physics_ms_snapshot":2.188,"fps_snapshot":145.0,"nodes":1122,"objects":3557,"memory_static_bytes":101140671,"active_bodies":0,"tick_p95_ms":20.713,"cleanup":true},
+    {"mode":"active","count":1,"spawn_ms":249.627,"process_ms_snapshot":0.291,"physics_ms_snapshot":0.815,"fps_snapshot":145.0,"nodes":37,"objects":1633,"memory_static_bytes":85993102,"active_bodies":1,"tick_p95_ms":20.708,"cleanup":true},
+    {"mode":"active","count":5,"spawn_ms":292.579,"process_ms_snapshot":0.695,"physics_ms_snapshot":1.495,"fps_snapshot":145.0,"nodes":161,"objects":1853,"memory_static_bytes":87756578,"active_bodies":5,"tick_p95_ms":20.703,"cleanup":true},
+    {"mode":"active","count":15,"spawn_ms":373.885,"process_ms_snapshot":1.837,"physics_ms_snapshot":3.172,"fps_snapshot":145.0,"nodes":471,"objects":2403,"memory_static_bytes":92154720,"active_bodies":15,"tick_p95_ms":20.699,"cleanup":true},
+    {"mode":"active","count":28,"spawn_ms":502.941,"process_ms_snapshot":3.171,"physics_ms_snapshot":5.243,"fps_snapshot":145.0,"nodes":874,"objects":3118,"memory_static_bytes":97874987,"active_bodies":28,"tick_p95_ms":20.706,"cleanup":true},
+    {"mode":"active","count":36,"spawn_ms":587.715,"process_ms_snapshot":4.694,"physics_ms_snapshot":6.880,"fps_snapshot":145.0,"nodes":1122,"objects":3558,"memory_static_bytes":101403959,"active_bodies":36,"tick_p95_ms":20.715,"cleanup":true}
+  ],
+  "hoplite_scenarios": [
+    {"archetype":"ngeneral","mode":"idle","count":15,"spawn_ms":244.661,"process_ms_snapshot":1.492,"physics_ms_snapshot":2.412,"nodes":1071,"objects":3095,"resources":96,"memory_static_bytes":57548788,"active_bodies":0,"cleanup":true},
+    {"archetype":"ngeneral","mode":"idle","count":28,"spawn_ms":243.568,"process_ms_snapshot":1.781,"physics_ms_snapshot":4.482,"nodes":1994,"objects":4382,"resources":96,"memory_static_bytes":63484969,"active_bodies":0,"cleanup":true},
+    {"archetype":"ngeneral","mode":"idle","count":36,"spawn_ms":286.261,"process_ms_snapshot":2.501,"physics_ms_snapshot":3.550,"nodes":2562,"objects":5174,"resources":96,"memory_static_bytes":67078837,"active_bodies":0,"cleanup":true},
+    {"archetype":"ngeneral","mode":"active","count":15,"spawn_ms":143.701,"process_ms_snapshot":1.195,"physics_ms_snapshot":4.748,"nodes":1071,"objects":3096,"resources":96,"memory_static_bytes":58191168,"active_bodies":15,"cleanup":true},
+    {"archetype":"ngeneral","mode":"active","count":28,"spawn_ms":225.957,"process_ms_snapshot":2.107,"physics_ms_snapshot":7.988,"nodes":1994,"objects":4383,"resources":96,"memory_static_bytes":63883553,"active_bodies":28,"cleanup":true},
+    {"archetype":"ngeneral","mode":"active","count":36,"spawn_ms":266.736,"process_ms_snapshot":2.745,"physics_ms_snapshot":9.711,"nodes":2562,"objects":5175,"resources":96,"memory_static_bytes":67404461,"active_bodies":36,"cleanup":true}
+  ],
+  "hoplite_measurement_log": ".tmp_tools/enemy_refactor/mission_baseline_ngeneral_15_28_36_both.log",
+  "preexisting_red_probes": {
+    "enemy_roster_audit": ["assembled phalanx never entered collective advance", "formed phalanx did not advance through its slow shared anchor"],
+    "crowd_tactics_probe": ["cohort response missing behind spear line", "shield expulsion arc not selected", "pressing/supporting ranks not distinct"],
+    "enemy_combat_probe": ["giant head collider not generated from real mesh", "generic skeletal sphere fallback"]
+  },
+  "pending_measurements": ["rendered draw calls and VRAM", "mixed families", "Forge", "real battle", "sleep-wake", "mass death", "repeated dismemberment", "per-unit rig and anatomy counters"]
+}

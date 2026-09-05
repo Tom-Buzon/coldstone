@@ -21,7 +21,7 @@ func _initialize() -> void:
 func _run() -> void:
     _probe_engagement_layers()
     _probe_dense_attack_budget()
-    _probe_phalanx_intrusion_arc()
+    await _probe_phalanx_intrusion_arc()
     if failures.is_empty():
         print("CROWD_TACTICS_PROBE PASS: contact ring, reserves, attack budget and intrusion-expulsion arc")
         quit(0)
@@ -37,23 +37,40 @@ func _probe_engagement_layers() -> void:
     root.add_child(target)
     var contact_count := 0
     var reserve_count := 0
+    var ready_before_arrival := 0
     var min_contact_distance := INF
     var min_reserve_distance := INF
+    var soldiers: Array[TacticalDummy] = []
+    var assignments: Array[Dictionary] = []
     for index: int in range(12):
         var soldier := TacticalDummy.new()
+        soldier.position = Vector3(cos(float(index) * TAU / 12.0), 0.0, sin(float(index) * TAU / 12.0)) * (3.0 + float(index / 6))
         root.add_child(soldier)
+        soldiers.append(soldier)
         var assignment: Dictionary = director.engagement_assignment(soldier, target, 1.55)
+        assignments.append(assignment)
         var distance: float = (assignment.get("position", Vector3.ZERO) as Vector3).distance_to(target.global_position)
-        if bool(assignment.get("attack_ready", false)):
+        if bool(assignment.get("contact_assigned", false)):
             contact_count += 1
             min_contact_distance = minf(min_contact_distance, distance)
         else:
             reserve_count += 1
             min_reserve_distance = minf(min_reserve_distance, distance)
+        if bool(assignment.get("attack_ready", false)):
+            ready_before_arrival += 1
     _expect(contact_count == 6, "dense engagement did not keep exactly six soldiers on the contact ring")
     _expect(reserve_count == 6, "second-wave soldiers were not assigned to a visible reserve ring")
+    _expect(ready_before_arrival == 0, "soldiers could attack before physically reaching their contact posts")
     _expect(min_contact_distance >= 1.77, "contact ring still collapses inside readable personal space")
     _expect(min_reserve_distance > min_contact_distance + 1.0, "reserve ring is not separated from the contact fight")
+    for index: int in range(soldiers.size()):
+        soldiers[index].position = assignments[index].get("position", soldiers[index].position)
+    director.engagement_coordinator.rebalance_after[target.get_instance_id()] = INF
+    var ready_after_arrival := 0
+    for soldier: TacticalDummy in soldiers:
+        if bool(director.engagement_assignment(soldier, target, 1.55).get("attack_ready", false)):
+            ready_after_arrival += 1
+    _expect(ready_after_arrival == 6, "contact soldiers did not become attack-ready after reaching their assigned circle")
     director.queue_free()
     target.queue_free()
 
@@ -71,6 +88,7 @@ func _probe_dense_attack_budget() -> void:
     director.spatial_grid[Vector2i.ZERO] = nearby
     _expect(director.attack_capacity_for(target) == 3, "dense crowd can still launch more than three simultaneous attacks")
     director.spatial_grid[Vector2i.ZERO] = nearby.slice(0, 4)
+    director.invalidate_pressure_cache()
     _expect(director.attack_capacity_for(target) == 2, "small skirmish did not retain the two-attacker readability budget")
     director.queue_free()
     target.queue_free()
@@ -99,6 +117,10 @@ func _probe_phalanx_intrusion_arc() -> void:
         staging.append(assignment.get("position", soldier.global_position))
     for index: int in range(soldiers.size()):
         soldiers[index].global_position = staging[index]
+    # The director deliberately shares one cohort build for its 20 Hz tactical
+    # cache window. Wait beyond that window before observing transform changes.
+    for _frame: int in range(4):
+        await physics_frame
     for soldier: TacticalDummy in soldiers:
         director.phalanx_assignment(soldier, target)
 
@@ -107,6 +129,11 @@ func _probe_phalanx_intrusion_arc() -> void:
     var old_facing: Vector3 = state.get("facing", Vector3.FORWARD)
     var old_front: Vector3 = state.get("front_center", Vector3.ZERO)
     target.global_position = old_front - old_facing * 2.25
+    for _frame: int in range(4):
+        await physics_frame
+    # Runtime orders persist at the configured cohort cadence. This geometry
+    # probe invalidates explicitly so it tests the response, not wall-clock timing.
+    director.phalanx_cache_frame = -1
 
     var breach_assignments: Array[Dictionary] = []
     for soldier: TacticalDummy in soldiers:
@@ -119,6 +146,9 @@ func _probe_phalanx_intrusion_arc() -> void:
     state = director.phalanx_cohort_states[state_key]
     state["breach_started_at"] = Time.get_ticks_msec() * 0.001 - 2.0
     director.phalanx_cohort_states[state_key] = state
+    for _frame: int in range(4):
+        await physics_frame
+    director.phalanx_cache_frame = -1
     breach_assignments.clear()
     for soldier: TacticalDummy in soldiers:
         breach_assignments.append(director.phalanx_assignment(soldier, target))

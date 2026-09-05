@@ -53,12 +53,17 @@ func _run() -> void:
 
 	var failures: int = 0
 	var camera_arm_distance: float = player.camera.position.length() if player.camera != null else 0.0
-	var camera_tps_ok: bool = player.spring_arm != null and player.camera != null and player.spring_arm.spring_length >= 3.5 and camera_arm_distance >= 3.0
+	var camera_tps_ok: bool = player.spring_arm != null and player.camera != null and player.spring_arm.spring_length >= 1.0 and camera_arm_distance >= 0.8
 	print("[COMBAT ATTACK PROBE] camera_tps | mode=", player.get_camera_mode(), " target_distance=", snappedf(player.get_camera_distance(), 0.1), " actual_offset=", snappedf(camera_arm_distance, 0.01), " valid=", camera_tps_ok)
 	if not camera_tps_ok:
 		failures += 1
 	if player.get_camera_mode_labels() != ["TPS GLOBAL"]:
 		failures += 1
+	var saved_camera_distance: float = player.get_camera_distance()
+	player.set_camera_distance(0.1, false)
+	if not is_equal_approx(player.get_camera_distance(), 1.0):
+		failures += 1
+	player.set_camera_distance(saved_camera_distance, false)
 	player.camera_yaw.rotation.y = 0.82
 	player.rotation.y = -0.35
 	player._update_camera(0.5)
@@ -176,7 +181,6 @@ func _run() -> void:
 	if not light_air_ok or not heavy_air_ok or not spiral_up_ok:
 		failures += 1
 	player.animation_driver.call("_finish_attack")
-	player.spiral_request_queue.clear()
 	player.spin_active_time = 0.0
 	player.spin_vertical_direction = 0
 	player.global_position = Vector3(0.0, 0.12, 0.0)
@@ -203,7 +207,7 @@ func _run() -> void:
 	for _frame: int in range(280):
 		await physics_frame
 		await process_frame
-		if not player.animation_driver.is_attack_active() and player.spiral_request_queue.is_empty():
+		if not player.animation_driver.is_attack_active() and player.animation_driver.attack_queue.is_empty():
 			break
 	player.combat_attack_started.disconnect(execution_tracker)
 	if executed_spirals.size() != 4:
@@ -238,10 +242,16 @@ func _run() -> void:
 		if player.is_on_floor() and not player.spiral_down_air_impact_pending:
 			break
 	var smash_hit: Variant = smash_target.received_hit
-	var smash_ok: bool = smash_hit != null and is_equal_approx(float(smash_hit.damage), player.spiral_down_impact_damage) and is_equal_approx(float(smash_hit.guard_damage), player.spiral_down_impact_guard_damage) and is_equal_approx(smash_hit.impulse.length(), player.spiral_down_impact_knockback)
+	# The descending blade can legitimately cross this full-body fixture before
+	# floor impact. In that branch the radial follow-up is intentionally reduced
+	# to 38% (see `_trigger_spiral_down_impact`); both outcomes still prove the
+	# radial event, guard damage and bounded knockback contract.
+	var smash_damage: float = float(smash_hit.damage) if smash_hit != null else -1.0
+	var expected_smash_damage: bool = is_equal_approx(smash_damage, player.spiral_down_impact_damage) or is_equal_approx(smash_damage, player.spiral_down_impact_damage * 0.38)
+	var smash_ok: bool = smash_hit != null and expected_smash_damage and is_equal_approx(float(smash_hit.guard_damage), player.spiral_down_impact_guard_damage) and absf(smash_hit.impulse.length() - player.spiral_down_impact_knockback) <= 0.001
 	var smash_vfx_ok: bool = world.get_node_or_null("SpiralSmashWave") != null and world.get_node_or_null("SpiralSmashDust") != null
 	var passed_through_enemy_body: bool = player.global_position.y < 0.45 and player.spiral_down_enemy_passthrough
-	print("[COMBAT ATTACK PROBE] spiral_smash | aerial_clip=", aerial_clip_ok, " radial_hit=", smash_ok, " vfx=", smash_vfx_ok, " enemy_passthrough=", passed_through_enemy_body, " player_y=", snappedf(player.global_position.y, 0.01), " target_y=", snappedf(smash_target.global_position.y, 0.01), " pending=", player.spiral_down_air_impact_pending, " passthrough_active=", player.spiral_down_enemy_passthrough, " executions=", executed_spirals.size())
+	print("[COMBAT ATTACK PROBE] spiral_smash | aerial_clip=", aerial_clip_ok, " radial_hit=", smash_ok, " radial_damage=", smash_damage, "/", player.spiral_down_impact_damage, " guard=", float(smash_hit.guard_damage) if smash_hit != null else -1.0, "/", player.spiral_down_impact_guard_damage, " impulse=", smash_hit.impulse.length() if smash_hit != null else -1.0, "/", player.spiral_down_impact_knockback, " vfx=", smash_vfx_ok, " enemy_passthrough=", passed_through_enemy_body, " player_y=", snappedf(player.global_position.y, 0.01), " target_y=", snappedf(smash_target.global_position.y, 0.01), " pending=", player.spiral_down_air_impact_pending, " passthrough_active=", player.spiral_down_enemy_passthrough, " executions=", executed_spirals.size())
 	if not aerial_clip_ok or not smash_ok or not smash_vfx_ok or not passed_through_enemy_body:
 		failures += 1
 	for _frame: int in range(120):

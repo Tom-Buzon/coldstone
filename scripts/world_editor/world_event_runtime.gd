@@ -87,6 +87,7 @@ func _on_player_entered_atmosphere(zone_id: String) -> void:
 
 func _on_enemy_died(_enemy: Node, group_id: String) -> void:
 	group_deaths[group_id] = int(group_deaths.get(group_id, 0)) + 1
+	runtime.refresh_protect_targets()
 	_stop_deployments_for_unit_death(group_id)
 	for raw: Variant in _chapter_entities():
 		var trigger := raw as Dictionary
@@ -94,10 +95,11 @@ func _on_enemy_died(_enemy: Node, group_id: String) -> void:
 			continue
 		var properties := trigger.get("properties", {}) as Dictionary
 		var condition := String(properties.get("condition", ""))
-		if condition not in ["group_dead", "group_dead_percent"] or not _group_reference_matches(String(properties.get("condition_group", "")), group_id):
+		var condition_reference := String(properties.get("condition_group", ""))
+		if condition not in ["group_dead", "group_dead_percent"] or not _group_reference_matches(condition_reference, group_id):
 			continue
-		var initial := maxi(1, int(group_initial.get(group_id, 1)))
-		var deaths := int(group_deaths.get(group_id, 0))
+		var initial := maxi(1, _reference_initial_count(condition_reference))
+		var deaths := _reference_death_count(condition_reference)
 		var threshold := 100.0 if condition == "group_dead" else clampf(float(properties.get("threshold", 100.0)), 1.0, 100.0)
 		if float(deaths) / float(initial) * 100.0 >= threshold:
 			_fire(trigger)
@@ -111,7 +113,7 @@ func _on_enemy_died(_enemy: Node, group_id: String) -> void:
 		var reference := String(properties.get("spawn_dead_group", ""))
 		if not _group_reference_matches(reference, group_id):
 			continue
-		if int(group_deaths.get(group_id, 0)) >= maxi(1, int(group_initial.get(group_id, 1))):
+		if _reference_is_dead(reference):
 			_spawn_group_entity(group)
 	_update_reserve_deployments()
 
@@ -131,16 +133,18 @@ func _fire(trigger: Dictionary) -> void:
 			else:
 				status_changed.emit("Porte introuvable : %s" % target)
 		"spawn_group":
-			var group := _find_enemy_group(target)
-			if not group.is_empty():
+			for group: Dictionary in _find_enemy_groups(target):
 				_spawn_group_entity(group)
 		"remove_group":
-			var removed_group := _find_enemy_group(target)
-			var removed_group_properties := removed_group.get("properties", {}) as Dictionary
-			var removed_group_id := String(removed_group_properties.get("group_id", target))
-			_stop_deployment(String(removed_group.get("id", "")))
-			var removed := runtime.remove_enemy_group(removed_group_id)
-			status_changed.emit("%d ennemis retires du groupe %s" % [removed, removed_group_id])
+			var removed := 0
+			var removed_group_count := 0
+			for removed_group: Dictionary in _find_enemy_groups(target):
+				var removed_group_properties := removed_group.get("properties", {}) as Dictionary
+				var removed_group_id := String(removed_group_properties.get("group_id", target))
+				_stop_deployment(String(removed_group.get("id", "")))
+				removed += runtime.remove_enemy_group(removed_group_id)
+				removed_group_count += 1
+			status_changed.emit("%d ennemis retires dans %d troupe(s)" % [removed, removed_group_count])
 		"remove_all_mobs":
 			_stop_all_deployments()
 			var removed_total := 0
@@ -319,22 +323,40 @@ func _stop_all_deployments() -> void:
 		_stop_deployment(String(raw_id))
 
 func _group_reference_matches(reference: String, dead_group_id: String) -> bool:
-	if reference == dead_group_id:
-		return true
-	var observed := _find_enemy_group(reference)
-	if observed.is_empty():
-		return false
-	var properties := observed.get("properties", {}) as Dictionary
-	return String(properties.get("group_id", "")) == dead_group_id
+	return dead_group_id in _reference_group_ids(reference)
+
+func _reference_group_ids(reference: String) -> Array[String]:
+	var result: Array[String] = []
+	for group: Dictionary in _find_enemy_groups(reference):
+		var properties := group.get("properties", {}) as Dictionary
+		var group_id := String(properties.get("group_id", ""))
+		if not group_id.is_empty() and not result.has(group_id):
+			result.append(group_id)
+	return result
+
+func _reference_initial_count(reference: String) -> int:
+	var total := 0
+	for group_id: String in _reference_group_ids(reference):
+		total += int(group_initial.get(group_id, 0))
+	return total
+
+func _reference_death_count(reference: String) -> int:
+	var total := 0
+	for group_id: String in _reference_group_ids(reference):
+		total += int(group_deaths.get(group_id, 0))
+	return total
+
+func _reference_is_dead(reference: String) -> bool:
+	var initial := _reference_initial_count(reference)
+	return initial > 0 and _reference_death_count(reference) >= initial
+
+func _find_enemy_groups(key: String) -> Array[Dictionary]:
+	return document.enemy_entities_for_reference(key, runtime.active_chapter_id)
 
 func _find_enemy_group(key: String) -> Dictionary:
-	for raw: Variant in _chapter_entities():
-		var entity := raw as Dictionary
-		if String(entity.get("type", "")) != "enemy_group":
-			continue
-		var properties := entity.get("properties", {}) as Dictionary
-		if String(properties.get("group_id", "")) == key or String(entity.get("id", "")) == key or String(entity.get("name", "")) == key:
-			return entity
+	var groups := _find_enemy_groups(key)
+	if not groups.is_empty():
+		return groups[0]
 	return {}
 
 func _chapter_entities() -> Array[Dictionary]:

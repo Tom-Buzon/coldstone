@@ -10,20 +10,49 @@ signal perfect_response_started(kind: StringName)
 signal perfect_response_consumed
 signal movement_sfx_requested(kind: StringName)
 signal combat_resources_changed
+signal player_skin_changed(skin_id: StringName)
+signal player_skin_parts_changed
+signal equipment_changed(slot: HopliteEquipmentItemData.Slot, item: HopliteEquipmentItemData)
 
 const DriverScript = preload("res://scripts/animation/native_animation_driver.gd")
 const TrailScript = preload("res://scripts/animation/sword_trail.gd")
 const HitEventScript = preload("res://scripts/combat/hit_event.gd")
 const CombatFeedbackScript = preload("res://scripts/combat/combat_feedback.gd")
-const AuthoredPoseBridgeScript = preload("res://scripts/animation/authored_pose_bridge.gd")
 const PlayerCombatHUDScript = preload("res://scripts/ui/player_combat_hud.gd")
 const PlayerPresentationScript = preload("res://scripts/ui/player_presentation.gd")
+const CameraOcclusionFaderScript = preload("res://scripts/camera/camera_occlusion_fader.gd")
+const PlayerSkinCatalogScript = preload("res://scripts/player/player_skin_catalog.gd")
+const WeaponTuningScript = preload("res://scripts/equipment/weapon_tuning.gd")
 const UAL1_PATH := "res://assets/runtime/ual1/UAL1_Standard.glb"
-const PLAYER_VARIANT_PATH := "res://assets/characters/3dgen_demo/perso-1787423482233.glb"
-const XIPHOS_SCENE := preload("res://assets/weapons/xiphos_main.glb")
+const PLAYER_SKIN_BASE: StringName = &"base"
+const PLAYER_SKIN_NOON: StringName = &"noon_t1"
+const PLAYER_SKIN_SAMUS: StringName = &"samus_woopsy"
+const PLAYER_SKINS: Array[Dictionary] = [
+	{"id": PLAYER_SKIN_BASE, "label": "HOPLITE D'ORIGINE", "path": UAL1_PATH},
+	{"id": PLAYER_SKIN_NOON, "label": "NOON T1", "path": "res://assets/characters/player_skins/noonT1.glb"},
+	{"id": PLAYER_SKIN_SAMUS, "label": "SAMUS WOOPSY", "path": "res://assets/characters/player_skins/samusWoopsy.glb"},
+]
+const DEFAULT_WEAPON := preload("res://data/equipment/weapons/xiphos.tres")
+const DEFAULT_SHIELD := preload("res://data/equipment/shields/aspis.tres")
+const GLOBAL_SETTINGS_PATH: String = "user://hoplite_global_settings_v1.cfg"
 const CAMERA_SETTINGS_PATH: String = "user://hoplite_camera_settings_v1.cfg"
-const CAMERA_DISTANCE_MIN: float = 3.5
+const CAMERA_DISTANCE_MIN: float = 1.0
 const CAMERA_DISTANCE_MAX: float = 12.0
+const EPIC_WALL_RUN_LOOK_INPUT_SCALE: float = 0.12
+const EPIC_RUN_CAMERA_SETTING_DEFINITIONS: Array[Dictionary] = [
+	{"id": &"shield_camera_height", "group": "SHIELD RUN", "label": "HAUTEUR CAMÉRA", "min": -0.4, "max": 1.4, "step": 0.05, "default": 0.10, "unit": "m", "description": "Hauteur de base de la caméra par rapport aux pieds du joueur."},
+	{"id": &"shield_camera_distance", "group": "SHIELD RUN", "label": "DISTANCE CAMÉRA", "min": 3.0, "max": 9.0, "step": 0.1, "default": 3.0, "unit": "m", "description": "Distance finale derrière le joueur. Une valeur élevée réduit l'effet de rapprochement."},
+	{"id": &"shield_camera_pitch", "group": "SHIELD RUN", "label": "ANGLE VERS LE HAUT", "min": 0.0, "max": 28.0, "step": 0.5, "default": 6.5, "unit": "deg", "description": "Contre-plongée appliquée depuis la caméra basse."},
+	{"id": &"shield_fov_zoom", "group": "SHIELD RUN", "label": "PUISSANCE DU ZOOM FOV", "min": 0.0, "max": 12.0, "step": 0.25, "default": 6.0, "unit": "deg", "description": "Réduction du champ de vision. Zéro conserve le FOV du wall run ordinaire."},
+	{"id": &"shield_time_scale", "group": "SHIELD RUN", "label": "VITESSE DU MONDE", "min": 0.45, "max": 1.0, "step": 0.01, "default": 0.90, "unit": "percent", "description": "Pourcentage de vitesse du monde pendant le run. Plus bas signifie davantage de ralenti."},
+	{"id": &"shield_transition_duration", "group": "SHIELD RUN", "label": "DURÉE EASE IN / OUT", "min": 0.12, "max": 1.0, "step": 0.02, "default": 0.30, "unit": "s", "description": "Temps de montée et de sortie du cadrage cinématique."},
+	{"id": &"giant_camera_height", "group": "GIANT RUN", "label": "HAUTEUR CAMÉRA", "min": -1.2, "max": 0.8, "step": 0.05, "default": 0.10, "unit": "m", "description": "Position verticale de la caméra de contre-plongée."},
+	{"id": &"giant_camera_distance", "group": "GIANT RUN", "label": "DISTANCE CAMÉRA", "min": 3.0, "max": 10.0, "step": 0.1, "default": 3.0, "unit": "m", "description": "Distance finale de la caméra basse derrière le déplacement."},
+	{"id": &"giant_camera_pitch", "group": "GIANT RUN", "label": "ANGLE VERS LE HAUT", "min": 5.0, "max": 42.0, "step": 0.5, "default": 22.0, "unit": "deg", "description": "Force de la contre-plongée regardant le joueur depuis dessous."},
+	{"id": &"giant_fov_zoom", "group": "GIANT RUN", "label": "PUISSANCE DU ZOOM FOV", "min": 0.0, "max": 12.0, "step": 0.25, "default": 4.0, "unit": "deg", "description": "Réduction du champ de vision, indépendante de la distance caméra."},
+	{"id": &"giant_time_scale", "group": "GIANT RUN", "label": "VITESSE DU MONDE", "min": 0.45, "max": 1.0, "step": 0.01, "default": 0.70, "unit": "percent", "description": "Pourcentage de vitesse du monde pendant le Giant Run."},
+	{"id": &"giant_transition_duration", "group": "GIANT RUN", "label": "DURÉE EASE IN / OUT", "min": 0.12, "max": 1.0, "step": 0.02, "default": 0.40, "unit": "s", "description": "Temps de montée et de sortie de la contre-plongée."},
+]
 
 # Fast, momentum-preserving locomotion. Steering changes direction without
 # shrinking the horizontal velocity vector, so turning does not cost speed.
@@ -82,6 +111,10 @@ var parkour_start: Vector3 = Vector3.ZERO
 var parkour_end: Vector3 = Vector3.ZERO
 var parkour_arc: float = 0.0
 var parkour_exit_direction: Vector3 = Vector3.ZERO
+# A mantle that takes priority over an active wall run must rearm the wall-run
+# gate on exit. Waiting for is_on_floor() leaves a one-frame hole where an
+# immediate jump can keep wall running locked for the whole airborne phase.
+var parkour_started_from_wall_run: bool = false
 # CTRL pressed during vault/mantle is buffered and converted into a slide on exit.
 var parkour_slide_queued: bool = false
 var parkour_debug_reason: String = "ready"
@@ -100,6 +133,7 @@ var parkour_slide_early_exit_progress: float = 0.80
 const ENEMY_BODY_COLLISION_LAYER: int = 4
 const PHALANX_SHIELD_WALL_RUN_LAYER: int = 64
 const GIANT_TRAVERSAL_COLLISION_LAYER: int = 256
+const GIANT_TRAVERSAL_SURFACE_GROUP: StringName = &"giant_wall_run_surface"
 
 # ONE-SWITCH ROLLBACK: set this to false to restore world-only wall running.
 # Enemy bodies and shields keep their normal collision behavior either way.
@@ -153,6 +187,8 @@ var wall_run_corner_max_angle: float = 100.0
 var wall_run_corner_follow_active: bool = false
 var wall_run_corner_tangent: Vector3 = Vector3.ZERO
 var wall_run_corner_input_reference: Vector3 = Vector3.ZERO
+var wall_run_lateral_min_tangent: float = 0.18
+var giant_traversal_support_active: bool = false
 
 var visual_root: Node3D
 var visual_flipped: bool = true
@@ -160,25 +196,25 @@ var mannequin_scene: Node
 var skeleton: Skeleton3D
 var animation_player: AnimationPlayer
 var animation_driver: HopliteNativeAnimationDriver
-var alternate_animation_donor: Node3D
-var alternate_pose_bridge: HopliteAuthoredPoseBridge
-var alternate_visual_enabled := false
+var player_skin_id: StringName = PLAYER_SKIN_BASE
+var player_skins: Array[Dictionary] = []
+var player_skin_parts: Array[Dictionary] = []
 var visual_base_height := 0.0
 
 var camera_yaw: Node3D
 var camera_pitch: Node3D
 var spring_arm: SpringArm3D
 var camera: Camera3D
+var camera_occlusion_fader: HopliteCameraOcclusionFader
 var camera_mode: int = 0
 var camera_pitch_value: float = -0.20
-var camera_distance: float = 7.0
+var camera_distance: float = 3.5
 var camera_pivot_height: float = 1.68
 var camera_shoulder_offset: float = 0.0
 var mouse_sensitivity: float = 0.00105
 var camera_rest_pitch: float = -0.20
 var camera_base_fov: float = 72.0
-var wall_run_camera_adrenaline: float = 0.0
-var wall_run_camera_phase: float = 0.0
+var epic_wall_run_camera_settings: Dictionary = {}
 
 var right_hand_bone: String = ""
 var left_hand_bone: String = ""
@@ -194,11 +230,16 @@ var sword_blade_material: StandardMaterial3D
 var sword_base_color: Color = Color(0.72, 0.76, 0.78)
 var sword_preset: int = 0
 var shield_visible: bool = true
+var equipped_weapon: HopliteEquipmentItemData = DEFAULT_WEAPON
+var equipped_shield: HopliteEquipmentItemData = DEFAULT_SHIELD
+var nearby_equipment_pickups: Array[Area3D] = []
+var current_weapon_tuning: Dictionary = {}
 
 # V0.0.3 weapon contact: the WHOLE blade is a swept capsule. We sample the
 # previous/current blade transforms so fast animation frames cannot tunnel
 # through thin anatomy zones. One enemy can still be damaged once per swing.
 var weapon_hit_radius: float = 0.12
+var weapon_damage_multiplier: float = 1.0
 var weapon_hit_mask: int = 8
 var previous_sword_base_position: Vector3 = Vector3.ZERO
 var previous_sword_tip_position: Vector3 = Vector3.ZERO
@@ -264,9 +305,8 @@ var spin_rotation_total: float = 0.0
 var spin_vertical_direction: int = 0
 var spin_input_cooldown_timer: float = 0.0
 var spin_up_air_used: bool = false
-var spiral_request_queue: Array[Dictionary] = []
-var spiral_active_clip: StringName = StringName()
-var spiral_last_progress: float = 0.0
+var spiral_active_request_id: int = 0
+var next_combat_action_request_id: int = 1
 var spiral_down_air_impact_pending: bool = false
 var spiral_down_air_hit_targets: Dictionary = {}
 var spiral_down_enemy_passthrough: bool = false
@@ -327,6 +367,17 @@ var perfect_recovery_damage_multiplier: float = 1.20
 
 var resource_error: String = ""
 var debug_text: String = ""
+var debug_text_time_left := 0.0
+var weapon_sweep_capsule := CapsuleShape3D.new()
+var weapon_sweep_query := PhysicsShapeQueryParameters3D.new()
+var weapon_sweep_candidates: Dictionary = {}
+var slide_slash_sphere := SphereShape3D.new()
+var slide_slash_query := PhysicsShapeQueryParameters3D.new()
+var slide_slash_candidates: Dictionary = {}
+var wall_run_raycast_query := PhysicsRayQueryParameters3D.new()
+var world_raycast_query := PhysicsRayQueryParameters3D.new()
+var attack_assist_los_query := PhysicsRayQueryParameters3D.new()
+var self_raycast_exclusion: Array[RID] = []
 
 func _ready() -> void:
 	add_to_group("player")
@@ -335,12 +386,14 @@ func _ready() -> void:
 	collision_mask = 1 | 4 | 128 | GIANT_TRAVERSAL_COLLISION_LAYER
 	_ensure_slide_input_action()
 	_build_collider()
+	_configure_combat_queries()
 	_load_camera_settings()
 	_build_camera()
 	combat_feedback = CombatFeedbackScript.new() as HopliteCombatFeedback
 	combat_feedback.name = "CombatFeedback"
 	add_child(combat_feedback)
 	combat_feedback.configure(camera, self)
+	combat_feedback.configure_epic_wall_run_settings(epic_wall_run_camera_settings)
 	player_combat_hud = PlayerCombatHUDScript.new() as CanvasLayer
 	player_combat_hud.name = "PlayerCombatHUD"
 	add_child(player_combat_hud)
@@ -349,7 +402,13 @@ func _ready() -> void:
 	player_presentation.name = "PlayerPresentation"
 	add_child(player_presentation)
 	player_presentation.configure(self)
-	_load_ual1_mannequin()
+	player_skins = PlayerSkinCatalogScript.scan()
+	player_skin_id = _load_saved_player_skin_id()
+	if not _load_player_skin(player_skin_id):
+		var failed_skin := player_skin_id
+		player_skin_id = PLAYER_SKIN_BASE
+		_load_player_skin(player_skin_id)
+		push_warning("[PLAYER SKIN] Could not load %s; using the base Hoplite." % String(failed_skin))
 	if sword_base != null and sword_tip != null:
 		previous_sword_base_position = sword_base.global_position
 		previous_sword_tip_position = sword_tip.global_position
@@ -384,124 +443,152 @@ func _build_camera() -> void:
 	camera.current = true
 	camera.fov = camera_base_fov
 	spring_arm.add_child(camera)
+	camera_occlusion_fader = CameraOcclusionFaderScript.new() as HopliteCameraOcclusionFader
+	camera_occlusion_fader.name = "CameraOcclusionFader"
+	add_child(camera_occlusion_fader)
+	camera_occlusion_fader.configure(camera, self, spring_arm)
 
-func _load_ual1_mannequin() -> void:
+func _load_player_skin(skin_id: StringName) -> bool:
+	var definition := _player_skin_definition(skin_id)
+	if definition.is_empty():
+		resource_error = "Unknown player skin: " + String(skin_id)
+		return false
 	visual_base_height = 0.0
 	visual_root = Node3D.new()
-	visual_root.name = "UAL1VisibleMannequin"
+	visual_root.name = "PlayerSkin_%s" % String(skin_id)
 	add_child(visual_root)
 	visual_root.rotation.y = PI if visual_flipped else 0.0
-	var packed: PackedScene = load(UAL1_PATH) as PackedScene
+	var skin_path := String(definition["path"])
+	var packed: PackedScene = load(skin_path) as PackedScene
 	if packed == null:
-		resource_error = "UAL1_Standard.glb missing. Run SETUP_ASSETS.bat with Godot closed."
-		_missing_marker()
-		return
+		resource_error = "Player skin GLB missing: " + skin_path
+		if skin_id == PLAYER_SKIN_BASE:
+			_missing_marker()
+		return false
 	mannequin_scene = packed.instantiate()
 	visual_root.add_child(mannequin_scene)
 	_disable_animation_trees(mannequin_scene)
 	animation_player = _find_best_animation_player(mannequin_scene)
 	skeleton = _find_skeleton(mannequin_scene)
 	if skeleton == null or animation_player == null:
-		resource_error = "UAL1 mannequin Skeleton3D/AnimationPlayer not found."
-		return
-	animation_player.stop()
-	_tint_mannequin()
-	right_hand_bone = _find_hand_bone(true)
-	left_hand_bone = _find_hand_bone(false)
-	_build_weapons()
-	animation_driver = DriverScript.new() as HopliteNativeAnimationDriver
-	animation_driver.name = "NativeUALDriver"
-	add_child(animation_driver)
-	if not animation_driver.configure(mannequin_scene, skeleton, animation_player):
-		resource_error = "Native UAL animation setup failed. Check Output."
-	else:
-		print("[HOPLITE LAB V0.0.9] clean HUD + I diagnostics + combat feel ACTIVE")
-		print("[HOPLITE LAB V0.0.9] right hand=", right_hand_bone, " left hand=", left_hand_bone)
-
-func toggle_player_visual() -> bool:
-	var request_alternate := not alternate_visual_enabled
-	_clear_visual_setup()
-	resource_error = ""
-	if request_alternate and _load_player_variant():
-		alternate_visual_enabled = true
-	else:
-		var variant_error := resource_error
-		if request_alternate:
-			_clear_visual_setup()
-		alternate_visual_enabled = false
-		_load_ual1_mannequin()
-		if variant_error != "":
-			push_warning("[PLAYER VISUAL] 3DGen fallback: " + variant_error)
-	_reset_visual_combat_state()
-	return alternate_visual_enabled
-
-func uses_alternate_visual() -> bool:
-	return alternate_visual_enabled
-
-func _load_player_variant() -> bool:
-	var packed := load(PLAYER_VARIANT_PATH) as PackedScene
-	if packed == null:
-		resource_error = "Player 3DGen GLB missing: " + PLAYER_VARIANT_PATH
-		return false
-	visual_root = Node3D.new()
-	visual_root.name = "Player3DGenVisibleMannequin"
-	add_child(visual_root)
-	visual_root.rotation.y = PI if visual_flipped else 0.0
-	var candidate := packed.instantiate() as Node3D
-	if candidate == null:
-		resource_error = "Player 3DGen GLB could not be instantiated."
-		return false
-	mannequin_scene = candidate
-	visual_root.add_child(candidate)
-	_disable_animation_trees(candidate)
-	skeleton = _find_skeleton(candidate)
-	if skeleton == null:
-		resource_error = "Player 3DGen Skeleton3D not found."
-		return false
-
-	# The 3DGen mesh has a compatible 53-bone rig but no complete combat bank.
-	# A hidden UAL1 instance supplies animation poses, retargeted in rest space.
-	var donor_packed := load(UAL1_PATH) as PackedScene
-	alternate_animation_donor = donor_packed.instantiate() as Node3D if donor_packed != null else null
-	if alternate_animation_donor == null:
-		resource_error = "UAL1 animation donor missing for the 3DGen player."
-		return false
-	alternate_animation_donor.name = "Player3DGenUAL1DonorHidden"
-	alternate_animation_donor.visible = false
-	add_child(alternate_animation_donor)
-	_disable_animation_trees(alternate_animation_donor)
-	var donor_skeleton := _find_skeleton(alternate_animation_donor)
-	animation_player = _find_best_animation_player(alternate_animation_donor)
-	if donor_skeleton == null or animation_player == null:
-		resource_error = "UAL1 donor rig/animations incomplete."
+		resource_error = "Player skin Skeleton3D/AnimationPlayer not found: " + skin_path
 		return false
 	animation_player.stop()
-	alternate_pose_bridge = AuthoredPoseBridgeScript.new() as HopliteAuthoredPoseBridge
-	alternate_pose_bridge.name = "Player3DGenPoseBridge"
-	skeleton.add_child(alternate_pose_bridge)
-	alternate_pose_bridge.set_rest_space_retarget(true)
-	if not alternate_pose_bridge.configure(donor_skeleton):
-		resource_error = "Player 3DGen pose retargeting failed."
-		return false
-	alternate_pose_bridge.set_attack_weight(1.0, true, 1.0)
+	if skin_id == PLAYER_SKIN_BASE:
+		_tint_mannequin()
 	right_hand_bone = _find_hand_bone(true)
 	left_hand_bone = _find_hand_bone(false)
 	if right_hand_bone == "" or left_hand_bone == "":
-		resource_error = "Player 3DGen hand bones are incompatible."
+		resource_error = "Player skin hand bones are incompatible: " + skin_path
 		return false
+	_discover_player_skin_parts(skin_id)
 	_build_weapons()
 	animation_driver = DriverScript.new() as HopliteNativeAnimationDriver
-	animation_driver.name = "NativeUALDriver3DGen"
+	animation_driver.name = "NativeUALDriver_%s" % String(skin_id)
 	add_child(animation_driver)
 	if not animation_driver.configure(mannequin_scene, skeleton, animation_player):
-		resource_error = "Native UAL animation setup failed for Player 3DGen."
+		resource_error = "Native UAL animation setup failed for skin: " + skin_path
 		return false
-	print("[PLAYER VISUAL] 3DGen active — retargeted UAL animation and hand equipment ready")
-	call_deferred("_ground_player_variant_visual")
+	_connect_animation_driver_action_signals()
+	if skin_id != PLAYER_SKIN_BASE:
+		call_deferred("_ground_player_skin_visual")
+	print("[PLAYER SKIN] %s active — UAL animation and hand equipment ready" % String(definition["label"]))
 	return true
 
-func _ground_player_variant_visual() -> void:
-	if not alternate_visual_enabled or visual_root == null or skeleton == null:
+
+func _connect_animation_driver_action_signals() -> void:
+	if animation_driver == null:
+		return
+	if not animation_driver.combat_action_started.is_connected(_on_combat_action_started):
+		animation_driver.combat_action_started.connect(_on_combat_action_started)
+	if not animation_driver.combat_action_finished.is_connected(_on_combat_action_finished):
+		animation_driver.combat_action_finished.connect(_on_combat_action_finished)
+	if not animation_driver.combat_actions_cancelled.is_connected(_on_combat_actions_cancelled):
+		animation_driver.combat_actions_cancelled.connect(_on_combat_actions_cancelled)
+
+
+func toggle_player_visual() -> bool:
+	cycle_player_skin()
+	return uses_alternate_visual()
+
+func uses_alternate_visual() -> bool:
+	return player_skin_id != PLAYER_SKIN_BASE
+
+func cycle_player_skin() -> StringName:
+	_ensure_player_skin_catalog()
+	var next_index := (get_player_skin_index() + 1) % player_skins.size()
+	set_player_skin_by_index(next_index)
+	return player_skin_id
+
+func set_player_skin_by_index(index: int) -> bool:
+	_ensure_player_skin_catalog()
+	if index < 0 or index >= player_skins.size():
+		return false
+	return set_player_skin(StringName(player_skins[index]["id"]))
+
+func set_player_skin(requested_id: StringName) -> bool:
+	if _player_skin_definition(requested_id).is_empty():
+		requested_id = PLAYER_SKIN_BASE
+	if requested_id == player_skin_id and visual_root != null and animation_driver != null:
+		return true
+	_clear_visual_setup()
+	resource_error = ""
+	if _load_player_skin(requested_id):
+		player_skin_id = requested_id
+		_reset_visual_combat_state()
+		player_skin_changed.emit(player_skin_id)
+		return true
+	var skin_error := resource_error
+	_clear_visual_setup()
+	player_skin_id = PLAYER_SKIN_BASE
+	_load_player_skin(player_skin_id)
+	_reset_visual_combat_state()
+	player_skin_changed.emit(player_skin_id)
+	if skin_error != "":
+		push_warning("[PLAYER SKIN] Fallback to base: " + skin_error)
+	return false
+
+func get_player_skin_id() -> StringName:
+	return player_skin_id
+
+func get_player_skin_index() -> int:
+	_ensure_player_skin_catalog()
+	for index: int in range(player_skins.size()):
+		if StringName(player_skins[index]["id"]) == player_skin_id:
+			return index
+	return 0
+
+func get_player_skin_definitions() -> Array[Dictionary]:
+	_ensure_player_skin_catalog()
+	return player_skins.duplicate(true)
+
+func get_player_skin_parts() -> Array[Dictionary]:
+	return player_skin_parts.duplicate(true)
+
+func get_player_skin_label() -> String:
+	var definition := _player_skin_definition(player_skin_id)
+	return String(definition.get("label", "HOPLITE D'ORIGINE"))
+
+func _player_skin_definition(skin_id: StringName) -> Dictionary:
+	_ensure_player_skin_catalog()
+	for definition: Dictionary in player_skins:
+		if StringName(definition["id"]) == skin_id:
+			return definition
+	return {}
+
+func _ensure_player_skin_catalog() -> void:
+	if player_skins.is_empty():
+		player_skins = PlayerSkinCatalogScript.scan()
+
+func _load_saved_player_skin_id() -> StringName:
+	var config := ConfigFile.new()
+	if config.load(GLOBAL_SETTINGS_PATH) != OK:
+		return PLAYER_SKIN_BASE
+	var saved_id := StringName(config.get_value("display", "player_skin", String(PLAYER_SKIN_BASE)))
+	return saved_id if not _player_skin_definition(saved_id).is_empty() else PLAYER_SKIN_BASE
+
+func _ground_player_skin_visual() -> void:
+	if player_skin_id == PLAYER_SKIN_BASE or visual_root == null or skeleton == null:
 		return
 	var lowest_foot_y := INF
 	for bone_name: String in ["DEF-foot.L", "DEF-toe.L", "DEF-foot.R", "DEF-toe.R"]:
@@ -512,9 +599,81 @@ func _ground_player_variant_visual() -> void:
 		return
 	visual_base_height = clampf(global_position.y + 0.015 - lowest_foot_y, -1.0, 1.0)
 	visual_root.position.y = visual_base_height
-	print("[PLAYER VISUAL] 3DGen grounded by %.3f m" % visual_base_height)
+	print("[PLAYER SKIN] %s grounded by %.3f m" % [get_player_skin_label(), visual_base_height])
+
+func set_player_skin_part_enabled(part_id: StringName, enabled: bool) -> bool:
+	for index: int in range(player_skin_parts.size()):
+		var definition: Dictionary = player_skin_parts[index]
+		if StringName(definition.get("id", StringName())) != part_id:
+			continue
+		var node_path := NodePath(String(definition.get("path", "")))
+		var mesh: MeshInstance3D = null
+		if mannequin_scene != null:
+			mesh = mannequin_scene.get_node_or_null(node_path) as MeshInstance3D
+		if mesh == null:
+			return false
+		mesh.visible = enabled
+		definition["enabled"] = enabled
+		player_skin_parts[index] = definition
+		var config := ConfigFile.new()
+		config.load(GLOBAL_SETTINGS_PATH)
+		config.set_value(_player_skin_parts_section(player_skin_id), String(part_id), enabled)
+		var error := config.save(GLOBAL_SETTINGS_PATH)
+		if error != OK:
+			push_warning("[PLAYER SKIN PART] Could not save %s: %s" % [String(part_id), error_string(error)])
+		player_skin_parts_changed.emit()
+		return true
+	return false
+
+func _discover_player_skin_parts(skin_id: StringName) -> void:
+	player_skin_parts.clear()
+	if mannequin_scene == null:
+		return
+	var meshes: Array[MeshInstance3D] = []
+	_collect_player_skin_meshes(mannequin_scene, meshes)
+	var config := ConfigFile.new()
+	config.load(GLOBAL_SETTINGS_PATH)
+	var section := _player_skin_parts_section(skin_id)
+	for mesh: MeshInstance3D in meshes:
+		var path := String(mannequin_scene.get_path_to(mesh))
+		var part_id := StringName(path)
+		var enabled := mesh.visible
+		if config.has_section_key(section, path):
+			enabled = bool(config.get_value(section, path, enabled))
+		mesh.visible = enabled
+		player_skin_parts.append({
+			"id": part_id,
+			"path": path,
+			"label": _player_skin_mesh_label(mesh),
+			"enabled": enabled,
+		})
+
+func _collect_player_skin_meshes(node: Node, output: Array[MeshInstance3D]) -> void:
+	if node is MeshInstance3D:
+		output.append(node as MeshInstance3D)
+	for child: Node in node.get_children():
+		_collect_player_skin_meshes(child, output)
+
+func _player_skin_mesh_label(mesh: MeshInstance3D) -> String:
+	var label := String(mesh.name).replace("_", " ").capitalize()
+	var material_names: Array[String] = []
+	if mesh.mesh != null:
+		for surface_index: int in range(mesh.mesh.get_surface_count()):
+			var material := mesh.get_active_material(surface_index)
+			if material != null and material.resource_name != "" and not material.resource_name in material_names:
+				material_names.append(material.resource_name)
+	if not material_names.is_empty():
+		label += " — " + ", ".join(material_names)
+	return label
+
+func _player_skin_parts_section(skin_id: StringName) -> String:
+	return "player_skin_parts:%s" % String(skin_id)
 
 func _clear_visual_setup() -> void:
+	# Visual replacement can happen during an aerial Spiral Down. It is also an
+	# action interruption and must restore the temporary collision policy before
+	# the old animation driver (and its signals) is freed.
+	_finish_spiral_action(true)
 	shield_blocking = false
 	weapon_swing_active = false
 	heavy_charging = false
@@ -523,18 +682,15 @@ func _clear_visual_setup() -> void:
 		sword_trail.free()
 	if animation_driver != null and is_instance_valid(animation_driver):
 		animation_driver.free()
-	if alternate_animation_donor != null and is_instance_valid(alternate_animation_donor):
-		alternate_animation_donor.free()
 	if visual_root != null and is_instance_valid(visual_root):
 		visual_root.free()
 	visual_root = null
+	player_skin_parts.clear()
 	visual_base_height = 0.0
 	mannequin_scene = null
 	skeleton = null
 	animation_player = null
 	animation_driver = null
-	alternate_animation_donor = null
-	alternate_pose_bridge = null
 	right_hand_bone = ""
 	left_hand_bone = ""
 	sword_attachment = null
@@ -713,7 +869,7 @@ func _physics_process(delta: float) -> void:
 		# disabled. Reassert the plunge after the generic floor branch zeroed Y.
 		velocity.y = minf(velocity.y, -10.0)
 	var position_before_move: Vector3 = global_position
-	move_and_slide()
+	_move_with_traversal_platform_policy()
 	if spiral_down_air_impact_pending and velocity.y > 0.0:
 		# Godot can convert cached overlap recovery into a huge upward velocity on the
 		# first pass-through frame. Reject that solver artifact and advance slightly
@@ -813,16 +969,47 @@ func _process(delta: float) -> void:
 		if animation_driver.is_attack_active() and not animation_driver.is_heavy_charging() and sword_tip != null and sword_trail != null:
 			sword_trail.push_point(sword_tip.global_position, animation_driver.current_attack_is_heavy())
 	_update_shield_guard_visual()
-	_update_debug_text()
+	debug_text_time_left -= delta
+	if debug_text_time_left <= 0.0:
+		var debug_hz := clampf(float(ProjectSettings.get_setting("hoplite/performance/debug_refresh_hz", 6.0)), 1.0, 20.0)
+		debug_text_time_left += 1.0 / debug_hz
+		_update_debug_text()
+
+func _configure_combat_queries() -> void:
+	self_raycast_exclusion = [get_rid()]
+	weapon_sweep_query.collision_mask = weapon_hit_mask
+	weapon_sweep_query.collide_with_bodies = false
+	weapon_sweep_query.collide_with_areas = true
+	weapon_sweep_query.exclude = self_raycast_exclusion
+	slide_slash_query.collision_mask = weapon_hit_mask
+	slide_slash_query.collide_with_bodies = false
+	slide_slash_query.collide_with_areas = true
+	slide_slash_query.exclude = self_raycast_exclusion
+	wall_run_raycast_query.exclude = self_raycast_exclusion
+	world_raycast_query.collision_mask = 1
+	world_raycast_query.exclude = self_raycast_exclusion
+	world_raycast_query.collide_with_bodies = true
+	world_raycast_query.collide_with_areas = false
+	attack_assist_los_query.collision_mask = 1
+	attack_assist_los_query.exclude = self_raycast_exclusion
+	attack_assist_los_query.collide_with_areas = false
+	attack_assist_los_query.collide_with_bodies = true
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion
-		camera_yaw.rotation.y -= motion.relative.x * mouse_sensitivity
-		camera_pitch_value = clampf(camera_pitch_value - motion.relative.y * mouse_sensitivity, -1.05, 0.50)
-		camera_pitch.rotation.x = camera_pitch_value
+		var camera_guidance_active: bool = _epic_wall_run_camera_guidance_active()
+		var look_scale: float = EPIC_WALL_RUN_LOOK_INPUT_SCALE if camera_guidance_active else 1.0
+		camera_yaw.rotation.y -= motion.relative.x * mouse_sensitivity * look_scale
+		camera_pitch_value = clampf(camera_pitch_value - motion.relative.y * mouse_sensitivity * look_scale, -1.05, 0.50)
+		if not camera_guidance_active:
+			camera_pitch.rotation.x = camera_pitch_value
 		return
 	if parkour_active:
+		return
+	if event.is_action_pressed(&"interact"):
+		if _collect_nearest_equipment_pickup():
+			get_viewport().set_input_as_handled()
 		return
 
 	# Combat actions are handled in _process() so fast clicks cannot be swallowed
@@ -864,9 +1051,12 @@ func _update_gamepad_camera(delta: float) -> void:
 	if look.length_squared() < 0.001:
 		return
 	var sensitivity := 2.35
-	camera_yaw.rotation.y -= look.x * sensitivity * delta
-	camera_pitch_value = clampf(camera_pitch_value - look.y * sensitivity * 0.78 * delta, -1.05, 0.50)
-	camera_pitch.rotation.x = camera_pitch_value
+	var camera_guidance_active: bool = _epic_wall_run_camera_guidance_active()
+	var look_scale: float = EPIC_WALL_RUN_LOOK_INPUT_SCALE if camera_guidance_active else 1.0
+	camera_yaw.rotation.y -= look.x * sensitivity * delta * look_scale
+	camera_pitch_value = clampf(camera_pitch_value - look.y * sensitivity * 0.78 * delta * look_scale, -1.05, 0.50)
+	if not camera_guidance_active:
+		camera_pitch.rotation.x = camera_pitch_value
 
 func _update_primary_attack_input(delta: float) -> void:
 	if Input.is_action_just_pressed("attack_primary"):
@@ -1242,24 +1432,25 @@ func _do_spin_attack(vertical_direction: int = 1) -> void:
 	var external_spin_key: StringName = _spiral_external_key(requested_direction, context)
 	var speed: float = _spiral_animation_speed(requested_direction, context, combo_fast)
 	var external_spin: bool = animation_driver.has_external_clip(external_spin_key)
+	var action_metadata := {
+		&"request_id": next_combat_action_request_id,
+		&"spiral_direction": requested_direction,
+		&"combo_fast": combo_fast,
+		&"external": external_spin,
+		&"blocked_capabilities": [&"wall_attach"] if requested_direction < 0 else [],
+	}
+	next_combat_action_request_id += 1
 	# Buffering (one active + three queued) is what makes all four stored spiral
 	# charges playable as complete attacks. Restarting the clip on every wheel tick
 	# used to trap the pose in its first, left-facing frames.
-	var spin_played: bool = animation_driver.request_external_attack(external_spin_key, &"spin360", context, true, speed, 0.045, 1.0, combo_fast, 0.06 if context == &"air" and requested_direction < 0 else 0.10) if external_spin else false
-	var using_external_spin: bool = spin_played
+	var spin_played: bool = animation_driver.request_external_attack(external_spin_key, &"spin360", context, true, speed, 0.045, 1.0, combo_fast, 0.06 if context == &"air" and requested_direction < 0 else 0.10, action_metadata) if external_spin else false
 	if not spin_played:
+		action_metadata[&"external"] = false
 		var spin_candidates: Array = [&"Sword_Regular_A", &"Sword_Regular_B"] if requested_direction > 0 else [&"Sword_Regular_B", &"Sword_Regular_A"]
-		spin_played = animation_driver.play_attack_exact(&"spin360", context, spin_candidates, true, 1.24 if combo_fast else -1.0, 0.045 if combo_fast else -1.0, 1.0, combo_fast)
+		spin_played = animation_driver.play_attack_exact(&"spin360", context, spin_candidates, true, 1.24 if combo_fast else -1.0, 0.045 if combo_fast else -1.0, 1.0, combo_fast, action_metadata)
 	if spin_played:
 		_add_spiral_stamina(-spiral_stamina_cost)
 		spin_input_cooldown_timer = 0.20
-		spiral_request_queue.append({
-			"direction": requested_direction,
-			"context": context,
-			"combo_fast": combo_fast,
-			"external": using_external_spin
-		})
-		_sync_spiral_attack_state()
 		combo_timer = 0.0
 		combo_light_count = 0
 
@@ -1278,26 +1469,47 @@ func _spiral_animation_speed(direction: int, context: StringName, combo_fast: bo
 func _sync_spiral_attack_state() -> void:
 	if animation_driver == null:
 		return
+	var action := animation_driver.current_combat_action_metadata()
 	if animation_driver.current_attack_slot_name() != &"spin360":
-		spiral_active_clip = StringName()
-		spiral_last_progress = 0.0
-		if not animation_driver.is_attack_active() and spiral_request_queue.is_empty() and not spiral_down_air_impact_pending:
+		if spiral_active_request_id != 0:
+			_finish_spiral_action(true)
+		elif not spiral_down_air_impact_pending:
 			spin_vertical_direction = 0
 		return
-
-	var clip: StringName = animation_driver.current_attack_clip
-	var progress: float = animation_driver.current_attack_progress()
-	var started_new_attack: bool = spiral_active_clip == StringName() or clip != spiral_active_clip or progress + 0.12 < spiral_last_progress
-	spiral_active_clip = clip
-	spiral_last_progress = progress
-	if not started_new_attack:
+	var request_id: int = int(action.get(&"request_id", 0))
+	if request_id == spiral_active_request_id:
 		return
+	_start_spiral_action(action)
 
-	var request: Dictionary = spiral_request_queue.pop_front() if not spiral_request_queue.is_empty() else {}
-	var direction: int = int(request.get("direction", _spiral_direction_from_clip(clip)))
-	var context: StringName = StringName(request.get("context", animation_driver.current_attack_context_name()))
-	var combo_fast: bool = bool(request.get("combo_fast", false))
-	var using_external: bool = bool(request.get("external", String(clip).begins_with("external:")))
+
+func _on_combat_action_started(action: Dictionary) -> void:
+	if StringName(action.get(&"slot", StringName())) == &"spin360":
+		_start_spiral_action(action)
+
+
+func _on_combat_action_finished(action: Dictionary, reason: StringName) -> void:
+	if int(action.get(&"request_id", 0)) != spiral_active_request_id:
+		return
+	_finish_spiral_action(reason != &"finished")
+
+
+func _on_combat_actions_cancelled(_actions: Array[Dictionary], reason: StringName) -> void:
+	if reason != &"finished" and (spiral_active_request_id != 0 or spiral_down_air_impact_pending or spiral_down_enemy_passthrough):
+		_finish_spiral_action(true)
+
+
+func _start_spiral_action(action: Dictionary) -> void:
+	var clip: StringName = animation_driver.current_attack_clip if animation_driver != null else StringName()
+	var request_id: int = int(action.get(&"request_id", 0))
+	if request_id <= 0 or request_id == spiral_active_request_id:
+		return
+	if spiral_active_request_id != 0:
+		_finish_spiral_action(true)
+	spiral_active_request_id = request_id
+	var direction: int = int(action.get(&"spiral_direction", _spiral_direction_from_clip(clip)))
+	var context: StringName = StringName(action.get(&"context", animation_driver.current_attack_context_name()))
+	var combo_fast: bool = bool(action.get(&"combo_fast", false))
+	var using_external: bool = bool(action.get(&"external", String(clip).begins_with("external:")))
 	spin_vertical_direction = direction
 	spin_total_time = maxf(0.38, animation_driver.current_attack_length() * 0.88)
 	spin_active_time = spin_total_time
@@ -1331,6 +1543,19 @@ func _sync_spiral_attack_state() -> void:
 			velocity.z *= 0.18
 	elif context == &"dash":
 		_add_horizontal_impulse(_camera_forward_flat(), 2.4, dash_speed)
+
+
+func _finish_spiral_action(interrupted: bool) -> void:
+	spiral_active_request_id = 0
+	spin_active_time = 0.0
+	spin_total_time = 0.0
+	spin_rotation_total = 0.0
+	if interrupted and (spiral_down_air_impact_pending or spiral_down_enemy_passthrough):
+		spiral_down_air_impact_pending = false
+		spiral_down_air_hit_targets.clear()
+		_set_spiral_down_enemy_passthrough(false)
+	if not spiral_down_air_impact_pending:
+		spin_vertical_direction = 0
 
 func _spiral_direction_from_clip(clip: StringName) -> int:
 	var label: String = String(clip)
@@ -1403,6 +1628,7 @@ func _trigger_spiral_down_impact() -> void:
 		event.blade_speed = 14.0
 		event.attack_slot = &"spin360"
 		event.attack_context = &"air"
+		event.attack_vertical_direction = -1
 		event.damage_type = &"spiral_smash"
 		event.hit_material = &"flesh"
 		event.contact_type = &"shockwave"
@@ -1611,20 +1837,12 @@ func _scan_slide_slash_contacts() -> void:
 		return
 
 	var contact_center: Vector3 = global_position + Vector3.UP * 0.82 + slide_direction * 0.36
-	var sphere: SphereShape3D = SphereShape3D.new()
-	sphere.radius = slide_slash_radius
-	var query: PhysicsShapeQueryParameters3D = PhysicsShapeQueryParameters3D.new()
-	query.shape = sphere
-	query.transform = Transform3D(Basis.IDENTITY, contact_center)
-	query.collision_mask = weapon_hit_mask
-	query.collide_with_bodies = false
-	query.collide_with_areas = true
-	var excluded: Array[RID] = []
-	excluded.append(get_rid())
-	query.exclude = excluded
+	slide_slash_sphere.radius = slide_slash_radius
+	slide_slash_query.shape = slide_slash_sphere
+	slide_slash_query.transform = Transform3D(Basis.IDENTITY, contact_center)
 
-	var hits: Array[Dictionary] = get_world_3d().direct_space_state.intersect_shape(query, 48)
-	var candidates_by_target: Dictionary = {}
+	var hits: Array[Dictionary] = get_world_3d().direct_space_state.intersect_shape(slide_slash_query, 48)
+	slide_slash_candidates.clear()
 
 	for result: Dictionary in hits:
 		var collider: Node = result.get("collider") as Node
@@ -1654,9 +1872,9 @@ func _scan_slide_slash_contacts() -> void:
 			if collider.has_method("zone_priority_from_shape_index"):
 				priority = float(collider.call("zone_priority_from_shape_index", shape_index))
 			var score: float = contact_center.distance_to(center) / maxf(slide_slash_radius + radius, 0.01) - priority * 0.22
-			var current_best: Dictionary = candidates_by_target.get(id, {})
+			var current_best: Dictionary = slide_slash_candidates.get(id, {})
 			if current_best.is_empty() or score < float(current_best.get("score", INF)):
-				candidates_by_target[id] = {
+				slide_slash_candidates[id] = {
 					"collider": collider,
 					"zone": zone,
 					"shape_index": shape_index,
@@ -1671,8 +1889,8 @@ func _scan_slide_slash_contacts() -> void:
 				if target.has_method("on_slide_slash"):
 					target.call("on_slide_slash", self)
 
-	for raw_id: Variant in candidates_by_target.keys():
-		var candidate: Dictionary = candidates_by_target[raw_id]
+	for raw_id: Variant in slide_slash_candidates:
+		var candidate: Dictionary = slide_slash_candidates[raw_id]
 		var collider: Node = candidate.get("collider") as Node
 		if collider == null:
 			continue
@@ -1762,9 +1980,8 @@ func _update_weapon_hit_detection(delta: float) -> void:
 
 	var active_hit_radius: float = _weapon_hit_radius_for_slot(slot)
 	var samples: int = clampi(int(ceil(max_sweep_length / maxf(active_hit_radius * 0.90, 0.06))) + 1, 2, 10)
-	var candidates_by_target: Dictionary = {}
-	var capsule := CapsuleShape3D.new()
-	capsule.radius = active_hit_radius
+	weapon_sweep_candidates.clear()
+	weapon_sweep_capsule.radius = active_hit_radius
 
 	for i: int in range(samples):
 		var alpha: float = float(i) / float(maxi(samples - 1, 1))
@@ -1775,14 +1992,10 @@ func _update_weapon_hit_detection(delta: float) -> void:
 		if blade_length < 0.04:
 			continue
 
-		capsule.height = blade_length + active_hit_radius * 2.0
-		var query := PhysicsShapeQueryParameters3D.new()
-		query.shape = capsule
-		query.transform = Transform3D(_basis_y_along(blade_segment), sample_base.lerp(sample_tip, 0.5))
-		query.collision_mask = weapon_hit_mask
-		query.collide_with_bodies = false
-		query.collide_with_areas = true
-		var hits: Array[Dictionary] = get_world_3d().direct_space_state.intersect_shape(query, 48)
+		weapon_sweep_capsule.height = blade_length + active_hit_radius * 2.0
+		weapon_sweep_query.shape = weapon_sweep_capsule
+		weapon_sweep_query.transform = Transform3D(_basis_y_along(blade_segment), sample_base.lerp(sample_tip, 0.5))
+		var hits: Array[Dictionary] = get_world_3d().direct_space_state.intersect_shape(weapon_sweep_query, 48)
 
 		for result: Dictionary in hits:
 			var collider: Node = result.get("collider") as Node
@@ -1824,9 +2037,9 @@ func _update_weapon_hit_detection(delta: float) -> void:
 			# cannot make a distant head beat a blade physically inside the torso.
 			var score: float = normalized_distance - zone_priority * 0.26
 
-			var current_best: Dictionary = candidates_by_target.get(target_id, {})
+			var current_best: Dictionary = weapon_sweep_candidates.get(target_id, {})
 			if current_best.is_empty() or score < float(current_best.get("score", INF)):
-				candidates_by_target[target_id] = {
+				weapon_sweep_candidates[target_id] = {
 					"collider": collider,
 					"shape_index": shape_index,
 					"zone": zone,
@@ -1836,8 +2049,8 @@ func _update_weapon_hit_detection(delta: float) -> void:
 				}
 
 	var candidate_debug: Array[String] = []
-	for raw_target_id: Variant in candidates_by_target.keys():
-		var candidate: Dictionary = candidates_by_target[raw_target_id]
+	for raw_target_id: Variant in weapon_sweep_candidates:
+		var candidate: Dictionary = weapon_sweep_candidates[raw_target_id]
 		var collider: Node = candidate.get("collider") as Node
 		if collider == null:
 			continue
@@ -2155,11 +2368,9 @@ func _attack_assist_has_line_of_sight(target_position: Vector3) -> bool:
 	if get_world_3d() == null:
 		return true
 	var origin: Vector3 = global_position + Vector3.UP * 1.05
-	var query := PhysicsRayQueryParameters3D.create(origin, target_position, 1)
-	query.exclude = [get_rid()]
-	query.collide_with_areas = false
-	query.collide_with_bodies = true
-	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+	attack_assist_los_query.from = origin
+	attack_assist_los_query.to = target_position
+	return get_world_3d().direct_space_state.intersect_ray(attack_assist_los_query).is_empty()
 
 func _attack_vertical_pitch() -> float:
 	# Use the actual camera forward vector rather than the raw pitch variable so
@@ -2273,6 +2484,8 @@ func _make_weapon_hit_event(slot: StringName, context: StringName, hit_position:
 	event.blade_speed = blade_speed
 	event.attack_slot = slot
 	event.attack_context = context
+	event.attack_charge_ratio = last_heavy_release_ratio if slot == &"heavy" else 0.0
+	event.attack_vertical_direction = spin_vertical_direction if slot == &"spin360" else 0
 	event.damage_type = &"slash"
 
 	match slot:
@@ -2347,6 +2560,10 @@ func _make_weapon_hit_event(slot: StringName, context: StringName, hit_position:
 			event.damage *= 1.85
 			event.sever_damage *= 2.00
 			event.guard_damage *= 1.55
+
+	event.damage *= weapon_damage_multiplier
+	event.sever_damage *= weapon_damage_multiplier
+	event.guard_damage *= weapon_damage_multiplier
 
 	event.impulse = direction * clampf(2.5 + event.sever_damage * 0.045, 3.0, 10.0)
 	return event
@@ -2544,47 +2761,78 @@ func _update_perfect_counter_aoe() -> void:
 		if combat_feedback != null:
 			combat_feedback.weapon_hit(event, &"torso", target)
 
+func _move_with_traversal_platform_policy() -> void:
+	# Godot normally adds the last moving-platform velocity when a CharacterBody
+	# leaves it. Animated dinosaur bones can legitimately move much faster than
+	# the dinosaur root, so that inheritance becomes an occasional catapult.
+	# Keep platform following while contact exists, but suppress only the leave
+	# impulse from an identified giant traversal support.
+	platform_on_leave = CharacterBody3D.PLATFORM_ON_LEAVE_DO_NOTHING if giant_traversal_support_active else CharacterBody3D.PLATFORM_ON_LEAVE_ADD_VELOCITY
+	move_and_slide()
+	giant_traversal_support_active = _has_giant_traversal_floor_collision()
+	platform_on_leave = CharacterBody3D.PLATFORM_ON_LEAVE_DO_NOTHING if giant_traversal_support_active else CharacterBody3D.PLATFORM_ON_LEAVE_ADD_VELOCITY
+
+func _has_giant_traversal_floor_collision() -> bool:
+	var floor_dot_threshold := cos(floor_max_angle)
+	var up := up_direction.normalized()
+	for collision_index: int in range(get_slide_collision_count()):
+		var collision := get_slide_collision(collision_index)
+		if collision == null or collision.get_normal().dot(up) < floor_dot_threshold:
+			continue
+		var collider := collision.get_collider() as Node
+		if collider != null and collider.is_in_group(GIANT_TRAVERSAL_SURFACE_GROUP):
+			return true
+	return false
+
 func _try_start_wall_run() -> bool:
 	if wall_run_active or not wall_run_attach_available or wall_run_attach_cooldown > 0.0 or wall_run_runs_used >= wall_run_max_chain_runs:
-		return false
+		return _reject_wall_run("availability/cooldown/chain limit")
 	# The first contact is free. Any following contact in the same airborne
 	# sequence must have been explicitly armed by jumping away from the wall.
 	if wall_run_runs_used > 0 and not wall_run_chain_armed_by_jump:
-		return false
+		return _reject_wall_run("next contact not armed by wall jump")
 	if is_on_floor() or parkour_active or get_world_3d() == null:
-		return false
-	if spiral_down_air_impact_pending or spin_vertical_direction < 0:
-		return false
+		return _reject_wall_run("grounded, parkour active, or world unavailable")
+	if spiral_down_air_impact_pending:
+		return _reject_wall_run("Spiral Down impact pending")
+	if animation_driver != null and animation_driver.current_action_blocks(&"wall_attach"):
+		return _reject_wall_run("active combat action blocks wall_attach")
 
 	var desired: Vector3 = _desired_move_direction()
 	_refresh_wall_run_release_input_guard(desired)
 	if desired.length() < 0.05:
-		return false
+		return _reject_wall_run("no movement input")
 	var hit: Dictionary = _find_wall_run_surface(desired)
 	if hit.is_empty():
-		return false
+		return _reject_wall_run("no valid wall surface")
 	var normal: Vector3 = hit.get("normal", Vector3.ZERO)
 	normal.y = 0.0
 	if normal.length() < 0.70:
-		return false
+		return _reject_wall_run("wall normal is not horizontal enough")
 	normal = normal.normalized()
 	# Holding the same forward input after a vertical wall jump must not pivot the
 	# player back into the wall or spend the second run on that same surface. A
 	# real input release clears this guard and restores intentional reattachment.
 	if wall_run_release_input_guard and wall_run_release_normal.length() > 0.70 and normal.dot(wall_run_release_normal.normalized()) > 0.72:
-		return false
+		return _reject_wall_run("release guard rejects same surface")
 
 	var tangent_input: Vector3 = desired - normal * desired.dot(normal)
 	var into_wall: float = maxf(0.0, -desired.dot(normal))
 	if tangent_input.length() < 0.22 and into_wall < 0.35:
-		return false
+		return _reject_wall_run("insufficient tangent or inward input")
 	# A head-on vertical run must come from a real upward jump. This prevents a
 	# falling player from regaining height merely by holding forward at a wall.
 	if tangent_input.length() < 0.22 and velocity.y <= 0.35:
-		return false
+		return _reject_wall_run("vertical attach requires upward velocity")
 
 	_begin_wall_run(normal, desired, _wall_run_hit_kind(hit))
 	return true
+
+
+func _reject_wall_run(reason: String) -> bool:
+	wall_run_debug_reason = "rejected: " + reason
+	return false
+
 
 func _begin_wall_run(normal: Vector3, desired: Vector3, surface_kind: StringName = &"world") -> void:
 	# Wall running is a mobility extension of combat: held primary/direct-heavy
@@ -2616,6 +2864,7 @@ func _begin_wall_run(normal: Vector3, desired: Vector3, surface_kind: StringName
 	if animation_driver != null:
 		animation_driver.clear_wall_release_air_pose()
 		animation_driver.play_wall_run_visual(wall_run_mode, _wall_run_should_mirror(wall_run_last_tangent))
+	_sync_wall_run_feedback()
 
 func _update_wall_run(delta: float) -> bool:
 	if not wall_run_active:
@@ -2633,7 +2882,7 @@ func _update_wall_run(delta: float) -> bool:
 
 	if Input.is_action_just_pressed("jump") and not started_now:
 		_perform_wall_jump()
-		move_and_slide()
+		_move_with_traversal_platform_policy()
 		if is_on_floor():
 			_reset_wall_run_after_landing()
 		return true
@@ -2656,6 +2905,9 @@ func _update_wall_run(delta: float) -> bool:
 	refreshed_normal.y = 0.0
 	if refreshed_normal.length() > 0.70:
 		wall_run_normal = wall_run_normal.lerp(refreshed_normal.normalized(), clampf(delta * 18.0, 0.0, 1.0)).normalized()
+	if _wall_run_lateral_course_is_exhausted(desired):
+		_detach_wall_run("curved surface course exhausted", false)
+		return false
 
 	var next_mode: StringName = _classify_wall_run_mode(desired, false)
 	if next_mode == &"vertical" and wall_run_mode != &"vertical" and velocity.y < -0.50:
@@ -2699,7 +2951,7 @@ func _update_wall_run(delta: float) -> bool:
 			_face_direction(tangent, delta * 2.2)
 
 	var before_move: Vector3 = global_position
-	move_and_slide()
+	_move_with_traversal_platform_policy()
 	var travelled: float = global_position.distance_to(before_move)
 	wall_run_distance += travelled
 	if wall_run_mode == &"vertical":
@@ -2743,6 +2995,7 @@ func _perform_wall_jump() -> void:
 	jumps_used = 1
 	wall_run_corner_follow_active = false
 	wall_run_debug_reason = "wall jump -> %s (%d/%d)" % ["chain armed" if wall_run_attach_available else "chain spent", wall_run_runs_used, wall_run_max_chain_runs]
+	_sync_wall_run_feedback()
 	movement_sfx_requested.emit(&"jump")
 	if animation_driver != null:
 		if released_mode == &"vertical":
@@ -2768,6 +3021,13 @@ func _detach_wall_run(reason: String, vertical_flip: bool) -> void:
 	var released_tangent: Vector3 = wall_run_last_tangent
 	var released_mirrored: bool = _wall_run_should_mirror(released_tangent)
 	var detach_repulsion: Vector3 = _wall_run_repulsion(released_mode, released_tangent, released_surface_kind)
+	var passive_dynamic_vertical: bool = released_surface_kind == &"giant_enemy" and released_mode == &"vertical"
+	if passive_dynamic_vertical:
+		# Losing the animated surface at the top of a giant is not a jump input.
+		# Preserve a small cresting velocity so the player can settle on its back,
+		# but reject the old +11.2 m/s automatic launch.
+		detach_repulsion = Vector3.ZERO
+		velocity.y = minf(velocity.y, 2.2)
 	if released_mode == &"horizontal":
 		# Preserve the complete running momentum. Only the additional kick is
 		# reduced by 90%, so detachment continues naturally along the wall without
@@ -2776,7 +3036,7 @@ func _detach_wall_run(reason: String, vertical_flip: bool) -> void:
 		velocity.z *= wall_run_horizontal_detach_momentum_retention
 		detach_repulsion *= wall_run_horizontal_detach_repulsion_scale
 	velocity += detach_repulsion
-	wall_run_repulsion_control_lock = _wall_run_release_lock_duration(released_mode, true)
+	wall_run_repulsion_control_lock = 0.0 if passive_dynamic_vertical else _wall_run_release_lock_duration(released_mode, true)
 	wall_run_active = false
 	wall_run_mode = StringName()
 	wall_run_surface_kind = &"world"
@@ -2789,6 +3049,7 @@ func _detach_wall_run(reason: String, vertical_flip: bool) -> void:
 	wall_run_just_started = false
 	wall_run_corner_follow_active = false
 	wall_run_debug_reason = reason
+	_sync_wall_run_feedback()
 	if animation_driver != null:
 		if vertical_flip or released_mode == &"vertical":
 			animation_driver.finish_wall_run_visual(true)
@@ -2823,6 +3084,7 @@ func _reset_wall_run_after_landing() -> void:
 	wall_run_corner_follow_active = false
 	wall_run_corner_tangent = Vector3.ZERO
 	wall_run_corner_input_reference = Vector3.ZERO
+	_sync_wall_run_feedback()
 	wall_run_debug_reason = "grounded -> rearmed"
 
 func _classify_wall_run_mode(desired: Vector3, _initial_contact: bool) -> StringName:
@@ -2838,6 +3100,27 @@ func _wall_tangent(direction: Vector3) -> Vector3:
 	var flat: Vector3 = direction
 	flat.y = 0.0
 	return flat - wall_run_normal * flat.dot(wall_run_normal)
+
+func _wall_run_lateral_course_is_exhausted(desired: Vector3) -> bool:
+	if wall_run_mode != &"horizontal" and wall_run_mode != &"diagonal":
+		return false
+	var flat_desired: Vector3 = desired
+	flat_desired.y = 0.0
+	if flat_desired.length() < 0.05 or wall_run_normal.length() < 0.70:
+		return false
+	flat_desired = flat_desired.normalized()
+	var projected_tangent: Vector3 = _wall_tangent(flat_desired)
+	# On a convex surface the refreshed normal eventually points in the same
+	# direction as the held input. The tangent projection then crosses zero; if it
+	# is normalized anyway, numerical noise turns it into a full-speed reversal
+	# and the player oscillates around the same strip of the cylinder.
+	if flat_desired.dot(wall_run_normal) <= 0.0:
+		return false
+	if projected_tangent.length() < wall_run_lateral_min_tangent:
+		return true
+	if wall_run_last_tangent.length() < 0.10:
+		return false
+	return projected_tangent.normalized().dot(wall_run_last_tangent.normalized()) <= 0.0
 
 func _wall_run_effective_direction(raw_desired: Vector3) -> Vector3:
 	if wall_run_corner_follow_active:
@@ -3112,14 +3395,12 @@ func _wall_run_raycast_candidates(from_point: Vector3, to_point: Vector3) -> Arr
 	return hits
 
 func _raycast_wall_run_layer(from_point: Vector3, to_point: Vector3, layer: int, collide_with_areas: bool) -> Dictionary:
-	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.new()
-	query.from = from_point
-	query.to = to_point
-	query.collision_mask = layer
-	query.exclude = [get_rid()]
-	query.collide_with_bodies = not collide_with_areas
-	query.collide_with_areas = collide_with_areas
-	return get_world_3d().direct_space_state.intersect_ray(query)
+	wall_run_raycast_query.from = from_point
+	wall_run_raycast_query.to = to_point
+	wall_run_raycast_query.collision_mask = layer
+	wall_run_raycast_query.collide_with_bodies = not collide_with_areas
+	wall_run_raycast_query.collide_with_areas = collide_with_areas
+	return get_world_3d().direct_space_state.intersect_ray(wall_run_raycast_query)
 
 func _wall_run_hit_kind(hit: Dictionary) -> StringName:
 	if hit.is_empty():
@@ -3369,6 +3650,7 @@ func _queue_slide_after_parkour() -> void:
 func _begin_parkour(kind: StringName, end_position: Vector3, duration: float, arc: float, direction: Vector3) -> void:
 	# Parkour is the one movement state that intentionally breaks a heavy charge.
 	# Do it only after a valid vault/mantle has actually been accepted.
+	parkour_started_from_wall_run = wall_run_active
 	if animation_driver != null:
 		animation_driver.clear_wall_release_air_pose()
 	if wall_run_active:
@@ -3376,6 +3658,7 @@ func _begin_parkour(kind: StringName, end_position: Vector3, duration: float, ar
 		wall_run_mode = StringName()
 		wall_run_attach_available = false
 		wall_run_just_started = false
+		_sync_wall_run_feedback()
 		if animation_driver != null:
 			animation_driver.stop_wall_run_visual()
 	_cancel_heavy_charge()
@@ -3438,10 +3721,15 @@ func _update_parkour(delta: float) -> void:
 func _finish_parkour() -> void:
 	# End parkour with NO inherited forward impulse. No input after a climb means
 	# the player stays exactly on the ledge.
+	var rearm_wall_run: bool = parkour_started_from_wall_run
+	parkour_started_from_wall_run = false
 	parkour_active = false
 	parkour_kind = StringName()
 	jumps_used = 0
 	velocity = Vector3.ZERO
+	if rearm_wall_run:
+		_reset_wall_run_after_landing()
+		wall_run_debug_reason = "parkour exit -> rearmed"
 
 	# Stop the retargeted parkour donor immediately as well. Otherwise the
 	# authored clip can visually keep taking a final step after mechanics stop.
@@ -3469,16 +3757,9 @@ func _finish_parkour() -> void:
 		parkour_debug_reason = "exit -> player control"
 
 func _raycast_world(from_point: Vector3, to_point: Vector3) -> Dictionary:
-	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.new()
-	query.from = from_point
-	query.to = to_point
-	query.collision_mask = 1
-	var excluded: Array[RID] = []
-	excluded.append(get_rid())
-	query.exclude = excluded
-	query.collide_with_bodies = true
-	query.collide_with_areas = false
-	return get_world_3d().direct_space_state.intersect_ray(query)
+	world_raycast_query.from = from_point
+	world_raycast_query.to = to_point
+	return get_world_3d().direct_space_state.intersect_ray(world_raycast_query)
 
 func _set_sword_charge_visual(ratio: float) -> void:
 	if sword_blade_material == null:
@@ -3540,7 +3821,23 @@ func _face_direction(direction: Vector3, delta_or_amount: float) -> void:
 func _update_camera(delta: float) -> void:
 	if camera_yaw == null or spring_arm == null or camera == null:
 		return
-	var target: Vector3 = global_position + Vector3(0.0, camera_pivot_height, 0.0)
+	# CombatFeedback owns the cinematic envelope and orientation blend. Player
+	# owns the collision-aware rig translation, so lowering the pivot and moving
+	# the SpringArm never bypasses camera collision.
+	_sync_wall_run_feedback()
+	var epic_run_camera_active: bool = _epic_wall_run_camera_guidance_active()
+	var epic_camera_strength: float = combat_feedback.epic_camera_blend_strength() if epic_run_camera_active else 0.0
+	var epic_camera_response: float = combat_feedback.epic_camera_follow_response() if epic_run_camera_active else 8.0
+	var epic_camera_motion_response: float = epic_camera_response * maxf(0.08, epic_camera_strength) if epic_run_camera_active else epic_camera_response
+	var camera_delta: float = delta
+	if epic_run_camera_active:
+		camera_delta = clampf(delta / maxf(Engine.time_scale, 0.001), 0.0, 0.05)
+	var focused_pivot_height: float = camera_pivot_height
+	var focused_camera_distance: float = camera_distance
+	if combat_feedback != null:
+		focused_pivot_height = combat_feedback.epic_camera_focus_height(camera_pivot_height)
+		focused_camera_distance = combat_feedback.epic_camera_distance(camera_distance)
+	var target: Vector3 = global_position + Vector3(0.0, focused_pivot_height, 0.0)
 
 	# Horizontal lag made dash/attack speed spikes look like the character was
 	# shooting away from the screen centre and then snapping back afterward.
@@ -3549,46 +3846,52 @@ func _update_camera(delta: float) -> void:
 	camera_yaw.global_position.y = lerpf(
 		camera_yaw.global_position.y,
 		target.y,
-		1.0 - exp(-14.0 * delta)
+		1.0 - exp(-epic_camera_response * camera_delta)
 	)
 
-	# Free camera by default. Only an actively assisted epic enemy may guide the
-	# horizontal framing, and even then the correction remains deliberately smooth.
-	var epic_target: Node3D = _active_epic_focus_target()
-	if epic_target != null:
-		var toward_epic: Vector3 = epic_target.global_position - global_position
-		toward_epic.y = 0.0
-		if toward_epic.length() > 0.05:
-			var epic_yaw: float = atan2(-toward_epic.x, -toward_epic.z)
-			camera_yaw.rotation.y = lerp_angle(camera_yaw.rotation.y, epic_yaw, 1.0 - exp(-2.4 * delta))
+	# During an enemy wall run the camera looks along the run direction. Since the
+	# SpringArm camera sits on +Z, aligning its -Z forward vector with travel puts
+	# it on the opposite side: a run to the right therefore places it to the left.
+	var wall_run_camera_direction: Vector3 = _epic_wall_run_camera_direction()
+	if wall_run_camera_direction.length_squared() > 0.01:
+		var chase_yaw: float = atan2(-wall_run_camera_direction.x, -wall_run_camera_direction.z)
+		camera_yaw.rotation.y = lerp_angle(
+			camera_yaw.rotation.y,
+			chase_yaw,
+			1.0 - exp(-epic_camera_motion_response * camera_delta)
+		)
+	else:
+		# Free camera by default. Only an actively assisted epic enemy may guide the
+		# horizontal framing, and even then the correction remains deliberately smooth.
+		var epic_target: Node3D = _active_epic_focus_target()
+		if epic_target != null:
+			var toward_epic: Vector3 = epic_target.global_position - global_position
+			toward_epic.y = 0.0
+			if toward_epic.length() > 0.05:
+				var epic_yaw: float = atan2(-toward_epic.x, -toward_epic.z)
+				camera_yaw.rotation.y = lerp_angle(camera_yaw.rotation.y, epic_yaw, 1.0 - exp(-2.4 * camera_delta))
 
-	# A restrained wall-run camera accent: a little more peripheral vision, a
-	# few degrees of roll toward the contacted wall and a very small running bob.
-	# All three live on the Camera3D itself, so mouse/gamepad aim stays fully free.
-	var adrenaline_target: float = 1.0 if wall_run_active else 0.0
-	var adrenaline_response: float = 9.0 if wall_run_active else 5.5
-	wall_run_camera_adrenaline = lerpf(
-		wall_run_camera_adrenaline,
-		adrenaline_target,
-		1.0 - exp(-adrenaline_response * delta)
+	# Flattening the SpringArm while its pivot descends makes the camera itself
+	# travel toward foot height. CombatFeedback then supplies the upward viewing
+	# angle; the user's saved pitch is only restored after the cinematic releases.
+	var guided_pitch: float = lerpf(camera_pitch_value, 0.0, epic_camera_strength) if epic_run_camera_active else camera_pitch_value
+	camera_pitch.rotation.x = lerp_angle(
+		camera_pitch.rotation.x,
+		guided_pitch,
+		1.0 - exp(-epic_camera_motion_response * camera_delta)
 	)
-	if wall_run_active:
-		wall_run_camera_phase += delta * (15.0 if wall_run_mode != &"vertical" else 11.0)
 
-	var side: float = _wall_run_camera_side()
-	var pulse: float = sin(wall_run_camera_phase) * wall_run_camera_adrenaline
-	var roll_target: float = deg_to_rad(3.2) * side * wall_run_camera_adrenaline
-	roll_target += deg_to_rad(0.22) * pulse
-	var pitch_target: float = deg_to_rad(-1.4) * wall_run_camera_adrenaline if wall_run_mode == &"vertical" else 0.0
-	var bob_target: float = 0.025 * pulse
-	var shoulder_target: float = camera_shoulder_offset + side * 0.11 * wall_run_camera_adrenaline
+	# CombatFeedback is the single owner of Camera3D offsets/FOV/rotation. It
+	# composes ordinary wall-run motion with parries, executions and the distinct
+	# giant/shield adrenaline profiles without competing property writers.
+	camera.position.y = lerpf(camera.position.y, 0.0, 1.0 - exp(-13.0 * camera_delta))
+	spring_arm.spring_length = lerpf(spring_arm.spring_length, focused_camera_distance, 1.0 - exp(-epic_camera_response * camera_delta))
+	spring_arm.position.x = lerpf(spring_arm.position.x, camera_shoulder_offset, 1.0 - exp(-9.0 * camera_delta))
 
-	camera.fov = lerpf(camera.fov, camera_base_fov + 4.0 * wall_run_camera_adrenaline, 1.0 - exp(-7.5 * delta))
-	camera.rotation.z = lerp_angle(camera.rotation.z, roll_target, 1.0 - exp(-10.0 * delta))
-	camera.rotation.x = lerp_angle(camera.rotation.x, pitch_target, 1.0 - exp(-8.0 * delta))
-	camera.position.y = lerpf(camera.position.y, bob_target, 1.0 - exp(-13.0 * delta))
-	spring_arm.spring_length = lerpf(spring_arm.spring_length, camera_distance, 1.0 - exp(-8.0 * delta))
-	spring_arm.position.x = lerpf(spring_arm.position.x, shoulder_target, 1.0 - exp(-9.0 * delta))
+func _sync_wall_run_feedback() -> void:
+	if combat_feedback == null:
+		return
+	combat_feedback.set_wall_run_state(wall_run_active, wall_run_surface_kind, wall_run_mode, _wall_run_camera_side())
 
 func _wall_run_camera_side() -> float:
 	if not wall_run_active or wall_run_mode == &"vertical" or wall_run_last_tangent.length() < 0.10:
@@ -3596,6 +3899,20 @@ func _wall_run_camera_side() -> float:
 	var travel: Vector3 = wall_run_last_tangent.normalized()
 	var travel_right: Vector3 = Vector3(-travel.z, 0.0, travel.x)
 	return signf(wall_run_normal.dot(travel_right))
+
+func _epic_wall_run_camera_guidance_active() -> bool:
+	return combat_feedback != null and combat_feedback.is_epic_wall_run_active()
+
+func _epic_wall_run_camera_direction() -> Vector3:
+	if not wall_run_active or not _epic_wall_run_camera_guidance_active():
+		return Vector3.ZERO
+	var travel: Vector3 = wall_run_last_tangent
+	if wall_run_mode == &"vertical" or travel.length_squared() < 0.01:
+		travel = -global_basis.z
+	travel.y = 0.0
+	if travel.length_squared() < 0.01:
+		return Vector3.ZERO
+	return travel.normalized()
 
 func _active_epic_focus_target() -> Node3D:
 	if attack_assist_target == null or not is_instance_valid(attack_assist_target):
@@ -3613,19 +3930,42 @@ func get_camera_mode() -> int:
 func get_camera_distance() -> float:
 	return camera_distance
 
+func get_epic_wall_run_camera_setting_definitions() -> Array[Dictionary]:
+	return EPIC_RUN_CAMERA_SETTING_DEFINITIONS
+
+func get_epic_wall_run_camera_setting(id: StringName) -> float:
+	return float(epic_wall_run_camera_settings.get(id, _epic_wall_run_camera_setting_default(id)))
+
+func set_epic_wall_run_camera_setting(id: StringName, value: float, persist: bool = true) -> void:
+	var definition: Dictionary = _epic_wall_run_camera_setting_definition(id)
+	if definition.is_empty():
+		return
+	epic_wall_run_camera_settings[id] = clampf(value, float(definition["min"]), float(definition["max"]))
+	if combat_feedback != null:
+		combat_feedback.configure_epic_wall_run_settings(epic_wall_run_camera_settings)
+	if persist:
+		_save_camera_settings()
+
 func set_camera_mode(_value: int, use_preset_distance: bool = true) -> void:
 	camera_mode = 0
 	_apply_camera_mode_profile(use_preset_distance)
 	recenter_camera_tps()
 	_save_camera_settings()
 
-func set_camera_distance(value: float) -> void:
+func set_camera_distance(value: float, persist: bool = true) -> void:
 	camera_distance = clampf(value, CAMERA_DISTANCE_MIN, CAMERA_DISTANCE_MAX)
+	if persist:
+		_save_camera_settings()
+
+func save_camera_settings() -> void:
 	_save_camera_settings()
 
 func reset_camera_tps() -> void:
 	camera_mode = 0
 	_apply_camera_mode_profile(true)
+	_reset_epic_wall_run_camera_settings()
+	if combat_feedback != null:
+		combat_feedback.configure_epic_wall_run_settings(epic_wall_run_camera_settings)
 	recenter_camera_tps()
 	_save_camera_settings()
 
@@ -3642,12 +3982,20 @@ func _apply_camera_mode_profile(use_preset_distance: bool) -> void:
 	camera_shoulder_offset = 0.0
 	camera_rest_pitch = -0.20
 	if use_preset_distance:
-		camera_distance = 7.0
+		camera_distance = 3.5
 
 func _load_camera_settings() -> void:
+	_reset_epic_wall_run_camera_settings()
 	var config := ConfigFile.new()
 	if config.load(CAMERA_SETTINGS_PATH) == OK:
 		camera_distance = clampf(float(config.get_value("camera", "distance", camera_distance)), CAMERA_DISTANCE_MIN, CAMERA_DISTANCE_MAX)
+		for definition: Dictionary in EPIC_RUN_CAMERA_SETTING_DEFINITIONS:
+			var id := StringName(definition["id"])
+			epic_wall_run_camera_settings[id] = clampf(
+				float(config.get_value("epic_wall_run", String(id), definition["default"])),
+				float(definition["min"]),
+				float(definition["max"])
+			)
 	camera_mode = 0
 	_apply_camera_mode_profile(false)
 	camera_pitch_value = camera_rest_pitch
@@ -3656,9 +4004,27 @@ func _save_camera_settings() -> void:
 	var config := ConfigFile.new()
 	config.set_value("camera", "mode", camera_mode)
 	config.set_value("camera", "distance", camera_distance)
+	for definition: Dictionary in EPIC_RUN_CAMERA_SETTING_DEFINITIONS:
+		var id := StringName(definition["id"])
+		config.set_value("epic_wall_run", String(id), get_epic_wall_run_camera_setting(id))
 	var error: Error = config.save(CAMERA_SETTINGS_PATH)
 	if error != OK:
 		push_warning("[CAMERA] Could not save settings: %s" % error_string(error))
+
+func _reset_epic_wall_run_camera_settings() -> void:
+	epic_wall_run_camera_settings.clear()
+	for definition: Dictionary in EPIC_RUN_CAMERA_SETTING_DEFINITIONS:
+		epic_wall_run_camera_settings[StringName(definition["id"])] = float(definition["default"])
+
+func _epic_wall_run_camera_setting_definition(id: StringName) -> Dictionary:
+	for definition: Dictionary in EPIC_RUN_CAMERA_SETTING_DEFINITIONS:
+		if StringName(definition["id"]) == id:
+			return definition
+	return {}
+
+func _epic_wall_run_camera_setting_default(id: StringName) -> float:
+	var definition: Dictionary = _epic_wall_run_camera_setting_definition(id)
+	return float(definition.get("default", 0.0))
 
 func _build_weapons() -> void:
 	if right_hand_bone != "":
@@ -3698,72 +4064,198 @@ func _update_shield_guard_visual() -> void:
 	# Preserve the imported hand-space offset exactly: the attachment owns the
 	# shield position while the player runs, jumps and turns.
 	shield_root.position = shield_rest_transform.origin
-	# The child CylinderMesh is rotated 90 degrees around X, so a yaw-only root
-	# basis makes its disc plane vertical and its normal point forward/back.
-	var upright_basis: Basis = Basis(Vector3.UP, rotation.y).orthonormalized()
-	shield_root.global_basis = upright_basis
+	# Imported shield fronts point along local +Z. During guard, face that axis in
+	# the player's forward direction while keeping local +Y vertical.
+	var player_basis := Basis(Vector3.UP, rotation.y).orthonormalized()
+	var guard_orientation := Basis(-player_basis.x, player_basis.y, -player_basis.z)
+	var authored_scale := shield_rest_transform.basis.get_scale()
+	shield_root.global_basis = guard_orientation.scaled(authored_scale)
 
 func _make_sword() -> Node3D:
 	var root: Node3D = Node3D.new()
-	root.name = "Xiphos"
-	var imported_xiphos: Node = XIPHOS_SCENE.instantiate()
-	imported_xiphos.name = "ImportedXiphosVisual"
-	root.add_child(imported_xiphos)
-	var xiphos_mesh: MeshInstance3D = imported_xiphos as MeshInstance3D
-	if xiphos_mesh == null or xiphos_mesh.name != "SM_Xiphos_Main":
-		xiphos_mesh = imported_xiphos.find_child("SM_Xiphos_Main", true, false) as MeshInstance3D
-	if xiphos_mesh == null:
-		push_error("[PLAYER WEAPON] xiphos_main.glb has no SM_Xiphos_Main mesh")
+	root.name = "Weapon_%s" % String(equipped_weapon.item_id)
+	current_weapon_tuning = WeaponTuningScript.load_values(equipped_weapon)
+	sword_blade_material = null
+	if equipped_weapon.visual_scene == null:
+		push_error("[PLAYER EQUIPMENT] Weapon %s has no visual scene" % String(equipped_weapon.item_id))
+		return root
+	var imported_visual: Node = equipped_weapon.visual_scene.instantiate()
+	imported_visual.name = "ImportedWeaponVisual"
+	root.add_child(imported_visual)
+	var weapon_mesh: MeshInstance3D = _find_equipment_mesh(imported_visual, equipped_weapon.visual_mesh_name)
+	if weapon_mesh == null:
+		push_error("[PLAYER EQUIPMENT] Weapon %s has no %s mesh" % [equipped_weapon.item_id, equipped_weapon.visual_mesh_name])
 	else:
-		_configure_xiphos_blade_material(xiphos_mesh)
+		_configure_weapon_blade_material(weapon_mesh, equipped_weapon.blade_material_name)
 	sword_base = Marker3D.new()
 	sword_base.name = "SwordBladeBase"
-	sword_base.position = Vector3(0.0, 0.12, 0.0)
+	sword_base.position = Vector3(0.0, float(current_weapon_tuning[&"blade_base"]), 0.0)
 	root.add_child(sword_base)
 	sword_tip = Marker3D.new()
 	sword_tip.name = "SwordBladeTip"
-	sword_tip.position = Vector3(0.0, 1.03, 0.0)
+	sword_tip.position = Vector3(0.0, float(current_weapon_tuning[&"blade_tip"]), 0.0)
 	root.add_child(sword_tip)
+	weapon_hit_radius = float(current_weapon_tuning[&"hit_radius"])
+	weapon_damage_multiplier = float(current_weapon_tuning[&"damage_multiplier"])
+	root.position = WeaponTuningScript.hand_position(current_weapon_tuning)
+	root.rotation_degrees = WeaponTuningScript.hand_rotation_degrees(current_weapon_tuning)
+	root.scale = equipped_weapon.hand_scale * float(current_weapon_tuning[&"scale"])
 	_apply_sword_preset(root)
 	return root
 
-func _configure_xiphos_blade_material(xiphos_mesh: MeshInstance3D) -> void:
+func _configure_weapon_blade_material(weapon_mesh: MeshInstance3D, material_hint: StringName) -> void:
+	# Localize the mesh resource before replacing one surface. Surface overrides on
+	# a queued imported GLB can leave Godot's dummy/headless renderer querying a
+	# material after its override RID has been released during equipment swaps.
+	weapon_mesh.mesh = weapon_mesh.mesh.duplicate() as Mesh
 	var steel_surface: int = -1
-	for surface_index: int in range(xiphos_mesh.mesh.get_surface_count()):
-		var material: Material = xiphos_mesh.get_active_material(surface_index)
-		if material != null and "MAT_Xiphos_Steel" in material.resource_name:
+	for surface_index: int in range(weapon_mesh.mesh.get_surface_count()):
+		var material: Material = weapon_mesh.mesh.surface_get_material(surface_index)
+		if material != null and String(material_hint) in material.resource_name:
 			steel_surface = surface_index
 			break
 	if steel_surface < 0:
-		push_error("[PLAYER WEAPON] xiphos_main.glb has no MAT_Xiphos_Steel surface")
+		push_error("[PLAYER EQUIPMENT] Weapon %s has no %s surface" % [equipped_weapon.item_id, material_hint])
 		return
-	var imported_steel: StandardMaterial3D = xiphos_mesh.get_active_material(steel_surface) as StandardMaterial3D
+	var imported_steel: StandardMaterial3D = weapon_mesh.mesh.surface_get_material(steel_surface) as StandardMaterial3D
 	if imported_steel == null:
-		push_error("[PLAYER WEAPON] MAT_Xiphos_Steel must use StandardMaterial3D")
+		push_error("[PLAYER EQUIPMENT] %s must use StandardMaterial3D" % material_hint)
 		return
 	sword_blade_material = imported_steel.duplicate() as StandardMaterial3D
 	sword_blade_material.resource_local_to_scene = true
 	sword_base_color = sword_blade_material.albedo_color
-	xiphos_mesh.set_surface_override_material(steel_surface, sword_blade_material)
+	weapon_mesh.mesh.surface_set_material(steel_surface, sword_blade_material)
 
 func _make_shield() -> Node3D:
 	var root: Node3D = Node3D.new()
-	root.name = "Aspis"
-	var shield: MeshInstance3D = MeshInstance3D.new()
-	var mesh: CylinderMesh = CylinderMesh.new()
-	mesh.height = 0.09
-	mesh.top_radius = 0.48
-	mesh.bottom_radius = 0.48
-	shield.mesh = mesh
-	shield.rotation_degrees = Vector3(90.0, 0.0, 0.0)
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.albedo_color = Color(0.48, 0.025, 0.018)
-	material.metallic = 0.48
-	material.roughness = 0.38
-	shield.material_override = material
-	root.add_child(shield)
-	root.position = Vector3(0.0, 0.0, 0.04)
+	root.name = "Shield_%s" % String(equipped_shield.item_id)
+	if equipped_shield.visual_scene == null:
+		push_error("[PLAYER EQUIPMENT] Shield %s has no visual scene" % String(equipped_shield.item_id))
+		return root
+	var imported_visual: Node = equipped_shield.visual_scene.instantiate()
+	imported_visual.name = "ImportedShieldVisual"
+	root.add_child(imported_visual)
+	if _find_equipment_mesh(imported_visual, equipped_shield.visual_mesh_name) == null:
+		push_error("[PLAYER EQUIPMENT] Shield %s has no %s mesh" % [equipped_shield.item_id, equipped_shield.visual_mesh_name])
+	root.position = equipped_shield.hand_position
+	root.rotation_degrees = equipped_shield.hand_rotation_degrees
+	root.scale = equipped_shield.hand_scale
 	return root
+
+func _find_equipment_mesh(visual: Node, expected_name: StringName) -> MeshInstance3D:
+	if visual is MeshInstance3D and (expected_name == &"" or visual.name == expected_name):
+		return visual as MeshInstance3D
+	if expected_name != &"":
+		var exact: MeshInstance3D = visual.find_child(String(expected_name), true, false) as MeshInstance3D
+		if exact != null:
+			return exact
+	var fallback_meshes: Array[Node] = visual.find_children("*", "MeshInstance3D", true, false)
+	return fallback_meshes.front() as MeshInstance3D if not fallback_meshes.is_empty() else null
+
+func equip_item(item: HopliteEquipmentItemData) -> bool:
+	if not can_equip_item(item):
+		return false
+	match item.slot:
+		HopliteEquipmentItemData.Slot.WEAPON:
+			equipped_weapon = item
+			_rebuild_equipped_weapon()
+		HopliteEquipmentItemData.Slot.SHIELD:
+			equipped_shield = item
+			_rebuild_equipped_shield()
+		_:
+			return false
+	equipment_changed.emit(item.slot, item)
+	return true
+
+func equipped_item_for_slot(slot: HopliteEquipmentItemData.Slot) -> HopliteEquipmentItemData:
+	return equipped_weapon if slot == HopliteEquipmentItemData.Slot.WEAPON else equipped_shield
+
+func refresh_weapon_tuning(item_id: StringName) -> void:
+	if equipped_weapon != null and equipped_weapon.item_id == item_id:
+		current_weapon_tuning = WeaponTuningScript.load_values(equipped_weapon)
+		if sword_root != null and sword_base != null and sword_tip != null:
+			sword_base.position.y = float(current_weapon_tuning[&"blade_base"])
+			sword_tip.position.y = float(current_weapon_tuning[&"blade_tip"])
+			weapon_hit_radius = float(current_weapon_tuning[&"hit_radius"])
+			weapon_damage_multiplier = float(current_weapon_tuning[&"damage_multiplier"])
+			_apply_sword_preset(sword_root)
+			previous_sword_base_position = sword_base.global_position
+			previous_sword_tip_position = sword_tip.global_position
+	for candidate: Node in get_tree().get_nodes_in_group(&"equipment_pickup"):
+		if candidate.has_method("refresh_tuning_visual"):
+			candidate.call("refresh_tuning_visual", item_id)
+
+func can_equip_item(item: HopliteEquipmentItemData) -> bool:
+	if item == null or _equipment_swap_locked():
+		return false
+	match item.slot:
+		HopliteEquipmentItemData.Slot.WEAPON:
+			return sword_attachment != null and item.has_valid_weapon_contact() and (equipped_weapon == null or equipped_weapon.item_id != item.item_id)
+		HopliteEquipmentItemData.Slot.SHIELD:
+			return shield_attachment != null and (equipped_shield == null or equipped_shield.item_id != item.item_id)
+	return false
+
+func _equipment_swap_locked() -> bool:
+	return heavy_charging or primary_attack_held or shield_blocking or (animation_driver != null and animation_driver.is_attack_active())
+
+func _rebuild_equipped_weapon() -> void:
+	weapon_swing_active = false
+	weapon_hit_targets.clear()
+	if sword_root != null and is_instance_valid(sword_root):
+		sword_root.queue_free()
+	sword_root = _make_sword()
+	sword_attachment.add_child(sword_root)
+	previous_sword_base_position = sword_base.global_position
+	previous_sword_tip_position = sword_tip.global_position
+
+func _rebuild_equipped_shield() -> void:
+	if shield_root != null and is_instance_valid(shield_root):
+		shield_root.queue_free()
+	shield_root = _make_shield()
+	shield_attachment.add_child(shield_root)
+	shield_rest_transform = shield_root.transform
+	shield_attachment.visible = shield_visible
+
+func register_equipment_pickup(pickup: Area3D) -> void:
+	if pickup != null and not pickup in nearby_equipment_pickups:
+		nearby_equipment_pickups.append(pickup)
+
+func unregister_equipment_pickup(pickup: Area3D) -> void:
+	nearby_equipment_pickups.erase(pickup)
+
+func _collect_nearest_equipment_pickup() -> bool:
+	var nearest := nearest_equipment_pickup(true)
+	if nearest == null or not nearest.has_method("collect_by"):
+		return false
+	return bool(nearest.call("collect_by", self))
+
+func nearest_equipment_pickup(include_fresh_forge_pickups: bool = false) -> Area3D:
+	# The group scan makes a freshly spawned Forge pickup usable on the very first
+	# E press, even before Area3D emits body_entered on the next physics tick.
+	if include_fresh_forge_pickups:
+		for candidate: Node in get_tree().get_nodes_in_group(&"equipment_pickup"):
+			if candidate is Area3D and not candidate in nearby_equipment_pickups:
+				nearby_equipment_pickups.append(candidate as Area3D)
+	var nearest: Area3D = null
+	var nearest_distance_squared: float = INF
+	for index: int in range(nearby_equipment_pickups.size() - 1, -1, -1):
+		var pickup: Area3D = nearby_equipment_pickups[index]
+		if not is_instance_valid(pickup):
+			nearby_equipment_pickups.remove_at(index)
+			continue
+		if pickup.has_method("can_be_collected_by") and not bool(pickup.call("can_be_collected_by", self)):
+			continue
+		var distance_squared: float = global_position.distance_squared_to(pickup.global_position)
+		if distance_squared < nearest_distance_squared:
+			nearest = pickup
+			nearest_distance_squared = distance_squared
+	return nearest
+
+func equipment_pickup_prompt() -> String:
+	var pickup := nearest_equipment_pickup()
+	if pickup == null:
+		return ""
+	return String(pickup.call("interaction_label")) if pickup.has_method("interaction_label") else "Équipement"
 
 func _cycle_sword_preset() -> void:
 	sword_preset = (sword_preset + 1) % 6
@@ -3779,8 +4271,11 @@ func _apply_sword_preset(root: Node3D) -> void:
 		Vector3(0, 90, 0),
 		Vector3(0, -90, 90)
 	]
-	root.rotation_degrees = rotations[sword_preset]
-	root.position = Vector3.ZERO
+	if current_weapon_tuning.is_empty():
+		current_weapon_tuning = WeaponTuningScript.load_values(equipped_weapon)
+	root.rotation_degrees = WeaponTuningScript.hand_rotation_degrees(current_weapon_tuning) + rotations[sword_preset]
+	root.position = WeaponTuningScript.hand_position(current_weapon_tuning)
+	root.scale = equipped_weapon.hand_scale * float(current_weapon_tuning[&"scale"])
 
 func _find_hand_bone(right: bool) -> String:
 	var desired_side: String = "r" if right else "l"

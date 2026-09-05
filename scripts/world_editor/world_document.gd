@@ -3,8 +3,11 @@ class_name HopliteWorldDocument
 
 const WorldTerrainScript = preload("res://scripts/world_editor/world_terrain.gd")
 const AssetCatalogScript = preload("res://scripts/environment/environment_asset_catalog.gd")
+const EncounterBudgetScript = preload("res://scripts/world_editor/world_encounter_budget.gd")
+const AtmosphereCatalogScript = preload("res://scripts/environment/world_atmosphere_catalog.gd")
 
-const CURRENT_VERSION := 4
+const CURRENT_VERSION := 10
+const COLLISION_POLICY_VERSION := 5
 const DEFAULT_WARNING_LIMIT := 300
 
 var data: Dictionary = {}
@@ -25,15 +28,9 @@ static func create_default() -> Dictionary:
 		},
 		"chapters": [{"id": "chapter_1", "name": "Chapitre 1"}],
 		"start_chapter": "chapter_1",
-		"atmosphere": {
-			"preset": "Jour antique",
-			"sun_energy": 1.15,
-			"ambient_energy": 0.72,
-			"fog_density": 0.006,
-			"sky_top": "#263850",
-			"sky_horizon": "#d8ad78"
-		},
+		"atmosphere": AtmosphereCatalogScript.defaults(),
 		"entities": [],
+		"editor_groups": [],
 		"events": []
 	}
 
@@ -147,8 +144,142 @@ func remove_entity(id: String) -> bool:
 	for index in range(values.size()):
 		if String((values[index] as Dictionary).get("id", "")) == id:
 			values.remove_at(index)
+			_remove_entity_from_editor_groups(id)
 			return true
 	return false
+
+func editor_groups() -> Array:
+	return data.get("editor_groups", []) as Array
+
+func find_editor_group(id: String) -> Dictionary:
+	for raw: Variant in editor_groups():
+		var group := raw as Dictionary
+		if String(group.get("id", "")) == id:
+			return group
+	return {}
+
+func find_editor_group_reference(key: String) -> Dictionary:
+	if key.is_empty():
+		return {}
+	for raw: Variant in editor_groups():
+		var group := raw as Dictionary
+		if key in [String(group.get("id", "")), String(group.get("name", ""))]:
+			return group
+	return {}
+
+func editor_groups_for_entity(entity_id: String, kind: String = "") -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for raw: Variant in editor_groups():
+		var group := raw as Dictionary
+		if not kind.is_empty() and String(group.get("kind", "object")) != kind:
+			continue
+		if entity_id in (group.get("entity_ids", []) as Array):
+			result.append(group)
+	return result
+
+func create_editor_group(display_name: String, entity_ids: Array, kind: String = "") -> String:
+	var normalized_ids := _valid_unique_entity_ids(entity_ids)
+	if normalized_ids.is_empty():
+		return ""
+	var normalized_kind := kind if kind in ["enemy", "object"] else _infer_editor_group_kind(normalized_ids)
+	if normalized_kind.is_empty() or not _entity_ids_match_group_kind(normalized_ids, normalized_kind):
+		return ""
+	var id := "editor_group_%d_%d" % [Time.get_ticks_usec(), randi_range(100, 999)]
+	editor_groups().append({
+		"id": id,
+		"name": display_name.strip_edges() if not display_name.strip_edges().is_empty() else "Nouveau groupe",
+		"kind": normalized_kind,
+		"entity_ids": normalized_ids,
+	})
+	return id
+
+func set_editor_group_members(id: String, entity_ids: Array) -> bool:
+	var group := find_editor_group(id)
+	if group.is_empty():
+		return false
+	var normalized_ids := _valid_unique_entity_ids(entity_ids)
+	if not _entity_ids_match_group_kind(normalized_ids, String(group.get("kind", "object"))):
+		return false
+	group["entity_ids"] = normalized_ids
+	return true
+
+func rename_editor_group(id: String, display_name: String) -> bool:
+	var group := find_editor_group(id)
+	var safe_name := display_name.strip_edges()
+	if group.is_empty() or safe_name.is_empty():
+		return false
+	group["name"] = safe_name
+	return true
+
+func remove_editor_group(id: String) -> bool:
+	var groups := editor_groups()
+	for index in range(groups.size()):
+		if String((groups[index] as Dictionary).get("id", "")) == id:
+			groups.remove_at(index)
+			return true
+	return false
+
+func _remove_entity_from_editor_groups(entity_id: String) -> void:
+	for raw: Variant in editor_groups():
+		var group := raw as Dictionary
+		var ids := group.get("entity_ids", []) as Array
+		ids.erase(entity_id)
+	for index in range(editor_groups().size() - 1, -1, -1):
+		var group := editor_groups()[index] as Dictionary
+		if (group.get("entity_ids", []) as Array).is_empty():
+			editor_groups().remove_at(index)
+
+func _valid_unique_entity_ids(values: Array) -> Array[String]:
+	var result: Array[String] = []
+	for raw_id: Variant in values:
+		var id := String(raw_id)
+		if not id.is_empty() and not result.has(id) and not find_entity(id).is_empty():
+			result.append(id)
+	return result
+
+func _infer_editor_group_kind(entity_ids: Array) -> String:
+	if entity_ids.is_empty():
+		return ""
+	var enemy_count := 0
+	for raw_id: Variant in entity_ids:
+		var entity := find_entity(String(raw_id))
+		if String(entity.get("type", "")) == "enemy_group":
+			enemy_count += 1
+	if enemy_count == entity_ids.size():
+		return "enemy"
+	if enemy_count == 0:
+		return "object"
+	return ""
+
+func _entity_ids_match_group_kind(entity_ids: Array, kind: String) -> bool:
+	if entity_ids.is_empty():
+		return true
+	return _infer_editor_group_kind(entity_ids) == kind
+
+func enemy_entities_for_reference(reference: String, chapter_id: String = "") -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if reference.is_empty():
+		return result
+	var editor_group := find_editor_group_reference(reference)
+	if not editor_group.is_empty() and String(editor_group.get("kind", "object")) == "enemy":
+		for raw_id: Variant in editor_group.get("entity_ids", []):
+			var member := find_entity(String(raw_id))
+			if String(member.get("type", "")) != "enemy_group":
+				continue
+			if not chapter_id.is_empty() and String(member.get("chapter", start_chapter())) != chapter_id:
+				continue
+			result.append(member)
+		return result
+	for raw: Variant in entities():
+		var entity := raw as Dictionary
+		if String(entity.get("type", "")) != "enemy_group":
+			continue
+		if not chapter_id.is_empty() and String(entity.get("chapter", start_chapter())) != chapter_id:
+			continue
+		var properties := entity.get("properties", {}) as Dictionary
+		if reference in [String(entity.get("id", "")), String(entity.get("name", "")), String(properties.get("group_id", ""))]:
+			result.append(entity)
+	return result
 
 func find_entity(id: String) -> Dictionary:
 	for raw: Variant in entities():
@@ -225,18 +356,26 @@ func validation_report() -> Dictionary:
 			var resolution := int(properties.get("resolution", 0))
 			var heights := properties.get("heights", []) as Array
 			var material_weights := properties.get("material_weights", []) as Array
+			var material_palette := properties.get("material_palette", []) as Array
 			var foliage_density := properties.get("foliage_density", []) as Array
 			var foliage_types := properties.get("foliage_types", []) as Array
+			var foliage_layers := properties.get("foliage_layers", []) as Array
 			var width := float(properties.get("width", 0.0))
 			var depth := float(properties.get("depth", 0.0))
 			if resolution < WorldTerrainScript.MIN_RESOLUTION or resolution > WorldTerrainScript.MAX_RESOLUTION or resolution % 2 == 0:
 				errors.append("Le terrain '%s' possede une resolution invalide." % String(value.get("name", id)))
 			elif heights.size() != resolution * resolution:
 				errors.append("Le relief du terrain '%s' est incomplet." % String(value.get("name", id)))
-			elif material_weights.size() != resolution * resolution * 3 or foliage_density.size() != resolution * resolution or foliage_types.size() != resolution * resolution:
+			elif material_palette.is_empty() or material_weights.size() != resolution * resolution * material_palette.size() or foliage_density.size() != resolution * resolution or foliage_types.size() != resolution * resolution or foliage_layers.size() != resolution * resolution * WorldTerrainScript.FOLIAGE_PRESETS.size():
 				errors.append("Les cartes peintes du terrain '%s' sont incompletes." % String(value.get("name", id)))
 			if width < WorldTerrainScript.MIN_SIZE or width > WorldTerrainScript.MAX_SIZE or depth < WorldTerrainScript.MIN_SIZE or depth > WorldTerrainScript.MAX_SIZE:
 				errors.append("Le terrain '%s' possede des dimensions invalides." % String(value.get("name", id)))
+		elif type == "prop" and properties.has("portal_role"):
+			var portal_role := String(properties.get("portal_role", ""))
+			if portal_role not in ["", "world_editor", "official_campaign", "saved_worlds_anchor"]:
+				errors.append("Le portail '%s' possede un role de lobby inconnu." % String(value.get("name", id)))
+			elif portal_role == "official_campaign" and String(properties.get("campaign_id", "")) not in ["grand_siege", "procedural_campaign", "last_flame"]:
+				errors.append("Le portail '%s' doit choisir une campagne existante." % String(value.get("name", id)))
 		elif type == "player_spawn":
 			var entity_chapter := String(value.get("chapter", start_chapter()))
 			player_spawns_by_chapter[entity_chapter] = int(player_spawns_by_chapter.get(entity_chapter, 0)) + 1
@@ -328,7 +467,8 @@ static func from_json(text: String) -> HopliteWorldDocument:
 	return HopliteWorldDocument.new(parsed as Dictionary)
 
 func _normalize() -> void:
-	data["version"] = int(data.get("version", CURRENT_VERSION))
+	var source_version := int(data.get("version", 1))
+	data["version"] = source_version
 	data["name"] = String(data.get("name", "Monde sans nom"))
 	if not data.get("settings") is Dictionary:
 		data["settings"] = {}
@@ -339,10 +479,14 @@ func _normalize() -> void:
 	settings["mob_warning_limit"] = int(settings.get("mob_warning_limit", DEFAULT_WARNING_LIMIT))
 	if not data.get("atmosphere") is Dictionary:
 		data["atmosphere"] = create_default()["atmosphere"]
+	else:
+		data["atmosphere"] = AtmosphereCatalogScript.normalized(data["atmosphere"] as Dictionary)
 	if not data.get("entities") is Array:
 		data["entities"] = []
 	if not data.get("events") is Array:
 		data["events"] = []
+	if not data.get("editor_groups") is Array:
+		data["editor_groups"] = []
 	if not data.get("chapters") is Array or (data.get("chapters", []) as Array).is_empty():
 		data["chapters"] = [{"id": "chapter_1", "name": "Chapitre 1"}]
 	var first_chapter := String(((data["chapters"] as Array)[0] as Dictionary).get("id", "chapter_1"))
@@ -362,7 +506,32 @@ func _normalize() -> void:
 			WorldTerrainScript.normalize(properties)
 		elif String(value.get("type", "")) == "prop" and properties.has("asset_path"):
 			properties["asset_path"] = AssetCatalogScript.migrate_asset_path(String(properties.get("asset_path", "")))
+			if source_version < COLLISION_POLICY_VERSION:
+				var collision_policy := AssetCatalogScript.stylized_nature_collision_policy(String(properties["asset_path"]))
+				if collision_policy == &"blocking":
+					properties["collision_enabled"] = true
+				elif collision_policy == &"non_blocking":
+					properties["collision_enabled"] = false
+			if properties.has("portal_role"):
+				var portal_role := String(properties.get("portal_role", ""))
+				if portal_role not in ["", "world_editor", "official_campaign", "saved_worlds_anchor"]:
+					portal_role = ""
+				properties["portal_role"] = portal_role
+				properties["portal_label"] = String(properties.get("portal_label", ""))
+				if portal_role == "official_campaign":
+					properties["campaign_id"] = String(properties.get("campaign_id", "procedural_campaign"))
+				elif portal_role == "saved_worlds_anchor":
+					properties["portal_columns"] = clampi(int(properties.get("portal_columns", 9)), 1, 17)
+					properties["portal_column_spacing"] = clampf(float(properties.get("portal_column_spacing", 7.25)), 5.0, 30.0)
+					properties["portal_row_spacing"] = clampf(float(properties.get("portal_row_spacing", 8.0)), 5.0, 30.0)
 		elif String(value.get("type", "")) == "enemy_group":
+			properties["performance_profile"] = EncounterBudgetScript.normalize_profile(properties.get("performance_profile", "auto"))
+			if properties.has("v2_animation"):
+				var v2_animation := String(properties.get("v2_animation", "idle"))
+				if v2_animation not in ["phalanx_cycle", "idle", "move", "sprint", "death", "spear_thrust", "spear_thrust_low", "shield_bash", "block_idle", "block_impact"]:
+					v2_animation = "idle"
+				properties["v2_animation"] = v2_animation
+			properties["v2_combat_lab"] = bool(properties.get("v2_combat_lab", false))
 			properties["match_perfect_hitbox"] = bool(properties.get("match_perfect_hitbox", false))
 			var traversal_mode := String(properties.get("giant_traversal_mode", "assisted"))
 			if traversal_mode not in ["assisted", "exact", "off"]:
@@ -406,6 +575,67 @@ func _normalize() -> void:
 			properties["destination_spawn"] = String(properties.get("destination_spawn", ""))
 		elif String(value.get("type", "")) == "player_spawn":
 			properties["spawn_id"] = String(properties.get("spawn_id", "depart"))
+		elif String(value.get("type", "")) == "water":
+			properties["size"] = _normalized_array3(properties.get("size", [12.0, 0.08, 12.0]), [12.0, 0.08, 12.0])
+			properties["size"][0] = clampf(float(properties["size"][0]), 0.5, 500.0)
+			properties["size"][1] = clampf(float(properties["size"][1]), 0.01, 1.0)
+			properties["size"][2] = clampf(float(properties["size"][2]), 0.5, 500.0)
+			properties["shallow_color"] = String(properties.get("shallow_color", "#167e93"))
+			properties["deep_color"] = String(properties.get("deep_color", "#062b4a"))
+			properties["texture"] = String(properties.get("texture", "none"))
+			properties["texture_scale"] = clampf(float(properties.get("texture_scale", 4.0)), 0.25, 32.0)
+			properties["texture_strength"] = clampf(float(properties.get("texture_strength", 0.18)), 0.0, 1.0)
+			properties["opacity"] = clampf(float(properties.get("opacity", 0.68)), 0.05, 1.0)
+			properties["wave_scale"] = clampf(float(properties.get("wave_scale", 0.55)), 0.05, 4.0)
+			properties["wave_speed"] = clampf(float(properties.get("wave_speed", 0.7)), 0.0, 4.0)
+			properties["wave_height"] = clampf(float(properties.get("wave_height", 0.08)), 0.0, 0.5)
+			properties["roughness"] = clampf(float(properties.get("roughness", 0.18)), 0.02, 1.0)
+		elif String(value.get("type", "")) == "fire":
+			properties["amount"] = clampi(int(properties.get("amount", 48)), 8, 128)
+			properties["size"] = clampf(float(properties.get("size", 1.0)), 0.15, 8.0)
+			properties["lifetime"] = clampf(float(properties.get("lifetime", 1.15)), 0.35, 3.0)
+			properties["core_color"] = String(properties.get("core_color", "#ffdc52"))
+			properties["edge_color"] = String(properties.get("edge_color", "#ff3608"))
+			properties["light_enabled"] = bool(properties.get("light_enabled", false))
+			properties["light_energy"] = clampf(float(properties.get("light_energy", 1.8)), 0.0, 8.0)
+			properties["light_range"] = clampf(float(properties.get("light_range", 7.0)), 0.5, 30.0)
+	var known_entity_ids: Dictionary = {}
+	for raw: Variant in data["entities"]:
+		if raw is Dictionary:
+			known_entity_ids[String((raw as Dictionary).get("id", ""))] = true
+	var normalized_groups: Array = []
+	var known_group_ids: Dictionary = {}
+	for raw: Variant in data["editor_groups"]:
+		if not raw is Dictionary:
+			continue
+		var source_group := raw as Dictionary
+		var group_id := String(source_group.get("id", ""))
+		if group_id.is_empty() or known_group_ids.has(group_id):
+			group_id = "editor_group_%d_%d" % [Time.get_ticks_usec(), randi_range(100, 999)]
+		known_group_ids[group_id] = true
+		var member_ids: Array[String] = []
+		for member_raw: Variant in source_group.get("entity_ids", []):
+			var member_id := String(member_raw)
+			if known_entity_ids.has(member_id) and not member_ids.has(member_id):
+				member_ids.append(member_id)
+		if member_ids.is_empty():
+			continue
+		var group_name := String(source_group.get("name", "Groupe")).strip_edges()
+		if group_name.is_empty():
+			group_name = "Groupe"
+		var group_kind := String(source_group.get("kind", ""))
+		if group_kind not in ["enemy", "object"]:
+			group_kind = _infer_editor_group_kind(member_ids)
+			if group_kind.is_empty():
+				group_kind = "object"
+		normalized_groups.append({
+			"id": group_id,
+			"name": group_name,
+			"kind": group_kind,
+			"entity_ids": member_ids,
+		})
+	data["editor_groups"] = normalized_groups
+	data["version"] = CURRENT_VERSION
 
 static func _normalized_array3(value: Variant, fallback: Array) -> Array:
 	if value is Array and value.size() >= 3:

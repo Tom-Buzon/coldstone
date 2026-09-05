@@ -12,7 +12,7 @@ const DEFINITIONS := [
 	{"id": "redo", "category": "Général", "label": "Rétablir", "primary": KEY_Y, "ctrl": true},
 	{"id": "duplicate", "category": "Général", "label": "Dupliquer la sélection", "primary": KEY_D, "ctrl": true},
 	{"id": "delete", "category": "Général", "label": "Supprimer la sélection", "primary": KEY_DELETE},
-	{"id": "return_lab", "category": "Général", "label": "Retourner au laboratoire", "primary": KEY_ESCAPE},
+	{"id": "return_lab", "category": "Général", "label": "Retourner au lobby", "primary": KEY_ESCAPE},
 	{"id": "select_tool", "category": "Outils", "label": "Outil Sélection", "primary": KEY_1},
 	{"id": "brush_tool", "category": "Outils", "label": "Outil Placement / Pinceau", "primary": KEY_2},
 	{"id": "eraser_tool", "category": "Outils", "label": "Outil Gomme", "primary": KEY_3},
@@ -38,7 +38,7 @@ const ARTICLES := [
 Cliquez sur [b]NOUVEAU MONDE[/b], donnez-lui un nom dans la barre supérieure puis sauvegardez-le.
 
 [color=#70b7d1][b]2. Construisez le terrain[/b][/color]
-Dans [b]Contenu > Bibliothèque > Terrain[/b], créez une plaine, des collines, des crêtes, une vallée ou une côte. Réglez sa largeur et sa profondeur dans Propriétés, puis utilisez Monter, Creuser, Lisser et Aplanir directement dans la vue. Choisissez ensuite une texture pour la peindre localement et ajoutez l'herbe MultiMesh seulement où elle est utile.
+Dans [b]Contenu > Bibliothèque > Terrain[/b], créez une plaine, des collines, des crêtes, une vallée ou une côte. Réglez sa largeur et sa profondeur dans Propriétés, puis utilisez Monter, Creuser, Lisser et Aplanir directement dans la vue. Choisissez ensuite une texture pour la peindre localement, puis un type de végétation et son rayon de pinceau.
 
 [color=#70b7d1][b]3. Construisez et habillez[/b][/color]
 Ajoutez des Surfaces pour les sols architecturaux, murs et blocs, puis choisissez Textures, Objets 3D, Lumières ou Portes.
@@ -57,7 +57,7 @@ Chaque trait de sculpture, génération ou aplatissement est annulable avec Ctrl
 	{"id": "interface", "category": "PREMIERS PAS", "title": "Comprendre l'interface", "summary": "Barres, palette, bibliothèque, scène et propriétés.", "content": """[font_size=18][b]Une interface organisée comme un logiciel 3D[/b][/font_size]
 
 [b]Barre d'application[/b] — nom du monde courant et état d'édition.
-[b]Barre de commandes[/b] — laboratoire, affichage des docks, nouveau monde, sauvegarde, chargement, historique, navigation libre, test et aide.
+[b]Barre de commandes[/b] — lobby, affichage des docks, nouveau monde, sauvegarde, chargement, historique, navigation libre, test et aide.
 [b]Palette verticale[/b] — Sélection, Placement, Gomme, Cadrer et Navigation libre.
 [b]Contenu du monde[/b] — chapitre, grille, étendue, bibliothèque d'éléments et hiérarchie de scène.
 [b]Vue 3D[/b] — surface centrale dans laquelle vous construisez et manipulez le monde.
@@ -78,8 +78,8 @@ Appuyez sur G ou sur NAVIGATION LIBRE. Déplacez-vous avec ZQSD ou WASD, montez 
 La navigation libre ne désactive pas l'édition : sélection, pinceau, gomme et propriétés continuent de fonctionner."""},
 	{"id": "selection", "category": "ÉDITION 3D", "title": "Sélection et transformations", "summary": "Déplacer, tourner, incliner, dimensionner et dupliquer.", "content": """[font_size=18][b]Manipuler un élément[/b][/font_size]
 
-[b]Sélection[/b] : outil 1 puis clic dans la vue, ou clic dans l'onglet Scène.
-[b]Déplacement horizontal[/b] : Ctrl + clic-glissé sur la sélection.
+[b]Sélection[/b] : outil 1 puis clic dans la vue, ou clic dans l'onglet Scène. Maintenez Ctrl et cliquez pour ajouter ou retirer plusieurs éléments.
+[b]Déplacement horizontal[/b] : Alt + clic-glissé sur la sélection.
 [b]Déplacement vertical[/b] : Maj + clic-glissé. Le sol devient vert lorsque le point bas est aligné.
 [b]Rotation horizontale[/b] : R puis mouvement de souris.
 [b]Inclinaison verticale[/b] : Maj+R puis mouvement de souris.
@@ -89,7 +89,11 @@ La navigation libre ne désactive pas l'édition : sélection, pinceau, gomme et
 [b]Dupliquer[/b] : Ctrl+D.
 [b]Supprimer[/b] : Suppr.
 
-Les surfaces possèdent six poignées dimensionnelles. Les modèles 3D utilisent une poignée dorée d'échelle uniforme afin de préserver leurs proportions."""},
+Avec plusieurs éléments, le déplacement applique un delta commun. Rotation et échelle s'appliquent séparément sur le pivot de chaque membre : leurs positions restent strictement inchangées. Duplication, suppression et colliders communs s'appliquent aussi à toute la sélection. Dans l'onglet Scène, CRÉER ouvre immédiatement le nom du groupe; AJOUTER et RETIRER le font évoluer, tandis que METTRE À JOUR remplace exactement ses membres par la sélection actuelle.
+
+Les groupes d'objets et les groupes d'ennemis sont séparés et clairement marqués. Quand un seul membre est sélectionné, son groupe apparaît tout en haut de sa fiche : cliquez sur son nom pour sélectionner tout le groupe. Un groupe d'ennemis est proposé partout où une troupe peut être choisie (protection, mort, apparition, retrait et arrêt des vagues). Les pertes et les actions sont alors calculées sur toutes ses troupes membres.
+
+Les surfaces seules possèdent six poignées dimensionnelles. Les terrains seuls possèdent quatre poignées latérales X/Z : tirez directement un bord pour générer ou recadrer ce côté sans étirer l'ancien relief. Les modèles 3D et multi-sélections sans terrain utilisent une poignée dorée d'échelle uniforme. En multi-sélection, chaque modèle grandit sur place autour de son pivot propre."""},
 	{"id": "terrain", "category": "CONSTRUCTION", "title": "Créer et sculpter le terrain", "summary": "Heightfield natif, relief procédural, collision, pinceaux et textures.", "content": """[font_size=18][b]Le mode Terrain[/b][/font_size]
 
 Ouvrez [b]Terrain — Créer & sculpter[/b]. La Forge crée un heightfield Godot dont le maillage visible et la collision utilisent exactement les mêmes hauteurs.
@@ -107,17 +111,19 @@ Ouvrez [b]Terrain — Créer & sculpter[/b]. La Forge crée un heightfield Godot
 Le rayon règle la surface touchée et la force règle la variation par passage. Un trait complet correspond à une seule étape Ctrl+Z.
 
 [color=#e2a85f][b]Dimensions, génération et précision[/b][/color]
-Dans Propriétés, [b]Largeur X[/b] et [b]Profondeur Z[/b] règlent indépendamment la taille physique de 8 à 512 mètres. La résolution contrôle uniquement le nombre de points. Changer la résolution rééchantillonne le relief et les cartes peintes existantes.
+Dans Propriétés, [b]Largeur X[/b] et [b]Profondeur Z[/b] règlent indépendamment la taille physique de 8 à 512 mètres. En mode Sélection, les quatre poignées rouges/bleues permettent aussi de tirer directement un côté. Agrandir conserve l'ancienne emprise à ses coordonnées, puis génère une bande raccordée sur le côté choisi : le relief, le bord opposé et les objets déjà posés ne sont pas étirés. Réduire recadre depuis ce même bord. La résolution augmente automatiquement si nécessaire, jusqu'à 129 points par axe ; la changer manuellement rééchantillonne les cartes existantes.
 
 Le seed rend le relief reproductible. L'amplitude contrôle la hauteur, la fréquence la taille des formes et les octaves leur détail.
 
 Une résolution élevée donne un terrain plus détaillé mais alourdit le JSON et la reconstruction. 65 × 65 est le compromis recommandé pour un terrain moyen. Utilisez [b]Lisser tout[/b] pour rendre un terrain procédural jouable et [b]Aplatir tout[/b] pour repartir d'une base propre.
 
 [color=#e2a85f][b]Peinture locale des textures[/b][/color]
-Sélectionnez le terrain puis choisissez un matériau dans [b]Textures & matériaux[/b]. Ce choix équipe [b]Peindre la texture[/b] au lieu de remplacer tout le terrain. Clic-glissez sur les zones voulues ; [b]Retrouver la base[/b] efface progressivement la peinture. La texture de base reste modifiable dans Propriétés. Trois couches locales peuvent coexister.
+Choisissez un matériau dans [b]Textures & matériaux[/b]. Si aucune surface n'est sélectionnée, la Forge trouve le terrain du chapitre et équipe automatiquement [b]Peindre la texture[/b], même si vous n'avez jamais ouvert le mode Terrain. Clic-glissez pour mélanger la nouvelle texture par-dessus la base et les couches déjà présentes ; [b]Retrouver la base[/b] efface progressivement la peinture. La texture de base reste modifiable dans Propriétés. Trois couches locales peuvent coexister.
 
 [color=#e2a85f][b]Végétation MultiMesh[/b][/color]
-[b]Peindre l'herbe[/b] ajoute une densité locale ; [b]Retirer l'herbe[/b] la diminue. Le preset méditerranéen combine herbes courtes et hautes, trèfles et fougères CC0 en quelques MultiMesh sans collision ni ombre individuelle. Quantité et seed sont dans Propriétés. Les objets, troupes, portes et surfaces peuvent toujours être posés directement sur le relief."""},
+[b]Type de végétation[/b] choisit entre herbe méditerranéenne, herbes hautes, trèfles, fleurs, fougères, buissons et champignons. Chaque espèce possède sa propre couche : fleurs et herbe peuvent donc occuper la même zone. Réglez juste dessous le rayon et la force/densité, puis clic-glissez avec [b]Peindre[/b]. [b]Retirer [espèce][/b] efface uniquement l'espèce actuellement choisie.
+
+Chaque type réellement utilisé est regroupé dans un seul MultiMesh, sans nœud par brin, collision, ombre ou GI. L'herbe courte utilise un lot et un draw call ; un mesh à plusieurs surfaces utilise un draw par surface. Le seed rend la distribution reproductible. Les objets, troupes, portes et surfaces posés sur le relief restent indépendants de la reconstruction de la végétation."""},
 	{"id": "surfaces", "category": "CONSTRUCTION", "title": "Construire avec les surfaces", "summary": "Sols, murs, blocs, dimensions, textures et peinture continue.", "content": """[font_size=18][b]Le constructeur de surface[/b][/font_size]
 
 Les surfaces forment la base de chaque niveau. Le sélecteur bleu [b]SURFACES — SOLS, MURS, BLOCS[/b] ouvre l'outil principal encadré en cuivre.
@@ -131,9 +137,11 @@ Réglez X (largeur), Y (hauteur) et Z (profondeur), puis cliquez sur [b]ACTIVER 
 La catégorie Textures applique un matériau à la surface sélectionnée et au prochain pinceau. Après placement, utilisez les poignées colorées ou le dock Propriétés pour ajuster précisément la géométrie."""},
 	{"id": "assets", "category": "CONSTRUCTION", "title": "Objets, textures et lumières", "summary": "Décor automatique, matériaux PBR et éclairage.", "content": """[font_size=18][b]Habiller le monde[/b][/font_size]
 
-[b]Objets 3D[/b] détecte automatiquement les modèles de la bibliothèque du projet. Équipez un objet puis cliquez dans la vue ; il est ancré sur le dessus du sol visé.
+[b]Objets 3D[/b] détecte automatiquement les modèles de la bibliothèque du projet et les range dans des dossiers repliables : arbres, buissons, couvre-sol, rochers, chemins, architecture, décoration, armes et objets. Le pack nature CC0 fournit 68 modèles (dont 20 arbres/troncs, 18 couvre-sols et 14 rochers). Chaque ligne affiche une miniature. Cliquer un objet ouvre dans Propriétés une grande prévisualisation avec hauteur cible, espacement, décalage au sol, alignement sur la pente et collision.
 
-[b]Textures[/b] contient les matériaux PBR avec un aperçu de leur texture source. Sur une surface, le choix est appliqué immédiatement ; sur un terrain, il équipe le pinceau de texture locale. La texture Mediterranean grass a été créée pour le sol antique et ne doit pas être confondue avec l'atlas transparent des brins d'herbe.
+Buissons, plantes, fleurs, herbes, sous-bois et tous les chemins n'ont pas de collider de gameplay par défaut, mais restent sélectionnables. Les galets ont en revanche un collider. Pour un autre objet solide, cochez [b]Ajouter un collider physique[/b], puis choisissez Boîte, Cylindre, Capsule, Sphère ou [b]Optimisée précise[/b]. Ce dernier mode utilise en priorité le proxy de collision léger livré avec l'asset : ses pièces convexes séparées conservent les arches, portes, parapets et surfaces praticables. Sans proxy dédié, une enveloppe convexe automatique mise en cache convient aux objets simples comme les rochers. Rochers, galets et chemins suivent automatiquement la normale du terrain sur une pente ; décochez [b]Aligner automatiquement sur la pente[/b] pour forcer une pose horizontale. Les sommets parasites sont filtrés pour mieux reposer sur le relief. Les anciennes cartes sont corrigées automatiquement au chargement, puis la case reste modifiable.
+
+[b]Textures[/b] contient les matériaux PBR avec un aperçu de leur texture source. Sur une surface sélectionnée, le choix est appliqué immédiatement. Sinon, la Forge cible automatiquement le terrain existant et équipe le pinceau de texture locale. La texture Mediterranean grass a été créée pour le sol antique et ne doit pas être confondue avec l'atlas transparent des brins d'herbe.
 
 [b]Lumières[/b] propose une lumière omnidirectionnelle et un projecteur. Après placement, configurez couleur, énergie, portée, angle et ombres dans Propriétés."""},
 	{"id": "characters", "category": "GAMEPLAY", "title": "Personnages et troupes", "summary": "Spawns, formations, comportements, vagues et réserves.", "content": """[font_size=18][b]Créer une rencontre[/b][/font_size]
@@ -142,7 +150,7 @@ Placez d'abord un [b]Départ joueur[/b], puis une Troupe ennemie ou un prérégl
 
 Dans Propriétés, réglez l'archétype, l'effectif, le rang, l'échelle et la formation : ligne, colonne, carré, cercle, coin, phalange, arc ou dispersée.
 
-Les comportements disponibles sont normal, attente, patrouille et protection. Pour une patrouille, utilisez [b]Tracer / compléter la patrouille[/b] puis cliquez les points au sol. Pour une protection, cliquez directement l'objet ou la troupe cible.
+Les comportements disponibles sont normal, attente, patrouille et protection. Pour une patrouille, utilisez [b]Tracer / compléter la patrouille[/b] puis cliquez les points au sol. La position initiale de chaque soldat est automatiquement ajoutée comme dernier point de sa boucle : avec un seul point tracé, il fait donc départ → point → départ en continu. S'il poursuit le joueur puis le perd, il rejoint le point de ronde le plus proche et reprend la boucle. Pour une protection, cliquez directement l'objet ou la troupe cible.
 
 Le déploiement peut être immédiat, en vagues périodiques ou en réserve progressive. Les conditions d'apparition couvrent le lancement, une zone, la mort d'un groupe et un timer."""},
 	{"id": "logic", "category": "GAMEPLAY", "title": "Déclencheurs et narration", "summary": "Conditions, actions, références cartographiques et atmosphères.", "content": """[font_size=18][b]Programmer sans code[/b][/font_size]
@@ -164,6 +172,8 @@ Les portes existent en bois, fer, pierre et bronze, avec mouvements vertical, co
 	{"id": "test_save", "category": "ORGANISATION", "title": "Tester et sauvegarder", "summary": "Simulation locale, validation, fichiers et historique.", "content": """[font_size=18][b]Valider votre monde[/b][/font_size]
 
 [b]Ctrl+S[/b] sauvegarde dans user://hoplite_worlds. La version précédente est conservée en .bak et la sauvegarde utilise un remplacement sécurisé.
+
+[b]SUPPR.[/b], à côté d'OUVRIR, demande confirmation puis retire le JSON, sa copie de secours et le portail correspondant dans le lobby. Le monde éventuellement ouvert reste en mémoire et peut être sauvegardé à nouveau.
 
 [b]F6[/b] reconstruit tout le chapitre actif et lance le vrai joueur, la vraie IA et les événements. La sélection et la position de la caméra ne filtrent jamais les rencontres. Les troupes réglées sur [b]Au lancement[/b] apparaissent immédiatement ; celles liées à une zone, une mort ou un timer attendent leur condition. Échap arrête le test.
 

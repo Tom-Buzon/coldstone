@@ -1,0 +1,4 @@
+interface:
+  display_name: "3D Blender"
+  short_description: "Scripts Blender pour assets 3D de jeu"
+  default_prompt: "Utilise $3dblender pour generer un script Blender Python creant un asset 3D optimise pour le jeu video."

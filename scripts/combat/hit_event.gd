@@ -10,9 +10,14 @@ var damage: float = 0.0
 var sever_damage: float = 0.0
 var guard_damage: float = 0.0
 var guard_broken: bool = false
+var guard_bypassed: bool = false
 var blade_speed: float = 0.0
 var attack_slot: StringName = StringName()
 var attack_context: StringName = &"idle"
+## Runtime attack metadata used by shared defensive systems. Zero keeps legacy
+## producers compatible; the player fills these values from its real action.
+var attack_charge_ratio: float = 0.0
+var attack_vertical_direction: int = 0
 var damage_type: StringName = &"slash"
 var hit_material: StringName = &"flesh"
 var contact_type: StringName = &"blade"
@@ -30,9 +35,12 @@ func clone() -> HopliteHitEvent:
 	copy.sever_damage = sever_damage
 	copy.guard_damage = guard_damage
 	copy.guard_broken = guard_broken
+	copy.guard_bypassed = guard_bypassed
 	copy.blade_speed = blade_speed
 	copy.attack_slot = attack_slot
 	copy.attack_context = attack_context
+	copy.attack_charge_ratio = attack_charge_ratio
+	copy.attack_vertical_direction = attack_vertical_direction
 	copy.damage_type = damage_type
 	copy.hit_material = hit_material
 	copy.contact_type = contact_type

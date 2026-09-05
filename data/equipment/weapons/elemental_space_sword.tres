@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="HopliteEquipmentItemData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/equipment/equipment_item_data.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://assets/weapons/elemental/elemental_space_sword.glb" id="2_visual"]
+
+[resource]
+script = ExtResource("1_script")
+item_id = &"elemental_space_sword"
+display_name = "Épée cosmique"
+slot = 0
+visual_scene = ExtResource("2_visual")
+visual_mesh_name = &"SM_Elemental_SpaceSword"
+blade_material_name = &"MAT_Elemental_Space"
+blade_base_y = 0.52326
+blade_tip_y = 1.46954
+hit_radius = 0.13

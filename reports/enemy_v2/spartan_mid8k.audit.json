@@ -1,0 +1,691 @@
+{
+  "actions": [],
+  "armatures": [
+    {
+      "bones": [
+        "root",
+        "DEF-hips",
+        "DEF-spine.001",
+        "DEF-spine.002",
+        "DEF-spine.003",
+        "DEF-neck",
+        "DEF-head",
+        "DEF-shoulder.L",
+        "DEF-upper_arm.L",
+        "DEF-forearm.L",
+        "DEF-hand.L",
+        "DEF-f_index.01.L",
+        "DEF-f_index.02.L",
+        "DEF-f_index.03.L",
+        "DEF-f_middle.01.L",
+        "DEF-f_middle.02.L",
+        "DEF-f_middle.03.L",
+        "DEF-f_pinky.01.L",
+        "DEF-f_pinky.02.L",
+        "DEF-f_pinky.03.L",
+        "DEF-f_ring.01.L",
+        "DEF-f_ring.02.L",
+        "DEF-f_ring.03.L",
+        "DEF-thumb.01.L",
+        "DEF-thumb.02.L",
+        "DEF-thumb.03.L",
+        "DEF-shoulder.R",
+        "DEF-upper_arm.R",
+        "DEF-forearm.R",
+        "DEF-hand.R",
+        "DEF-f_index.01.R",
+        "DEF-f_index.02.R",
+        "DEF-f_index.03.R",
+        "DEF-f_middle.01.R",
+        "DEF-f_middle.02.R",
+        "DEF-f_middle.03.R",
+        "DEF-f_pinky.01.R",
+        "DEF-f_pinky.02.R",
+        "DEF-f_pinky.03.R",
+        "DEF-f_ring.01.R",
+        "DEF-f_ring.02.R",
+        "DEF-f_ring.03.R",
+        "DEF-thumb.01.R",
+        "DEF-thumb.02.R",
+        "DEF-thumb.03.R",
+        "DEF-thigh.L",
+        "DEF-shin.L",
+        "DEF-foot.L",
+        "DEF-toe.L",
+        "DEF-thigh.R",
+        "DEF-shin.R",
+        "DEF-foot.R",
+        "DEF-toe.R"
+      ],
+      "name": "SPARTAN_Skeleton"
+    }
+  ],
+  "images": [
+    {
+      "filepath": "",
+      "name": "054a33cec0b68c16",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "11b6d005e7d57465",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "1eb8f8e2158d0b65",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "218445191a589169",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "28528b2d34cbdde5",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "29a0b871f6256a96",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "40c42509ac8a08b0",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "49c8b6628b741177",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "5be8be97968bc726",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "6e5e557937f5e11c",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "77eb3c0a7d774b2f",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "78389fd7b1c31fe6",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "8fb40e2cf73b74c5",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "98b61641107f4a36",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "b6ebd4b722772f42",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "bf4beb7ce68bbb11",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "cb11726b577df6e6",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "cbcdaacc8b8af186",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "e17f386b96de5328",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "e2221fae993be353",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "f9456946a1ffb94e",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "",
+      "name": "fd1bdabe143f63cb",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "materials": [
+    "Armor",
+    "Armor2",
+    "M_Armor",
+    "M_Armor2",
+    "M_Armor3",
+    "M_Body",
+    "M_Crest",
+    "M_Eyes",
+    "M_Face",
+    "M_Sclera",
+    "SPARTAN_Flesh"
+  ],
+  "meshes": [
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_forearm_l_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_forearm_r_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_head_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_shin_l_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_shin_r_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_thigh_l_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 150
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_thigh_r_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 150
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_upper_arm_l_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_upper_arm_r_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [
+        "SPARTAN_Skeleton"
+      ],
+      "color_attributes": [],
+      "dimensions": [
+        1.996556,
+        0.449276,
+        2.024382
+      ],
+      "material_slots": [
+        "M_Armor3",
+        "M_Face",
+        "M_Eyes",
+        "M_Body",
+        "M_Armor",
+        "M_Armor2",
+        "M_Sclera",
+        "M_Crest",
+        "Armor",
+        "Armor2"
+      ],
+      "name": "SPARTAN_character_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "triangles": 8127,
+      "uv_layers": [
+        "UVMap",
+        "UVMap.001",
+        "UVMap.002"
+      ],
+      "vertex_groups": [
+        "root",
+        "DEF-hips",
+        "DEF-spine.001",
+        "DEF-spine.002",
+        "DEF-spine.003",
+        "DEF-neck",
+        "DEF-head",
+        "DEF-shoulder.L",
+        "DEF-upper_arm.L",
+        "DEF-forearm.L",
+        "DEF-hand.L",
+        "DEF-f_index.01.L",
+        "DEF-f_index.02.L",
+        "DEF-f_index.03.L",
+        "DEF-f_middle.01.L",
+        "DEF-f_middle.02.L",
+        "DEF-f_middle.03.L",
+        "DEF-f_pinky.01.L",
+        "DEF-f_pinky.02.L",
+        "DEF-f_pinky.03.L",
+        "DEF-f_ring.01.L",
+        "DEF-f_ring.02.L",
+        "DEF-f_ring.03.L",
+        "DEF-thumb.01.L",
+        "DEF-thumb.02.L",
+        "DEF-thumb.03.L",
+        "DEF-shoulder.R",
+        "DEF-upper_arm.R",
+        "DEF-forearm.R",
+        "DEF-hand.R",
+        "DEF-f_index.01.R",
+        "DEF-f_index.02.R",
+        "DEF-f_index.03.R",
+        "DEF-f_middle.01.R",
+        "DEF-f_middle.02.R",
+        "DEF-f_middle.03.R",
+        "DEF-f_pinky.01.R",
+        "DEF-f_pinky.02.R",
+        "DEF-f_pinky.03.R",
+        "DEF-f_ring.01.R",
+        "DEF-f_ring.02.R",
+        "DEF-f_ring.03.R",
+        "DEF-thumb.01.R",
+        "DEF-thumb.02.R",
+        "DEF-thumb.03.R",
+        "DEF-thigh.L",
+        "DEF-shin.L",
+        "DEF-foot.L",
+        "DEF-toe.L",
+        "DEF-thigh.R",
+        "DEF-shin.R",
+        "DEF-foot.R",
+        "DEF-toe.R"
+      ],
+      "vertices": 8891
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        1.902116,
+        2.0,
+        2.0
+      ],
+      "material_slots": [],
+      "name": "Icosphere",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "triangles": 80,
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 42
+    }
+  ],
+  "objects": [
+    "Icosphere",
+    "SPARTAN_BODY_ROOT",
+    "SPARTAN_Skeleton",
+    "SPARTAN_character_body",
+    "SPARTAN_gore_cap_forearm_l_body",
+    "SPARTAN_gore_cap_forearm_r_body",
+    "SPARTAN_gore_cap_head_body",
+    "SPARTAN_gore_cap_shin_l_body",
+    "SPARTAN_gore_cap_shin_r_body",
+    "SPARTAN_gore_cap_thigh_l_body",
+    "SPARTAN_gore_cap_thigh_r_body",
+    "SPARTAN_gore_cap_upper_arm_l_body",
+    "SPARTAN_gore_cap_upper_arm_r_body"
+  ],
+  "schema_version": 1,
+  "source": "C:\\Users\\suean\\Downloads\\spartanMid8k.glb",
+  "source_bytes": 20752816
+}

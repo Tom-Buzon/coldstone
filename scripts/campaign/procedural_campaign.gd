@@ -10,7 +10,7 @@ const WaveDirectorScript = preload("res://scripts/campaign/procedural_wave_direc
 const LoadingScreenScript = preload("res://scripts/campaign/campaign_loading_screen.gd")
 const AtmospherePanelScript = preload("res://scripts/campaign/atmosphere_control_panel.gd")
 
-const TRAINING_SCENE := "res://combat_lab.tscn"
+const TRAINING_SCENE := "res://lobby.tscn"
 const ZONES: Array[StringName] = [&"walls", &"city", &"dungeon"]
 const HEALTH_BAR_WIDTH := 310.0
 const BOSS_BAR_WIDTH := 610.0
@@ -108,8 +108,8 @@ func _input(event: InputEvent) -> void:
 		atmosphere_panel.set_open(true)
 		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_P and player != null and (atmosphere_panel == null or not atmosphere_panel.is_open()) and campaign_state not in [&"loading", &"defeat", &"victory"]:
-		var alternate := player.toggle_player_visual()
-		_announce("APPARENCE DU JOUEUR", "MODELE 3DGEN" if alternate else "MODELE HOPLITE D'ORIGINE", Color(0.82, 0.70, 1.0))
+		player.cycle_player_skin()
+		_announce("APPARENCE DU JOUEUR", player.get_player_skin_label(), Color(0.82, 0.70, 1.0))
 		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_R and campaign_state in [&"defeat", &"victory"]:
 		get_tree().reload_current_scene()
@@ -230,12 +230,12 @@ func _defeat() -> void:
 	campaign_state = &"defeat"
 	wave_director.running = false
 	player.process_mode = Node.PROCESS_MODE_DISABLED
-	_show_end_screen("LA CITE VOUS A BRISE", "Graine %d  •  %d ennemis abattus\nR — recommencer    ECHAP — retour au laboratoire" % [campaign_seed, total_kills], Color(0.76, 0.08, 0.035))
+	_show_end_screen("LA CITE VOUS A BRISE", "Graine %d  •  %d ennemis abattus\nR — recommencer    ECHAP — retour au lobby" % [campaign_seed, total_kills], Color(0.76, 0.08, 0.035))
 
 func _victory() -> void:
 	campaign_state = &"victory"
 	player.process_mode = Node.PROCESS_MODE_DISABLED
-	_show_end_screen("LA CITE EST A VOUS", "NFullArmor est tombe.  %d ennemis abattus.\nGraine %d\nR — nouvelle campagne    ECHAP — retour au laboratoire" % [total_kills, campaign_seed], Color(0.80, 0.55, 0.18))
+	_show_end_screen("LA CITE EST A VOUS", "NFullArmor est tombe.  %d ennemis abattus.\nGraine %d\nR — nouvelle campagne    ECHAP — retour au lobby" % [total_kills, campaign_seed], Color(0.80, 0.55, 0.18))
 
 func _show_end_screen(title: String, subtitle: String, color: Color) -> void:
 	end_title.text = title

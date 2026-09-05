@@ -18,7 +18,7 @@
 
 ## Lanciers
 
-Le lancier standard et le vétéran utilisent tous deux le package visuel NGeneral. Le standard est à l’échelle `1.00` et le vétéran à `1.20`.
+Le lancier standard utilise le package visuel NGeneral. Le vétéran utilise le modèle dédié `hopliteClean1`, avec le même rig UAL1 et la même bibliothèque d’animations partagée. Le standard est à l’échelle `1.00` et le vétéran à `1.20`.
 
 Les deux portent uniquement une lance et un bouclier. La perte de la lance ou du bras droit annule les attaques et déclenche un repli défensif ; aucune épée secondaire n’est créée.
 

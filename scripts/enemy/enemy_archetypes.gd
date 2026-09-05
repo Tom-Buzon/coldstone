@@ -1,6 +1,14 @@
 extends Resource
 class_name HopliteEnemyArchetypes
 
+const ArchetypeDataScript = preload("res://scripts/enemy/enemy_archetype_data.gd")
+
+# The authored table is large and immutable at runtime. Keep one canonical
+# template and one typed Resource per ID; legacy Dictionary callers still
+# receive deep copies, so no caller can mutate the shared source accidentally.
+static var _profile_templates: Dictionary = {}
+static var _data_cache: Dictionary = {}
+
 # Data-only enemy archetypes. The controller/anatomy/dismemberment code stays
 # shared; profiles only change presentation, equipment, combat spacing and stats.
 
@@ -20,10 +28,52 @@ const ROSTER_IDS: Array[StringName] = [
 	&"nfull_armor"
 ]
 
+# Asset provenance is independent from gameplay role. These seven archetypes
+# are backed by early Mixamo test models, while ROSTER_IDS is the authored
+# 3DGen roster eligible for the Enemy V2 migration.
+const MIXAMO_IDS: Array[StringName] = [
+	&"swordsman",
+	&"guardian",
+	&"spearman",
+	&"flanker",
+	&"brute",
+	&"captain",
+	&"warlord",
+]
+
+# Historical gameplay IDs kept outside ROSTER_IDS, but their resolved meshes
+# are authored 3DGen packages and must be grouped with that asset provenance.
+const HISTORICAL_3DGEN_IDS: Array[StringName] = [
+	&"boss_colossus",
+	&"boss_bronze",
+]
+
+const ASSET_ORIGIN_3DGEN: StringName = &"3dgen"
+const ASSET_ORIGIN_MIXAMO: StringName = &"mixamo"
+const ASSET_ORIGIN_OTHER: StringName = &"other"
+const ASSET_ORIGIN_UNCLASSIFIED: StringName = &"unclassified"
+const ASSET_ORIGIN_ORDER: Array[StringName] = [
+	ASSET_ORIGIN_3DGEN,
+	ASSET_ORIGIN_MIXAMO,
+	ASSET_ORIGIN_OTHER,
+]
+
 const GIANT_IDS: Array[StringName] = [
 	&"giant_novice",
 	&"giant_standard",
-	&"giant_veteran"
+	&"giant_veteran",
+	&"velociraptor",
+	&"tyrannosaurus"
+]
+
+const DINOSAUR_IDS: Array[StringName] = [
+	&"velociraptor",
+	&"tyrannosaurus"
+]
+
+const WOLF_BOSS_IDS: Array[StringName] = [
+	&"the_wolf_mid",
+	&"the_wolf_veteran"
 ]
 
 static func profile(archetype: StringName) -> Dictionary:
@@ -62,12 +112,85 @@ static func profile(archetype: StringName) -> Dictionary:
 		result["guard_regen_delay"] = float(result.get("guard_regen_delay", 1.30))
 		result["defense_reaction_delay"] = float(result.get("defense_reaction_delay", 0.13))
 		result["defense_reaction_range"] = float(result.get("defense_reaction_range", 3.60))
+	result["asset_origin"] = asset_origin(archetype)
+	return result
+
+
+static func data(archetype: StringName) -> ArchetypeDataScript:
+	if _data_cache.has(archetype):
+		return _data_cache[archetype] as ArchetypeDataScript
+	var normalized_profile := profile(archetype)
+	var result: ArchetypeDataScript = ArchetypeDataScript.new()
+	result._configure(
+		archetype,
+		normalized_profile,
+		_resolve_package_path(archetype, normalized_profile),
+		GIANT_IDS.has(archetype)
+	)
+	_data_cache[archetype] = result
 	return result
 
 static func all_ids() -> Array[StringName]:
-	var ids: Array[StringName] = [&"swordsman", &"guardian", &"spearman", &"flanker", &"brute", &"captain", &"warlord", &"boss_colossus", &"boss_bronze"]
+	var ids: Array[StringName] = MIXAMO_IDS.duplicate()
+	ids.append_array(HISTORICAL_3DGEN_IDS)
 	ids.append_array(ROSTER_IDS)
+	ids.append_array(WOLF_BOSS_IDS)
+	ids.append_array(DINOSAUR_IDS)
 	return ids
+
+
+static func has_explicit_asset_origin(archetype: StringName) -> bool:
+	return MIXAMO_IDS.has(archetype) or ROSTER_IDS.has(archetype) or HISTORICAL_3DGEN_IDS.has(archetype) or WOLF_BOSS_IDS.has(archetype) or DINOSAUR_IDS.has(archetype)
+
+
+static func asset_origin(archetype: StringName) -> StringName:
+	if ROSTER_IDS.has(archetype) or HISTORICAL_3DGEN_IDS.has(archetype):
+		return ASSET_ORIGIN_3DGEN
+	if MIXAMO_IDS.has(archetype):
+		return ASSET_ORIGIN_MIXAMO
+	if WOLF_BOSS_IDS.has(archetype) or DINOSAUR_IDS.has(archetype):
+		return ASSET_ORIGIN_OTHER
+	return ASSET_ORIGIN_UNCLASSIFIED
+
+
+static func ids_for_asset_origin(origin: StringName) -> Array[StringName]:
+	match origin:
+		ASSET_ORIGIN_3DGEN:
+			var ids: Array[StringName] = ROSTER_IDS.duplicate()
+			ids.append_array(HISTORICAL_3DGEN_IDS)
+			return ids
+		ASSET_ORIGIN_MIXAMO:
+			return MIXAMO_IDS.duplicate()
+		ASSET_ORIGIN_OTHER:
+			var ids: Array[StringName] = WOLF_BOSS_IDS.duplicate()
+			ids.append_array(DINOSAUR_IDS)
+			return ids
+		_:
+			return []
+
+
+static func asset_origin_label(origin: StringName) -> String:
+	match origin:
+		ASSET_ORIGIN_3DGEN:
+			return "3DGen"
+		ASSET_ORIGIN_MIXAMO:
+			return "Mixamo — anciens tests"
+		ASSET_ORIGIN_OTHER:
+			return "Autres — créatures/imports spéciaux"
+		_:
+			return "Non classé"
+
+static func dinosaur_ids() -> Array[StringName]:
+	return DINOSAUR_IDS.duplicate()
+
+static func is_dinosaur(archetype: StringName) -> bool:
+	return DINOSAUR_IDS.has(archetype)
+
+static func wolf_boss_ids() -> Array[StringName]:
+	return WOLF_BOSS_IDS.duplicate()
+
+static func is_wolf_boss(archetype: StringName) -> bool:
+	return WOLF_BOSS_IDS.has(archetype)
 
 static func roster_ids() -> Array[StringName]:
 	return ROSTER_IDS.duplicate()
@@ -79,7 +202,11 @@ static func is_giant(archetype: StringName) -> bool:
 	return GIANT_IDS.has(archetype)
 
 static func package_path(archetype: StringName) -> String:
-	var candidates: Array = profile(archetype).get("package_candidates", [])
+	return data(archetype).package_path
+
+
+static func _resolve_package_path(archetype: StringName, normalized_profile: Dictionary) -> String:
+	var candidates: Array = normalized_profile.get("package_candidates", [])
 	for candidate: Variant in candidates:
 		var path := String(candidate)
 		if ResourceLoader.exists(path) or FileAccess.file_exists(path):
@@ -117,6 +244,7 @@ static func procedural_catalog(max_cost: float = INF, wave: int = 0) -> Array[Di
 		if cost <= max_cost and first_wave <= wave:
 			result.append({
 				"id": archetype,
+				"asset_origin": asset_origin(archetype),
 				"rank": StringName(data.get("rank", &"troop")),
 				"cost": cost,
 				"weight": float(data.get("procedural_weight", 1.0)),
@@ -125,7 +253,151 @@ static func procedural_catalog(max_cost: float = INF, wave: int = 0) -> Array[Di
 	return result
 
 static func _profiles() -> Dictionary:
-	return {
+	if not _profile_templates.is_empty():
+		return _profile_templates
+	_profile_templates = {
+		&"velociraptor": {
+			"display_name": "VÉLOCIRAPTORS — MEUTE",
+			"role": &"pack_predator",
+			"rank": &"elite",
+			"color": Color("63834d"),
+			"scale": 1.0,
+			"health": 260.0,
+			"move_speed": 8.8,
+			"attack_damage": 28.0,
+			"attack_range": 2.05,
+			"aggro_distance": 34.0,
+			"cooldown_min": 0.72,
+			"cooldown_max": 1.05,
+			"dinosaur_target_height": 3.25,
+			"dinosaur_kind": &"raptor",
+			"pack_hunter": true,
+			"dinosaur_auto_crowd_threshold": 12,
+			"forge_default_count": 4,
+			"forge_default_formation": &"scattered",
+			"forge_default_match_perfect_hitbox": false,
+			"giant_traversal_mode": &"exact",
+			"formation_spacing": 4.0,
+			"package_candidates": ["res://assets/characters/dinosaurs/velociraptor/velociraptor.glb"]
+		},
+		&"tyrannosaurus": {
+			"display_name": "TYRANNOSAURE — SOLITAIRE",
+			"role": &"solitary_predator",
+			"rank": &"miniboss",
+			"color": Color("875b37"),
+			"scale": 1.0,
+			"health": 1250.0,
+			"move_speed": 6.2,
+			"attack_damage": 58.0,
+			"attack_range": 3.45,
+			"aggro_distance": 42.0,
+			"cooldown_min": 1.25,
+			"cooldown_max": 1.70,
+			"dinosaur_target_height": 7.2,
+			"trex_charge_trigger_range": 9.5,
+			"trex_windup_duration": 0.72,
+			"trex_charge_duration": 1.05,
+			"trex_charge_speed": 13.5,
+			"trex_recovery_duration": 1.45,
+			"trex_min_charge_distance": 5.5,
+			"trex_space_duration": 0.80,
+			"trex_space_distance": 3.0,
+			"trex_space_speed": 4.2,
+			"trex_align_duration": 1.15,
+			"trex_align_turn_speed_degrees": 82.0,
+			"trex_align_tolerance_degrees": 10.0,
+			"dinosaur_kind": &"trex",
+			"pack_hunter": false,
+			"forge_default_count": 1,
+			"forge_default_formation": &"line",
+			"forge_default_match_perfect_hitbox": true,
+			"giant_traversal_mode": &"exact",
+			"formation_spacing": 11.0,
+			"package_candidates": ["res://assets/characters/dinosaurs/tyrannosaurus/tyrannosaurus.glb"]
+		},
+		&"the_wolf_mid": {
+			"display_name": "THE WOLF — MID",
+			"role": &"mobility_boss",
+			"rank": &"boss",
+			"color": Color("b91f2f"),
+			"skin": &"wolf",
+			"scale": 1.0,
+			"wolf_target_height": 2.70,
+			"health": 1450.0,
+			"move_speed": 7.35,
+			"attack_damage": 42.0,
+			"attack_range": 2.55,
+			"aggro_distance": 38.0,
+			"behavior": &"boss",
+			"attack_style": &"predator",
+			"cooldown_min": 0.78,
+			"cooldown_max": 1.05,
+			"phase_threshold": 0.52,
+			"phase_speed_multiplier": 1.17,
+			"phase_damage_multiplier": 1.12,
+			"mobility_break_max": 100.0,
+			"ground_damage_multiplier": 0.42,
+			"exposed_duration": 3.8,
+			"exposed_damage_multiplier": 1.90,
+			"combat_pattern": [
+				{"id": &"fang_dash", "telegraph": 0.46, "damage_mult": 1.0},
+				{"id": &"sky_pounce", "telegraph": 0.62, "damage_mult": 1.18}
+			],
+			"phase_two_pattern": [
+				{"id": &"blood_dash_chain", "telegraph": 0.34, "damage_mult": 0.92},
+				{"id": &"moon_wave", "telegraph": 0.58, "damage_mult": 0.84},
+				{"id": &"sky_pounce", "telegraph": 0.50, "damage_mult": 1.22}
+			],
+			"phase_three_pattern": [],
+			"procedural_cost": 20.0,
+			"procedural_weight": 0.0,
+			"package_candidates": ["res://assets/fauna/quaternius_ultimate_animated_animals/models/Wolf.gltf"]
+		},
+		&"the_wolf_veteran": {
+			"display_name": "THE WOLF — VETERAN",
+			"role": &"mobility_boss",
+			"rank": &"boss",
+			"color": Color("8b173d"),
+			"skin": &"wolf",
+			"scale": 1.0,
+			"wolf_target_height": 2.92,
+			"health": 2050.0,
+			"move_speed": 8.15,
+			"attack_damage": 49.0,
+			"attack_range": 2.75,
+			"aggro_distance": 42.0,
+			"behavior": &"boss",
+			"attack_style": &"predator_veteran",
+			"cooldown_min": 0.66,
+			"cooldown_max": 0.90,
+			"phase_threshold": 0.66,
+			"phase_speed_multiplier": 1.15,
+			"phase_damage_multiplier": 1.12,
+			"phase_three_threshold": 0.30,
+			"phase_three_speed_multiplier": 1.18,
+			"phase_three_damage_multiplier": 1.16,
+			"mobility_break_max": 125.0,
+			"ground_damage_multiplier": 0.34,
+			"exposed_duration": 3.35,
+			"exposed_damage_multiplier": 2.05,
+			"combat_pattern": [
+				{"id": &"fang_dash", "telegraph": 0.38, "damage_mult": 1.06},
+				{"id": &"sky_pounce", "telegraph": 0.52, "damage_mult": 1.22}
+			],
+			"phase_two_pattern": [
+				{"id": &"blood_dash_chain", "telegraph": 0.28, "damage_mult": 0.98},
+				{"id": &"moon_wave", "telegraph": 0.48, "damage_mult": 0.90},
+				{"id": &"sky_pounce", "telegraph": 0.42, "damage_mult": 1.26}
+			],
+			"phase_three_pattern": [
+				{"id": &"fenrir_rush", "telegraph": 0.22, "damage_mult": 1.02},
+				{"id": &"twin_moon_wave", "telegraph": 0.38, "damage_mult": 0.94},
+				{"id": &"sky_pounce", "telegraph": 0.34, "damage_mult": 1.34}
+			],
+			"procedural_cost": 28.0,
+			"procedural_weight": 0.0,
+			"package_candidates": ["res://assets/fauna/quaternius_ultimate_animated_animals/models/Wolf.gltf"]
+		},
 		&"swordsman": {
 			"display_name": "SWORDSMAN",
 			"color": Color(0.025, 0.18, 0.72),
@@ -384,8 +656,8 @@ static func _profiles() -> Dictionary:
 			],
 			"external_animation_keys": [&"vertical_sword", &"sword_slash"]
 		},
-		# Replacement roster. Eight source packages expose nine gameplay roles:
-		# the NGeneral package is deliberately shared by both hoplite tiers.
+		# Replacement roster. The veteran now uses its dedicated clean UAL1-rigged
+		# model while retaining the same shared animation library as the hoplite.
 		&"nathenian1": {
 			"display_name": "NATHENIAN I",
 			"role": &"light_shield_infantry",
@@ -778,6 +1050,9 @@ static func _profiles() -> Dictionary:
 			"display_name": "LANCIER VETERAN",
 			"role": &"phalanx_flank_guard",
 			"rank": &"elite",
+			# Veterans keep their elite gameplay profile, but large formations may
+			# render/simulate them with the same crowd budget as regular hoplites.
+			"auto_crowd_scalable": true,
 			"color": Color(0.72, 0.51, 0.10),
 			"skin": &"spearman",
 			"scale": 1.20,
@@ -836,6 +1111,7 @@ static func _profiles() -> Dictionary:
 			"procedural_weight": 0.42,
 			"first_wave": 3,
 			"package_candidates": [
+				"res://assets/characters/3dgen_demo/hopliteClean1.glb",
 				"res://assets/characters/3dgen_demo/ngeneral-1787351044165.glb",
 				"res://assets/characters/3dgen_demo/NGeneral.glb",
                 "res://assets/characters/3dgen_demo/ngeneral.glb"
@@ -1077,3 +1353,4 @@ static func _profiles() -> Dictionary:
 			]
 		}
 	}
+	return _profile_templates

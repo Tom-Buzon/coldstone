@@ -8,6 +8,8 @@ assets/environment/                 décors importés
 assets/weapons/                     armes (dossier futur accepté)
 assets/items/                       objets (dossier futur accepté)
 assets/props/                       éléments de décor (dossier futur accepté)
+assets/fauna/                       animaux animés Quaternius CC0
+assets/blenderAseet/                production Blender V2 validée
 _source/environment_props_raw/      décors GLB bruts
 _source/weapons_raw/                armes brutes (dossier futur accepté)
 _source/items_raw/                  objets bruts (dossier futur accepté)
@@ -20,6 +22,9 @@ _source/items_raw/                  objets bruts (dossier futur accepté)
 - Les suffixes numériques d'export, par exemple `Nsbire2-1787348495833.glb`, sont retirés pour détecter les doublons.
 - Lorsqu'un même élément existe dans plusieurs dossiers, le premier dossier de la liste ci-dessus est prioritaire.
 - Les textures et fichiers techniques ne sont pas exposés comme des objets indépendants.
+- Dans la Forge, les modèles sont regroupés dans des dossiers repliables : arbres, buissons, couvre-sol, rochers, chemins de pierre, architecture, décoration, armes, objets et animaux animés. Le pack nature CC0 apporte 68 modèles rangés physiquement sous `assets/environment/stylized_nature/`.
+- La catégorie **FAUNE** expose les 12 animaux du pack Ultimate Animated Animal Pack et uniquement l'aigle du petit Animal Pack Vol.2. Ils démarrent leur animation automatiquement et sont non bloquants par défaut.
+- Les 92 modèles validés dans `assets/blenderAseet/` restent isolés dans un dossier principal **BLENDER — PRODUCTION V2**, lui-même divisé en 14 familles. Seuls les fichiers `LOD0` sont proposés à la pose ; collisions, LOD secondaires et variantes techniques restent cachés.
 - Le chargement est progressif et les GLB bruts sont mis en cache afin d'éviter un import massif ou un blocage au démarrage.
 
 # Project Hoplite — UAL Native Combat Lab V2

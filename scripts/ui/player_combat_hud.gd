@@ -59,6 +59,8 @@ var health_bar: ProgressBar
 var health_value: Label
 var health_state: Label
 var state_label: Label
+var interaction_panel: PanelContainer
+var interaction_label: Label
 
 const DASH_COLOR := Color(0.18, 0.80, 1.0, 1.0)
 const SLIDE_COLOR := Color(1.0, 0.66, 0.16, 1.0)
@@ -98,6 +100,7 @@ func _build_hud() -> void:
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_theme_stylebox_override("panel", _panel_style(Color(0.009, 0.013, 0.020, 0.90), Color(BRONZE.r, BRONZE.g, BRONZE.b, 0.66), 16, 2))
 	root.add_child(frame)
+	_build_interaction_prompt()
 
 	var outer := MarginContainer.new()
 	outer.add_theme_constant_override("margin_left", 9)
@@ -134,6 +137,65 @@ func _build_hud() -> void:
 	state_label.add_theme_font_size_override("font_size", 8)
 	state_label.add_theme_color_override("font_color", TEXT_MUTED)
 	content.add_child(state_label)
+
+func _build_interaction_prompt() -> void:
+	interaction_panel = PanelContainer.new()
+	interaction_panel.name = "EquipmentPickupPrompt"
+	interaction_panel.anchor_left = 0.5
+	interaction_panel.anchor_right = 0.5
+	interaction_panel.anchor_top = 1.0
+	interaction_panel.anchor_bottom = 1.0
+	interaction_panel.offset_left = -235.0
+	interaction_panel.offset_right = 235.0
+	interaction_panel.offset_top = -112.0
+	interaction_panel.offset_bottom = -52.0
+	interaction_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	interaction_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.008, 0.013, 0.021, 0.94), Color(BRONZE.r, BRONZE.g, BRONZE.b, 0.88), 13, 2))
+	interaction_panel.visible = false
+	root.add_child(interaction_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	interaction_panel.add_child(margin)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	margin.add_child(row)
+
+	var key_chip := PanelContainer.new()
+	key_chip.custom_minimum_size = Vector2(42.0, 38.0)
+	key_chip.add_theme_stylebox_override("panel", _panel_style(Color(0.16, 0.10, 0.035, 0.98), BRONZE.lightened(0.22), 9, 2))
+	row.add_child(key_chip)
+	var key_label := Label.new()
+	key_label.name = "InteractKey"
+	key_label.text = _input_label(&"interact")
+	key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	key_label.add_theme_font_size_override("font_size", 18)
+	key_label.add_theme_color_override("font_color", Color("ffe0a0"))
+	key_chip.add_child(key_label)
+
+	interaction_label = Label.new()
+	interaction_label.name = "EquipmentPickupPromptText"
+	interaction_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	interaction_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	interaction_label.add_theme_font_size_override("font_size", 15)
+	interaction_label.add_theme_color_override("font_color", TEXT_MAIN)
+	interaction_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
+	interaction_label.add_theme_constant_override("outline_size", 4)
+	row.add_child(interaction_label)
+
+func _input_label(action: StringName) -> String:
+	for event: InputEvent in InputMap.action_get_events(action):
+		if event is InputEventKey:
+			var label := (event as InputEventKey).as_text_physical_keycode()
+			if not label.is_empty():
+				return label
+	return String(action).to_upper()
 
 func _build_vitality_header(parent: VBoxContainer) -> void:
 	var header := HBoxContainer.new()
@@ -319,6 +381,11 @@ func _sync_hud() -> void:
 	else:
 		state_label.text = "IMPACT +1   •   PERFECT +2 STAMINA"
 		state_label.add_theme_color_override("font_color", TEXT_MUTED)
+
+	var pickup_name := String(player.call("equipment_pickup_prompt")) if player.has_method("equipment_pickup_prompt") else ""
+	interaction_panel.visible = not pickup_name.is_empty()
+	if interaction_panel.visible:
+		interaction_label.text = "RAMASSER  %s" % pickup_name.to_upper()
 
 func _set_bubble(card: Dictionary, ratio: float, ready: bool, charge_text: String) -> void:
 	if card.is_empty():

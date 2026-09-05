@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="HopliteEquipmentItemData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/equipment/equipment_item_data.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://assets/weapons/titan_aegis.glb" id="2_visual"]
+
+[resource]
+script = ExtResource("1_script")
+item_id = &"titan_aegis"
+display_name = "Égide du Titan"
+slot = 1
+visual_scene = ExtResource("2_visual")
+visual_mesh_name = &"SM_Titan_Aegis"
+hand_position = Vector3(-0.06, 0.002, -0.03)
+hand_rotation_degrees = Vector3(-1.7, -118.4, -151.9)

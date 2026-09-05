@@ -1,7 +1,8 @@
 extends Node3D
 
 const PlayerScript = preload("res://scripts/player.gd")
-const AthenianScript = preload("res://scripts/enemy/athenian_enemy.gd")
+const EnemyFactoryScript = preload("res://scripts/enemy/enemy_factory.gd")
+const EnemySpawnRequest = preload("res://scripts/enemy/enemy_spawn_request.gd")
 const CombatAudioScript = preload("res://scripts/audio/combat_audio.gd")
 const GoreHUDScript = preload("res://scripts/ui/gore_hud.gd")
 const AudioSettingsScript = preload("res://scripts/ui/audio_settings.gd")
@@ -367,16 +368,20 @@ func _spawn_spartan_allies() -> void:
         _spawn_spartan(positions[index], types[index], index)
 
 func _spawn_spartan(position_value: Vector3, archetype: StringName, formation_index: int) -> HopliteAthenianEnemy:
-    var ally = AthenianScript.new() as HopliteAthenianEnemy
-    ally.position = position_value
-    ally.archetype_id = archetype
-    ally.faction = &"spartan"
-    ally.name = "Battle01_Spartan_%s_%02d" % [String(archetype), formation_index]
-    ally.ai_enabled = true
-    ally.battle_player = player
-    ally.ai_guard_index = formation_index
-    ally.mass_battle_mode = true
-    add_child(ally)
+    var request: EnemySpawnRequest = EnemySpawnRequest.new()
+    request.archetype = archetype
+    request.position = position_value
+    request.has_name_override = true
+    request.name_override = "Battle01_Spartan_%s_%02d" % [String(archetype), formation_index]
+    request.ai_enabled = true
+    request.has_battle_player_override = true
+    request.battle_player_override = player
+    request.faction = &"spartan"
+    request.guard_index = formation_index
+    request.has_is_miniboss_override = true
+    request.is_miniboss_override = false
+    request.mass_battle_mode = true
+    var ally := EnemyFactoryScript.spawn_request(self, request)
     if not ally.attack_started.is_connected(_on_enemy_attack_started):
         ally.attack_started.connect(_on_enemy_attack_started)
     ally.set_combat_debug_visible(debug_overlay_visible)
@@ -508,17 +513,19 @@ func _on_encounter_trigger_entered(body: Node3D, encounter_id: StringName, area:
         _spawn_city_encounter(encounter_id)
 
 func _spawn_enemy(position_value: Vector3, archetype: StringName, boss_ref: Node3D = null, guard_index: int = 0, elite: bool = false, mass_mode: bool = false) -> HopliteAthenianEnemy:
-    var enemy = AthenianScript.new() as HopliteAthenianEnemy
-    enemy.position = position_value
-    enemy.archetype_id = archetype
-    enemy.name = "Battle01_%s_%03d" % [String(archetype), get_tree().get_nodes_in_group("enemy").size()]
-    enemy.ai_enabled = true
-    enemy.is_miniboss = elite
-    enemy.ai_player = player
-    enemy.ai_miniboss = boss_ref
-    enemy.ai_guard_index = guard_index
-    enemy.mass_battle_mode = mass_mode
-    add_child(enemy)
+    var request: EnemySpawnRequest = EnemySpawnRequest.new()
+    request.archetype = archetype
+    request.position = position_value
+    request.target = player
+    request.has_name_override = true
+    request.name_override = "Battle01_%s_%03d" % [String(archetype), get_tree().get_nodes_in_group("enemy").size()]
+    request.ai_enabled = true
+    request.commander = boss_ref
+    request.guard_index = guard_index
+    request.has_is_miniboss_override = true
+    request.is_miniboss_override = elite
+    request.mass_battle_mode = mass_mode
+    var enemy := EnemyFactoryScript.spawn_request(self, request)
     _wire_enemy_feedback(enemy)
     enemy.set_combat_debug_visible(debug_overlay_visible)
     return enemy

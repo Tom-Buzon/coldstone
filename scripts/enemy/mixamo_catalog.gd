@@ -99,6 +99,17 @@ static func appearance(archetype: StringName, guard_index: int, seed: int, mass_
         "ground_offset": GLOBAL_GROUND_OFFSET,
     }
 
+static func appearance_for_model(archetype: StringName, model_id: StringName) -> Dictionary:
+    var pool: Array = MODEL_POOLS.get(archetype, [])
+    if model_id == StringName() or not pool.has(model_id) or not MODEL_SCALES.has(model_id):
+        return {}
+    return {
+        "id": model_id,
+        "path": MODEL_ROOT + String(model_id) + ".glb",
+        "scale": float(MODEL_SCALES[model_id]) * GLOBAL_MODEL_SCALE,
+        "ground_offset": GLOBAL_GROUND_OFFSET,
+    }
+
 static func install_personality(player: AnimationPlayer, archetype: StringName) -> Dictionary:
     if player == null:
         return {}

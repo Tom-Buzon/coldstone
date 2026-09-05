@@ -4,6 +4,8 @@ class_name HopliteAssetLibraryRoom
 const MaterialLibraryScript = preload("res://scripts/environment/procedural_material_library.gd")
 const RuntimeGLTFCacheScript = preload("res://scripts/environment/runtime_gltf_cache.gd")
 const AssetCatalogScript = preload("res://scripts/environment/environment_asset_catalog.gd")
+const FaunaSettingsScript = preload("res://scripts/fauna/fauna_settings.gd")
+const EquipmentCatalogScript = preload("res://scripts/equipment/equipment_catalog.gd")
 
 # IMPORTANT: keep this list synchronized with the catalog notice at the very top
 # of README.md. Missing optional folders are simply ignored until they are made.
@@ -13,6 +15,10 @@ const CATALOG_ROOTS: Array[Dictionary] = [
 	{"path": "res://assets/weapons", "category": &"weapons", "label": "ARMES"},
 	{"path": "res://assets/items", "category": &"items", "label": "OBJETS"},
 	{"path": "res://assets/props", "category": &"props", "label": "DECORS"},
+	{"path": "res://assets/fauna/quaternius_ultimate_animated_animals/models", "category": &"fauna", "label": "FAUNE"},
+	{"path": "res://assets/fauna/quaternius_eagle", "category": &"fauna", "label": "FAUNE"},
+	{"path": "res://assets/fauna/sketchfab_pterodactyl", "category": &"fauna", "label": "FAUNE"},
+	{"path": "res://assets/blenderAseet", "category": &"blender", "label": "BLENDER", "lod0_only": true},
 	{"path": "res://_source/environment_props_raw", "category": &"environment", "label": "ENVIRONNEMENT"},
 	{"path": "res://_source/weapons_raw", "category": &"weapons", "label": "ARMES"},
 	{"path": "res://_source/items_raw", "category": &"items", "label": "OBJETS"}
@@ -35,11 +41,38 @@ const SUBCATEGORY_LABELS := {
 	&"decor": "DÉCORS & OBJETS",
 	&"weapons": "ARMES",
 	&"items": "OBJETS",
+	&"animals": "ANIMAUX ANIMÉS",
 }
 
 const SUBCATEGORY_ORDER: Array[StringName] = [
 	&"trees", &"shrubs", &"ground_cover", &"rocks", &"stone_paths",
-	&"architecture", &"decor", &"weapons", &"items",
+	&"architecture", &"decor", &"weapons", &"items", &"animals",
+]
+
+const BLENDER_SUBCATEGORY_LABELS := {
+	&"01_escaliers_rampes": "ESCALIERS & RAMPES",
+	&"02_ponts": "PONTS",
+	&"03_balustrades_parapets": "BALUSTRADES & PARAPETS",
+	&"04_parkour_ruines": "PARKOUR & RUINES",
+	&"05_forteresse_verticale": "FORTERESSE VERTICALE",
+	&"06_urbain": "URBAIN",
+	&"07_portes": "PORTES",
+	&"08_armes": "ARMES",
+	&"09_boucliers": "BOUCLIERS",
+	&"10_obstacles_tactiques": "OBSTACLES TACTIQUES",
+	&"11_destructibles_dangers": "DESTRUCTIBLES & DANGERS",
+	&"12_machines_siege": "MACHINES DE SIÈGE",
+	&"13_projectiles": "PROJECTILES",
+	&"14_role_kits": "KITS DE RÔLE",
+	&"15_champ_bataille": "CHAMP DE BATAILLE",
+}
+
+const BLENDER_SUBCATEGORY_ORDER: Array[StringName] = [
+	&"01_escaliers_rampes", &"02_ponts", &"03_balustrades_parapets",
+	&"04_parkour_ruines", &"05_forteresse_verticale", &"06_urbain",
+	&"07_portes", &"08_armes", &"09_boucliers", &"10_obstacles_tactiques",
+	&"11_destructibles_dangers", &"12_machines_siege", &"13_projectiles",
+	&"14_role_kits", &"15_champ_bataille",
 ]
 
 var catalog_entries: Array[Dictionary] = []
@@ -79,6 +112,8 @@ func _scan_catalog() -> Array[Dictionary]:
 		_collect_model_files(String(root_config["path"]), discovered)
 		discovered.sort()
 		for path: String in discovered:
+			if bool(root_config.get("lod0_only", false)) and not path.get_file().get_basename().ends_with("_LOD0"):
+				continue
 			if _is_technical_variant(path):
 				continue
 			var logical_id := _logical_asset_id(path)
@@ -88,16 +123,35 @@ func _scan_catalog() -> Array[Dictionary]:
 				continue
 			seen[unique_key] = true
 			var subcategory := _subcategory_for(path, category)
+			var equipment_item: HopliteEquipmentItemData = EquipmentCatalogScript.item_for_visual_path(path)
+			var collision_enabled := AssetCatalogScript.default_collision_enabled_for_path(path)
+			var collision_shape := AssetCatalogScript.default_collision_shape_for_path(path)
+			if category == &"fauna":
+				collision_enabled = false
+				collision_shape = "capsule"
+			if category == &"blender":
+				var manifest := _blender_manifest(path)
+				collision_enabled = bool(manifest.get("forge_collision_enabled", collision_enabled))
+				var authored_shape := String(manifest.get("forge_collision_shape", collision_shape))
+				if authored_shape in ["box", "cylinder", "capsule", "sphere", "convex"]:
+					collision_shape = authored_shape
+			if equipment_item != null:
+				collision_enabled = false
 			result.append({
 				"path": path,
 				"id": logical_id,
 				"category": category,
 				"category_label": String(root_config["label"]),
 				"subcategory": subcategory,
-				"subcategory_label": String(SUBCATEGORY_LABELS.get(subcategory, "DÉCORS & OBJETS")),
-				"display_name": _display_name(path),
-				"target_height": _suggested_target_height(path, subcategory),
+				"subcategory_label": _subcategory_label_for(subcategory, category),
+				"display_name": equipment_item.display_name if equipment_item != null else _display_name(path),
+				"target_height": _suggested_target_height(path, subcategory, category),
 				"brush_spacing": _suggested_brush_spacing(subcategory),
+				"preview_path": _preview_path_for(path, category),
+				"collision_enabled": collision_enabled,
+				"collision_shape": collision_shape,
+				"align_to_ground": subcategory in [&"rocks", &"stone_paths"],
+				"equipment_pickup": equipment_item != null,
 			})
 	result.sort_custom(_sort_entries)
 	return result
@@ -153,8 +207,8 @@ func _sort_entries(a: Dictionary, b: Dictionary) -> bool:
 	var category_a := String(a["category"])
 	var category_b := String(b["category"])
 	if category_a == category_b:
-		var order_a := SUBCATEGORY_ORDER.find(StringName(a.get("subcategory", &"decor")))
-		var order_b := SUBCATEGORY_ORDER.find(StringName(b.get("subcategory", &"decor")))
+		var order_a := _subcategory_order(StringName(a.get("subcategory", &"decor")), StringName(a.get("category", &"environment")))
+		var order_b := _subcategory_order(StringName(b.get("subcategory", &"decor")), StringName(b.get("category", &"environment")))
 		if order_a != order_b:
 			return order_a < order_b
 		return String(a["display_name"]).naturalnocasecmp_to(String(b["display_name"])) < 0
@@ -162,10 +216,14 @@ func _sort_entries(a: Dictionary, b: Dictionary) -> bool:
 
 func _subcategory_for(path: String, category: StringName) -> StringName:
 	var lower_path := path.to_lower()
+	if category == &"blender":
+		var relative_path := path.trim_prefix("res://assets/blenderAseet/")
+		return StringName(relative_path.get_slice("/", 0))
 	for subcategory: StringName in [&"trees", &"shrubs", &"ground_cover", &"rocks", &"stone_paths"]:
 		if lower_path.contains("/stylized_nature/%s/" % String(subcategory)):
 			return subcategory
 	match category:
+		&"fauna": return &"animals"
 		&"weapons": return &"weapons"
 		&"items": return &"items"
 		&"props": return &"decor"
@@ -178,7 +236,21 @@ func _subcategory_for(path: String, category: StringName) -> StringName:
 		return &"architecture"
 	return &"decor"
 
-func _suggested_target_height(path: String, subcategory: StringName) -> float:
+func _subcategory_label_for(subcategory: StringName, category: StringName) -> String:
+	if category == &"blender":
+		return String(BLENDER_SUBCATEGORY_LABELS.get(subcategory, "BLENDER"))
+	return String(SUBCATEGORY_LABELS.get(subcategory, "DÉCORS & OBJETS"))
+
+func _subcategory_order(subcategory: StringName, category: StringName) -> int:
+	var order := BLENDER_SUBCATEGORY_ORDER.find(subcategory) if category == &"blender" else SUBCATEGORY_ORDER.find(subcategory)
+	return order if order >= 0 else 999
+
+func _suggested_target_height(path: String, subcategory: StringName, category: StringName = &"environment") -> float:
+	if category == &"blender":
+		return _blender_authored_height(path)
+	if category == &"fauna":
+		var fauna_definition := FaunaSettingsScript.definition_for_model(path)
+		return float(fauna_definition.get("target_height", 1.0))
 	match subcategory:
 		&"trees": return 7.0
 		&"shrubs": return 1.6
@@ -187,6 +259,26 @@ func _suggested_target_height(path: String, subcategory: StringName) -> float:
 		&"stone_paths": return 0.18
 	return AssetCatalogScript.target_height_for_path(path, 2.0)
 
+func _blender_authored_height(path: String) -> float:
+	var dimensions: Array = _blender_manifest(path).get("dimensions_m", []) as Array
+	if dimensions.size() < 3:
+		return 2.0
+	return maxf(0.05, float(dimensions[2]))
+
+func _blender_manifest(path: String) -> Dictionary:
+	var manifest_path := path.get_base_dir().path_join("asset_manifest.json")
+	if not FileAccess.file_exists(manifest_path):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(manifest_path))
+	return parsed as Dictionary if parsed is Dictionary else {}
+
+func _preview_path_for(path: String, category: StringName) -> String:
+	if category != &"blender":
+		return AssetCatalogScript.preview_path_for_path(path)
+	var asset_name := path.get_file().get_basename().trim_suffix("_LOD0")
+	var preview_path := "res://assets/blenderAseet/thumbnails".path_join(asset_name + ".png")
+	return preview_path if FileAccess.file_exists(preview_path) else ""
+
 func _suggested_brush_spacing(subcategory: StringName) -> float:
 	match subcategory:
 		&"trees": return 5.0
@@ -194,6 +286,7 @@ func _suggested_brush_spacing(subcategory: StringName) -> float:
 		&"ground_cover": return 0.75
 		&"rocks": return 1.5
 		&"stone_paths": return 1.0
+		&"animals": return 3.0
 		_: return 1.0
 
 func _build_room_shell() -> void:
@@ -250,14 +343,14 @@ func _create_exhibit(entry: Dictionary, index: int) -> void:
 		_build_missing_marker(exhibit)
 		return
 	exhibit.add_child(content)
-	_disable_runtime_activity(content)
+	var category := StringName(entry["category"])
+	_configure_runtime_activity(content, category, String(entry["path"]))
 	var bounds := _node_bounds_in_root(exhibit, content)
 	if bounds.size.length_squared() <= 0.001:
 		content.queue_free()
 		_build_missing_marker(exhibit)
 		return
-	var category := StringName(entry["category"])
-	var target_height := 2.15 if category == &"characters" else (1.65 if category == &"weapons" else 2.35)
+	var target_height := float(entry["target_height"]) if category == &"fauna" else (2.15 if category == &"characters" else (1.65 if category == &"weapons" else 2.35))
 	var vertical_scale := target_height / maxf(bounds.size.y, 0.01)
 	var footprint_scale := 3.25 / maxf(maxf(bounds.size.x, bounds.size.z), 0.01)
 	var uniform_scale := minf(vertical_scale, footprint_scale)
@@ -311,6 +404,46 @@ func _disable_runtime_activity(root: Node) -> void:
 		collision_object.collision_layer = 0
 		collision_object.collision_mask = 0
 
+func _configure_runtime_activity(root: Node, category: StringName, path: String) -> void:
+	if category != &"fauna":
+		_disable_runtime_activity(root)
+		return
+	root.process_mode = Node.PROCESS_MODE_INHERIT
+	for candidate: Node in root.find_children("*", "CollisionObject3D", true, false):
+		var collision_object := candidate as CollisionObject3D
+		collision_object.collision_layer = 0
+		collision_object.collision_mask = 0
+	var meshes: Array[MeshInstance3D] = []
+	if root is MeshInstance3D:
+		meshes.append(root as MeshInstance3D)
+	for candidate: Node in root.find_children("*", "MeshInstance3D", true, false):
+		meshes.append(candidate as MeshInstance3D)
+	for mesh: MeshInstance3D in meshes:
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for candidate: Node in root.find_children("*", "AnimationTree", true, false):
+		(candidate as AnimationTree).active = false
+	var fauna_definition := FaunaSettingsScript.definition_for_model(path)
+	var wanted_names: Array[String] = ["flying", "fly", "animation"] if bool(fauna_definition.get("airborne", false)) else ["idle"]
+	var animation_players: Array[AnimationPlayer] = []
+	if root is AnimationPlayer:
+		animation_players.append(root as AnimationPlayer)
+	for candidate: Node in root.find_children("*", "AnimationPlayer", true, false):
+		animation_players.append(candidate as AnimationPlayer)
+	for animation_player: AnimationPlayer in animation_players:
+		for animation_name: StringName in animation_player.get_animation_list():
+			var normalized := String(animation_name).to_lower()
+			var matches := false
+			for wanted: String in wanted_names:
+				if normalized == wanted or normalized.ends_with("|" + wanted) or normalized.ends_with("/" + wanted):
+					matches = true
+					break
+			if matches:
+				var animation := animation_player.get_animation(animation_name)
+				if animation != null:
+					animation.loop_mode = Animation.LOOP_LINEAR
+				animation_player.play(animation_name, 0.0, 1.0)
+				break
+
 func _node_bounds_in_root(root: Node3D, content: Node3D) -> AABB:
 	var initialized := false
 	var bounds := AABB()
@@ -355,6 +488,7 @@ func _add_architecture_box(node_name: String, size: Vector3, position_value: Vec
 func _category_color(category: StringName) -> Color:
 	match category:
 		&"characters": return Color(0.78, 0.88, 1.0)
+		&"fauna": return Color(0.48, 0.95, 0.56)
 		&"weapons": return Color(1.0, 0.70, 0.30)
 		&"items": return Color(0.65, 1.0, 0.65)
 		&"props": return Color(0.88, 0.72, 0.50)

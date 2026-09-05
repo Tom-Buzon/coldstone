@@ -15,7 +15,7 @@ Les fichiers sources sont rangés physiquement par famille (`trees`, `shrubs`, `
 HopliteWorldEditor
 ├── Bibliothèque 3D (FoldableContainer par catégorie)
 └── Outils Terrain
-    ├── choix du mélange de végétation
+    ├── choix du type local de végétation
     ├── rayon / force visibles à côté du pinceau
     └── peinture locale dans les cartes du terrain
 
@@ -37,13 +37,13 @@ HopliteWorldTerrainFoliage
 
 ## Tâches
 
-- [ ] Importer et ranger les 68 modèles glTF et leurs textures.
+- [x] Importer et ranger les 68 modèles glTF et leurs textures.
   Skills: `assets-pipeline`, `3d-essentials`
-- [ ] Ajouter les métadonnées et dossiers repliables à la bibliothèque.
+- [x] Ajouter les métadonnées et dossiers repliables à la bibliothèque.
   Skills: `godot-ui`, `assets-pipeline`
-- [ ] Ajouter les mélanges locaux et les contrôles ergonomiques du pinceau.
+- [x] Ajouter les types locaux et les contrôles ergonomiques du pinceau.
   Skills: `godot-ui`, `3d-essentials`
-- [ ] Corriger la reconstruction/persistance et valider les MultiMesh runtime.
+- [x] Corriger la reconstruction/persistance et valider les MultiMesh runtime.
   Skills: `godot-debugging`, `godot-optimization`, `godot-testing`
-- [ ] Revoir le code et documenter l'utilisation.
+- [x] Revoir le code et documenter l'utilisation.
   Skills: `godot-code-review`

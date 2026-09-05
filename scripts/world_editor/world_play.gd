@@ -1,7 +1,7 @@
 extends Node3D
 class_name HopliteWorldPlay
 
-const LAB_SCENE := "res://combat_lab.tscn"
+const HOME_SCENE := "res://lobby.tscn"
 const WorldDocumentScript = preload("res://scripts/world_editor/world_document.gd")
 const WorldRuntimeScript = preload("res://scripts/world_editor/world_runtime.gd")
 const EventRuntimeScript = preload("res://scripts/world_editor/world_event_runtime.gd")
@@ -15,21 +15,35 @@ var narrative_speaker: Label
 var narrative_text: Label
 var narrative_timer: Timer
 var event_music_player: AudioStreamPlayer
+var home_button: Button
 var current_chapter_id := ""
 var chapter_transitioning := false
 
 func _ready() -> void:
-	var path := String(get_tree().get_meta("hoplite_world_path", ""))
+	var path := _world_path()
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		_build_ui("MONDE INTROUVABLE")
+		_on_world_load_failed("MONDE INTROUVABLE", path)
 		return
 	document = WorldDocumentScript.from_json(file.get_as_text())
 	if document == null:
-		_build_ui("MONDE INVALIDE")
+		_on_world_load_failed("MONDE INVALIDE", path)
 		return
 	_build_ui(String(document.data.get("name", "Monde")))
 	await _load_chapter(document.start_chapter(), "")
+	_after_world_loaded(path)
+
+func _world_path() -> String:
+	return String(get_tree().get_meta("hoplite_world_path", ""))
+
+func _is_home_world() -> bool:
+	return false
+
+func _after_world_loaded(_path: String) -> void:
+	pass
+
+func _on_world_load_failed(message: String, _path: String) -> void:
+	_build_ui(message)
 
 func _load_chapter(chapter_id: String, spawn_id: String) -> void:
 	if chapter_transitioning:
@@ -79,7 +93,7 @@ func _chapter_name(chapter_id: String) -> String:
 	return chapter_id
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+	if not _is_home_world() and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		get_viewport().set_input_as_handled()
 		_return_to_lab()
 
@@ -104,10 +118,11 @@ func _build_ui(title: String) -> void:
 	title_label.add_theme_color_override("font_color", Color("e9b96e"))
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(title_label)
-	var exit := Button.new()
-	exit.text = "← LABORATOIRE  Echap"
-	exit.pressed.connect(_return_to_lab)
-	row.add_child(exit)
+	home_button = Button.new()
+	home_button.text = "← ACCUEIL  Echap"
+	home_button.visible = not _is_home_world()
+	home_button.pressed.connect(_return_to_lab)
+	row.add_child(home_button)
 	status_label = Label.new()
 	status_label.position = Vector2(18, 86)
 	status_label.text = "Explorez le monde. Les events sont actifs."
@@ -151,4 +166,4 @@ func _play_event_music(path: String, volume_db: float) -> void:
 func _return_to_lab() -> void:
 	Engine.time_scale = 1.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	get_tree().change_scene_to_file(LAB_SCENE)
+	get_tree().change_scene_to_file(HOME_SCENE)

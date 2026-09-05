@@ -42,6 +42,9 @@ func _assert_equipment(enemy: HopliteAthenianEnemy, archetype: StringName) -> vo
 	var shield_mesh := enemy.shield_root.find_child("SM_Aspis_Shield", true, false) as MeshInstance3D
 	assert(spear_mesh != null, "%s does not use dory_spear.glb" % archetype)
 	assert(shield_mesh != null, "%s does not use aspis_shield.glb" % archetype)
+	var shield_visual := enemy.shield_root.get_child(0) as Node3D if enemy.shield_root.get_child_count() > 0 else null
+	assert(shield_visual != null and bool(shield_visual.get_meta("aspis_face_corrected", false)), "%s aspis front correction is missing" % archetype)
+	assert(absf(wrapf(shield_visual.rotation.y - PI, -PI, PI)) <= 0.001, "%s aspis was not turned toward the opponent" % archetype)
 	var spear_bounds: AABB = spear_mesh.get_aabb()
 	var shield_bounds: AABB = shield_mesh.get_aabb()
 	assert(spear_bounds.position.y < -0.88 and spear_bounds.end.y > 1.78, "%s dory scale/origin is invalid: %s" % [archetype, spear_bounds])

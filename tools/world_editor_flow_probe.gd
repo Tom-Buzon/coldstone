@@ -33,8 +33,92 @@ func _run() -> void:
 		quit(1)
 		return
 	var surface_id := String(editor.get("selected_id"))
-	var moved_surface := document.find_entity(surface_id)
 	var screen_center := root.get_visible_rect().size * 0.5
+	var terrain_entity: Dictionary = {}
+	for raw: Variant in document.entities():
+		var candidate := raw as Dictionary
+		if String(candidate.get("type", "")) == "terrain":
+			terrain_entity = candidate
+			break
+	if terrain_entity.is_empty():
+		editor.call("_create_terrain_preset", "flat", "Probe", "mediterranean_grass", 0.0)
+		await process_frame
+		terrain_entity = document.find_entity(String(editor.get("selected_id")))
+	if terrain_entity.is_empty() or String(terrain_entity.get("type", "")) != "terrain":
+		push_error("WORLD_EDITOR_FLOW_FAILED terrain creation unavailable for edge-resize test")
+		quit(1)
+		return
+	var terrain_properties := terrain_entity.get("properties", {}) as Dictionary
+	var terrain_base_material := String(terrain_properties.get("material", ""))
+	var weights_before_base_change := (terrain_properties.get("material_weights", []) as Array).duplicate()
+	editor.call("_set_terrain_base_material", terrain_entity, "sandstone_floor")
+	await process_frame
+	if String(terrain_properties.get("material", "")) != "sandstone_floor" or terrain_properties.get("material_weights", []) != weights_before_base_change:
+		push_error("WORLD_EDITOR_FLOW_FAILED global terrain texture did not preserve local paint weights")
+		quit(1)
+		return
+	terrain_base_material = "sandstone_floor"
+	editor.set("selected_id", "")
+	editor.call("_set_tool_mode", "select")
+	var library_category := editor.get("library_category") as OptionButton
+	library_category.select(2)
+	editor.call("_refresh_library")
+	editor.call("_select_material", "rough_stone")
+	await process_frame
+	if library_category.selected != 2 or String(editor.get("selected_id")) != String(terrain_entity.get("id", "")) or String(editor.get("tool_mode")) != "terrain" or String(editor.get("terrain_tool")) != "paint":
+		push_error("WORLD_EDITOR_FLOW_FAILED choosing a texture did not keep the texture tab open with the terrain paint brush equipped")
+		quit(1)
+		return
+	editor.call("_apply_terrain_stamp", terrain_entity, Vector3.ZERO)
+	await process_frame
+	if String(terrain_properties.get("material", "")) != terrain_base_material or not (terrain_properties.get("material_weights", []) as Array).any(func(value: Variant) -> bool: return float(value) > 0.0):
+		push_error("WORLD_EDITOR_FLOW_FAILED automatic texture brush replaced the base instead of painting a local layer")
+		quit(1)
+		return
+	var terrain_width_before := float(terrain_properties.get("width", 64.0))
+	var terrain_position_before := HopliteWorldDocument.vector3(terrain_entity.get("position", []))
+	var terrain_height_before := HopliteWorldTerrain.height_at(terrain_properties, 0.0, 0.0)
+	editor.set("selected_id", String(terrain_entity.get("id", "")))
+	editor.call("_set_tool_mode", "select")
+	editor.call("_update_selection_marker")
+	await process_frame
+	var terrain_handles := editor.get("gizmo_handles") as Array
+	if terrain_handles.size() != 4 or not terrain_handles.all(func(handle: Node) -> bool: return bool(handle.get_meta("gizmo_terrain_edge", false)) and int(handle.get_meta("gizmo_axis", 1)) in [0, 2]):
+		push_error("WORLD_EDITOR_FLOW_FAILED selected terrain does not expose four X/Z edge handles")
+		quit(1)
+		return
+	var positive_x_handle: Node = null
+	for handle: Node in terrain_handles:
+		if int(handle.get_meta("gizmo_axis", -1)) == 0 and float(handle.get_meta("gizmo_sign", 0.0)) > 0.0:
+			positive_x_handle = handle
+			break
+	if positive_x_handle == null:
+		push_error("WORLD_EDITOR_FLOW_FAILED positive X terrain handle unavailable")
+		quit(1)
+		return
+	editor.call("_begin_resize", positive_x_handle, screen_center)
+	editor.set("resize_start_scalar", float(editor.get("resize_start_scalar")) - 8.0)
+	editor.call("_update_resize", screen_center)
+	editor.call("_finish_resize")
+	await process_frame
+	if not is_equal_approx(float(terrain_properties.get("width", 0.0)), terrain_width_before + 8.0) or not is_equal_approx(HopliteWorldDocument.vector3(terrain_entity.get("position", [])).x, terrain_position_before.x + 4.0):
+		push_error("WORLD_EDITOR_FLOW_FAILED positive X terrain handle did not extend only the selected side")
+		quit(1)
+		return
+	if absf(HopliteWorldTerrain.height_at(terrain_properties, -4.0, 0.0) - terrain_height_before) > 0.20:
+		push_error("WORLD_EDITOR_FLOW_FAILED terrain edge drag shifted the existing world relief")
+		quit(1)
+		return
+	var slope_normal := Vector3(0.28, 0.92, -0.18).normalized()
+	var slope_rotation := editor.call("_rotation_aligned_to_normal", slope_normal, 25.0) as Vector3
+	var slope_basis := Basis.from_euler(Vector3(deg_to_rad(slope_rotation.x), deg_to_rad(slope_rotation.y), deg_to_rad(slope_rotation.z)))
+	if slope_basis.y.dot(slope_normal) < 0.999:
+		push_error("WORLD_EDITOR_FLOW_FAILED slope alignment did not match the terrain normal")
+		quit(1)
+		return
+	editor.set("selected_id", surface_id)
+	editor.call("_update_selection_marker")
+	var moved_surface := document.find_entity(surface_id)
 	editor.call("_begin_move", moved_surface, screen_center, "horizontal")
 	var plane_point := editor.call("_screen_plane_point", screen_center, 0.175) as Vector3
 	editor.set("move_drag_start_world", plane_point - Vector3(2.0, 0.0, 3.0))
@@ -72,10 +156,11 @@ func _run() -> void:
 		push_error("WORLD_EDITOR_FLOW_FAILED cancelled vertical rotation was not restored cleanly")
 		quit(1)
 		return
+	var count_before_prop := document.entities().size()
 	editor.call("_select_brush", "CAISSES TEST", "prop", {"asset_id": "crates"})
 	editor.call("_place_brush_at", Vector3(8.0, 1.0, 8.0))
 	await process_frame
-	if document.entities().size() != original_count + 2:
+	if document.entities().size() != count_before_prop + 1:
 		push_error("WORLD_EDITOR_FLOW_FAILED object brush did not add exactly one entity")
 		quit(1)
 		return
@@ -156,7 +241,7 @@ func _run() -> void:
 	editor.call("_toggle_right_panel")
 	editor.call("_delete_selected")
 	await process_frame
-	if document.entities().size() != original_count + 1:
+	if document.entities().size() != count_before_prop:
 		push_error("WORLD_EDITOR_FLOW_FAILED eraser/delete path did not remove the selected object")
 		quit(1)
 		return

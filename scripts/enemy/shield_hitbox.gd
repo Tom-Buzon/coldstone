@@ -9,7 +9,7 @@ var active: bool = false
 var phalanx_wall_run_surface: bool = false
 
 
-func configure(owner_node: Node, radius: float = 0.48) -> void:
+func configure(owner_node: Node, radius: float = 0.48, cylinder_axis: StringName = &"z") -> void:
 	combat_owner = owner_node
 	shield_radius = maxf(radius, 0.12)
 	collision_layer = 8
@@ -28,8 +28,9 @@ func configure(owner_node: Node, radius: float = 0.48) -> void:
 	shape.height = 0.13
 	shape.radius = shield_radius
 	collision.shape = shape
-	# The procedural aspis is a cylinder whose axis points along local Z.
-	collision.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+	# The procedural V1 aspis and the verified V2 imported aspis use local Z as
+	# their disc normal. The optional Y path remains for other authored assets.
+	collision.rotation_degrees = Vector3.ZERO if cylinder_axis == &"y" else Vector3(90.0, 0.0, 0.0)
 	add_child(collision)
 	set_guard_active(false)
 
@@ -73,7 +74,11 @@ func zone_world_center_from_shape_index(_shape_index: int) -> Vector3:
 
 
 func zone_radius_from_shape_index(_shape_index: int) -> float:
-	return shield_radius
+	# Hit arbitration operates in world space. The collider itself inherits the
+	# archetype and equipment scales, so returning the authored local radius made
+	# large shields lose priority near their physical rim.
+	var world_scale := maxf(global_basis.x.length(), maxf(global_basis.y.length(), global_basis.z.length()))
+	return shield_radius * world_scale
 
 
 func zone_priority_from_shape_index(_shape_index: int) -> float:

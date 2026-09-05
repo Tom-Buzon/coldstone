@@ -23,7 +23,7 @@ func _run() -> void:
 	for archetype: StringName in Archetypes.all_ids():
 		_audit_archetype(archetype)
 	_audit_replacement_roles()
-	_audit_specialized_roles()
+	await _audit_specialized_roles()
 	if failures.is_empty():
 		print("ENEMY_ROSTER_AUDIT PASS: %d legacy + replacement enemies coherent" % Archetypes.all_ids().size())
 		quit(0)
@@ -123,7 +123,8 @@ func _audit_specialized_roles() -> void:
 	_require(StringName(hoplite.get("behavior", &"")) == &"phalanx", "hoplite is not formation-driven")
 	_require(StringName(veteran.get("behavior", &"")) == &"phalanx_veteran", "veteran is not formation-driven")
 	_require(is_equal_approx(float(veteran.get("scale", 0.0)), float(hoplite.get("scale", 0.0)) * 1.20), "veteran is not exactly 20%% larger than the hoplite")
-	_require(Archetypes.package_path(&"ngeneral") == Archetypes.package_path(&"ngeneral_veteran"), "hoplite and veteran do not share NGeneral")
+	_require(Archetypes.package_path(&"ngeneral_veteran").ends_with("/hopliteClean1.glb"), "veteran does not resolve to hopliteClean1")
+	_require(Archetypes.package_path(&"ngeneral") != Archetypes.package_path(&"ngeneral_veteran"), "regular hoplite unexpectedly uses the veteran model")
 	_require(Archetypes.package_path(&"nathenian1") != Archetypes.package_path(&"ngeneral"), "Nathenian1 still resolves to the NGeneral package")
 	_require(Array(archer.get("external_animation_keys", [])).has(&"bow_aim"), "archer does not use the Mixamo bow layer")
 	_require(not Array(archer.get("signature_animations", [])).has(&"Pistol_Shoot"), "archer still uses the cannon-like pistol clip")
@@ -153,7 +154,7 @@ func _audit_specialized_roles() -> void:
 	for candidate: Node3D in candidates:
 		candidate.free()
 	director.free()
-	_audit_phalanx_assembly_then_advance()
+	await _audit_phalanx_assembly_then_advance()
 
 func _audit_phalanx_assembly_then_advance() -> void:
 	var director := CrowdDirector.new()
@@ -179,6 +180,9 @@ func _audit_phalanx_assembly_then_advance() -> void:
 		_require((assignment.get("position", Vector3.ZERO) as Vector3).distance_to(target.position) > 10.0, "initial phalanx slots snapped beside the target")
 	for index: int in range(soldiers.size()):
 		soldiers[index].position = staging_positions[index]
+	# Phalanx assignments are intentionally cached for one physics frame. Let the
+	# moved transforms become observable before asking for a rebuilt cohort.
+	await physics_frame
 	var formed_assignment: Dictionary = director.phalanx_assignment(soldiers[0], target, 5, 1.08, 1.18, 2.42)
 	_require(bool(formed_assignment.get("cohort_formed", false)), "assembled phalanx never entered collective advance")
 	var position_before: Vector3 = formed_assignment.get("position", Vector3.ZERO)
@@ -186,6 +190,7 @@ func _audit_phalanx_assembly_then_advance() -> void:
 		var state: Dictionary = director.phalanx_cohort_states[key]
 		state["last_update"] = Time.get_ticks_msec() * 0.001 - 0.05
 		director.phalanx_cohort_states[key] = state
+	await physics_frame
 	var advanced_assignment: Dictionary = director.phalanx_assignment(soldiers[0], target, 5, 1.08, 1.18, 2.42)
 	var advance_distance := position_before.distance_to(advanced_assignment.get("position", position_before))
 	_require(advance_distance > 0.01 and advance_distance <= 0.10, "formed phalanx did not advance through its slow shared anchor")

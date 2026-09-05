@@ -21,7 +21,9 @@ func _run() -> void:
 
 	var legion_total: int = 0
 	var shield_total: int = 0
+	var all_enemies: Array[Node] = []
 	for raw_enemy: Node in get_nodes_in_group("enemy"):
+		all_enemies.append(raw_enemy)
 		var group_id := StringName(raw_enemy.get_meta("training_group", StringName()))
 		if not String(group_id).begins_with("legion_"):
 			continue
@@ -40,13 +42,38 @@ func _run() -> void:
 			_expect((hitbox as Area3D).collision_layer == 0, "%s shield stayed active after guard ended" % raw_enemy.name)
 
 	_expect(legion_total == 56, "shooting annex did not mount all 56 legion units (got %d)" % legion_total)
-	_expect(shield_total == 14, "shooting annex did not mount all 14 shield units (got %d)" % shield_total)
+	# Nathenian I, Ncenturion and Ngeneral each contribute a seven-unit zone.
+	_expect(shield_total == 21, "shooting annex did not mount all 21 shield units (got %d)" % shield_total)
+
+	var registries: Array[Node] = []
+	for registry_node: Node in get_nodes_in_group("combatant_registry"):
+		registries.append(registry_node)
+	_expect(registries.size() == 1, "combat lab did not expose exactly one combatant registry (got %d)" % registries.size())
+	var registry_ref: WeakRef
+	if registries.size() == 1:
+		var registry := registries[0]
+		registry_ref = weakref(registry)
+		var registered_count := int(registry.call("registered_count"))
+		_expect(registered_count == all_enemies.size(), "registry tracked %d/%d lab enemies" % [registered_count, all_enemies.size()])
+		var snapshot: Array = registry.call("snapshot")
+		_expect(snapshot.size() == all_enemies.size(), "registry snapshot size changed")
+		for enemy: Node in all_enemies:
+			_expect(snapshot.has(enemy), "registry omitted lab enemy %s" % enemy.name)
+
+	var active_scene := current_scene
+	if active_scene != null:
+		active_scene.queue_free()
+	await process_frame
+	await process_frame
+	if registry_ref != null:
+		_expect(registry_ref.get_ref() == null, "combat lab registry survived scene teardown")
+	_expect(get_nodes_in_group("combatant_registry").is_empty(), "combatant registry group survived scene teardown")
 	_finish()
 
 
 func _finish() -> void:
 	if failures.is_empty():
-		print("SHOOTING_RANGE_SHIELD_PROBE PASS: 56 units, 14 guard-gated physical shields")
+		print("SHOOTING_RANGE_SHIELD_PROBE PASS: 56 units, 21 guard-gated shields, registry parity and teardown")
 		quit(0)
 		return
 	for failure: String in failures:

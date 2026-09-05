@@ -19,11 +19,11 @@ func _capture() -> void:
 		quit(2)
 		return
 	settings.set_open(true)
-	settings.tabs.current_tab = 4
+	settings.tabs.current_tab = 7
 	await process_frame
 	await process_frame
 	_save_viewport("01_gameplay_remapping")
-	settings.tabs.current_tab = 3
+	settings.tabs.current_tab = 4
 	await process_frame
 	await process_frame
 	_save_viewport("02_atmosphere_templates")
@@ -32,6 +32,10 @@ func _capture() -> void:
 	await process_frame
 	await process_frame
 	_save_viewport("03_enemy_lod")
+	settings.tabs.current_tab = 3
+	await process_frame
+	await process_frame
+	_save_viewport("05_weapon_workbench")
 	settings.tabs.current_tab = 1
 	settings.call("_toggle_sfx_detail")
 	await process_frame

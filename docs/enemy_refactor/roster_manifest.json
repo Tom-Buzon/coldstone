@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "captured_at": "2026-08-26",
+  "source_of_truth": "scripts/enemy/enemy_archetypes.gd",
+  "factory": "scripts/enemy/enemy_factory.gd",
+  "audit_state": "final: 22/22 DONE with exact behavior, 12-zone anatomy, 13-state visual evidence, active Lab/Forge routes, bounded corpse TTL and teardown evidence",
+  "units": [
+    {"id":"swordsman","name":"Swordsman","role":"troop","family_candidate":"legacy_standard","primary_routes":["battle_01","battle_02"],"status":"DONE"},
+    {"id":"guardian","name":"Guardian","role":"troop","family_candidate":"legacy_standard_shield","primary_routes":["battle_01","battle_02","spartan_allies"],"status":"DONE"},
+    {"id":"spearman","name":"Spearman","role":"troop","family_candidate":"legacy_phalanx","primary_routes":["battle_01","battle_02","spartan_allies"],"status":"DONE"},
+    {"id":"flanker","name":"Flanker","role":"troop","family_candidate":"legacy_standard","primary_routes":["battle_01","battle_02"],"status":"DONE"},
+    {"id":"brute","name":"Brute","role":"troop","family_candidate":"legacy_heavy","primary_routes":["battle_01","battle_02"],"status":"DONE"},
+    {"id":"captain","name":"Captain","role":"miniboss","family_candidate":"legacy_elite","primary_routes":["battle_01","battle_02"],"status":"DONE"},
+    {"id":"warlord","name":"Warlord","role":"boss","family_candidate":"legacy_boss","primary_routes":["battle_01"],"status":"DONE"},
+    {"id":"boss_colossus","name":"Enemy Colossus","role":"miniboss","family_candidate":"legacy_boss","primary_routes":["forge","authored"],"status":"DONE"},
+    {"id":"boss_bronze","name":"Bronze Boss","role":"miniboss","family_candidate":"legacy_elite","primary_routes":["forge","authored"],"status":"DONE"},
+    {"id":"nathenian1","name":"Nathenian I","role":"troop","family_candidate":"nathenian","primary_routes":["combat_lab","battle_03","procedural","forge"],"status":"DONE"},
+    {"id":"nsbire1","name":"Levee Civique","role":"troop","family_candidate":"nsbire","primary_routes":["combat_lab","battle_03","procedural","forge"],"status":"DONE"},
+    {"id":"nsbire2","name":"Archer Leger","role":"troop_ranged","family_candidate":"nsbire_archer","primary_routes":["combat_lab","battle_03","procedural","forge"],"status":"DONE"},
+    {"id":"nathenian2","name":"Briseur de Ligne","role":"miniboss","family_candidate":"nathenian_heavy","primary_routes":["combat_lab","battle_03","forge"],"status":"DONE"},
+    {"id":"nathenian2_soldier","name":"Fantassin Lourd Athenien","role":"troop_alias","family_candidate":"nathenian_heavy","alias_of":"nathenian2","primary_routes":["battle_03","forge"],"status":"DONE"},
+    {"id":"bronze_colossus","name":"Bronze Colossus","role":"miniboss","family_candidate":"bronze_colossus","primary_routes":["combat_lab","battle_03","procedural","forge"],"status":"DONE"},
+    {"id":"ncenturion","name":"Taxiarque","role":"miniboss","family_candidate":"ncenturion","primary_routes":["combat_lab","battle_03","procedural","forge"],"status":"DONE"},
+    {"id":"ngeneral","name":"Lancier Hoplite","role":"troop_phalanx","family_candidate":"hoplite_ngeneral","primary_routes":["combat_lab","battle_03","forge"],"status":"DONE"},
+    {"id":"ngeneral_veteran","name":"Lancier Veteran","role":"elite_phalanx","family_candidate":"hoplite_ngeneral","primary_routes":["combat_lab","battle_03","procedural","forge"],"status":"DONE"},
+    {"id":"giant_novice","name":"Geant Novice","role":"giant_troop","family_candidate":"giant_geant1","primary_routes":["forge","probes"],"status":"DONE"},
+    {"id":"giant_standard","name":"Geant Standard","role":"giant_elite","family_candidate":"giant_geant1","primary_routes":["forge","probes"],"status":"DONE"},
+    {"id":"giant_veteran","name":"Geant Veteran","role":"giant_elite","family_candidate":"giant_geant1","primary_routes":["forge","probes"],"status":"DONE"},
+    {"id":"nfull_armor","name":"Stratege Cuirasse","role":"boss","family_candidate":"nfull_armor","primary_routes":["combat_lab","battle_03","procedural","forge"],"status":"DONE"}
+  ]
+}

@@ -1,0 +1,1170 @@
+{
+  "actions": [],
+  "armatures": [
+    {
+      "bones": [
+        "root",
+        "DEF-hips",
+        "DEF-spine.001",
+        "DEF-spine.002",
+        "DEF-spine.003",
+        "DEF-neck",
+        "DEF-head",
+        "DEF-shoulder.L",
+        "DEF-upper_arm.L",
+        "DEF-forearm.L",
+        "DEF-hand.L",
+        "DEF-shoulder.R",
+        "DEF-upper_arm.R",
+        "DEF-forearm.R",
+        "DEF-hand.R",
+        "DEF-thigh.L",
+        "DEF-shin.L",
+        "DEF-foot.L",
+        "DEF-toe.L",
+        "DEF-thigh.R",
+        "DEF-shin.R",
+        "DEF-foot.R",
+        "DEF-toe.R"
+      ],
+      "name": "SPARTAN_Skeleton"
+    }
+  ],
+  "images": [
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\bf4beb7ce68bbb11.png",
+      "name": "Image_0",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\e17f386b96de5328.png",
+      "name": "Image_1",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\28528b2d34cbdde5.png",
+      "name": "Image_10",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\e2221fae993be353.png",
+      "name": "Image_11",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\49c8b6628b741177.png",
+      "name": "Image_12",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\054a33cec0b68c16.png",
+      "name": "Image_13",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\11b6d005e7d57465.png",
+      "name": "Image_14",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\40c42509ac8a08b0.png",
+      "name": "Image_15",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\b6ebd4b722772f42.png",
+      "name": "Image_16",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\fd1bdabe143f63cb.png",
+      "name": "Image_17",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\f9456946a1ffb94e.png",
+      "name": "Image_18",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\5be8be97968bc726.png",
+      "name": "Image_19",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\1eb8f8e2158d0b65.png",
+      "name": "Image_2",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\cbcdaacc8b8af186.png",
+      "name": "Image_20",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\29a0b871f6256a96.png",
+      "name": "Image_21",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\218445191a589169.png",
+      "name": "Image_3",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\98b61641107f4a36.png",
+      "name": "Image_4",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\78389fd7b1c31fe6.png",
+      "name": "Image_5",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\77eb3c0a7d774b2f.png",
+      "name": "Image_6",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\6e5e557937f5e11c.png",
+      "name": "Image_7",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\8fb40e2cf73b74c5.png",
+      "name": "Image_8",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "filepath": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\textures\\cb11726b577df6e6.png",
+      "name": "Image_9",
+      "packed": true,
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "materials": [
+    "Armor.001",
+    "Armor2.001",
+    "M_Armor.001",
+    "M_Armor2.001",
+    "M_Armor3.001",
+    "M_Body.001",
+    "M_Crest.001",
+    "M_Eyes.001",
+    "M_Face.001",
+    "M_Sclera.001",
+    "SPARTAN_Flesh"
+  ],
+  "meshes": [
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_forearm_l_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_inventory": [
+        {
+          "loops": 276,
+          "name": "UVMap",
+          "non_integer_x_loops": 270,
+          "unique_x_count": 49,
+          "unique_x_sample": [
+            -0.0,
+            0.01,
+            0.018178,
+            0.041666,
+            0.042154,
+            0.080294,
+            0.083333,
+            0.125,
+            0.13,
+            0.166666,
+            0.187883,
+            0.208333,
+            0.25,
+            0.291667,
+            0.312117,
+            0.333333,
+            0.37,
+            0.375,
+            0.416666,
+            0.419706,
+            0.457846,
+            0.458333,
+            0.481822,
+            0.49,
+            0.5,
+            0.51,
+            0.518178,
+            0.541666,
+            0.542154,
+            0.580294,
+            0.583333,
+            0.625
+          ],
+          "x_max": 1.0,
+          "x_min": -1.862645149230957e-07
+        }
+      ],
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_forearm_r_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_inventory": [
+        {
+          "loops": 276,
+          "name": "UVMap",
+          "non_integer_x_loops": 270,
+          "unique_x_count": 49,
+          "unique_x_sample": [
+            -0.0,
+            0.01,
+            0.018178,
+            0.041666,
+            0.042154,
+            0.080294,
+            0.083333,
+            0.125,
+            0.13,
+            0.166666,
+            0.187883,
+            0.208333,
+            0.25,
+            0.291667,
+            0.312117,
+            0.333333,
+            0.37,
+            0.375,
+            0.416666,
+            0.419706,
+            0.457846,
+            0.458333,
+            0.481822,
+            0.49,
+            0.5,
+            0.51,
+            0.518178,
+            0.541666,
+            0.542154,
+            0.580294,
+            0.583333,
+            0.625
+          ],
+          "x_max": 1.0,
+          "x_min": -1.862645149230957e-07
+        }
+      ],
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_head_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_inventory": [
+        {
+          "loops": 276,
+          "name": "UVMap",
+          "non_integer_x_loops": 270,
+          "unique_x_count": 49,
+          "unique_x_sample": [
+            -0.0,
+            0.01,
+            0.018178,
+            0.041666,
+            0.042154,
+            0.080294,
+            0.083333,
+            0.125,
+            0.13,
+            0.166666,
+            0.187883,
+            0.208333,
+            0.25,
+            0.291667,
+            0.312117,
+            0.333333,
+            0.37,
+            0.375,
+            0.416666,
+            0.419706,
+            0.457846,
+            0.458333,
+            0.481822,
+            0.49,
+            0.5,
+            0.51,
+            0.518178,
+            0.541666,
+            0.542154,
+            0.580294,
+            0.583333,
+            0.625
+          ],
+          "x_max": 1.0,
+          "x_min": -1.862645149230957e-07
+        }
+      ],
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_shin_l_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_inventory": [
+        {
+          "loops": 276,
+          "name": "UVMap",
+          "non_integer_x_loops": 270,
+          "unique_x_count": 49,
+          "unique_x_sample": [
+            -0.0,
+            0.01,
+            0.018178,
+            0.041666,
+            0.042154,
+            0.080294,
+            0.083333,
+            0.125,
+            0.13,
+            0.166666,
+            0.187883,
+            0.208333,
+            0.25,
+            0.291667,
+            0.312117,
+            0.333333,
+            0.37,
+            0.375,
+            0.416666,
+            0.419706,
+            0.457846,
+            0.458333,
+            0.481822,
+            0.49,
+            0.5,
+            0.51,
+            0.518178,
+            0.541666,
+            0.542154,
+            0.580294,
+            0.583333,
+            0.625
+          ],
+          "x_max": 1.0,
+          "x_min": -1.862645149230957e-07
+        }
+      ],
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_shin_r_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_inventory": [
+        {
+          "loops": 276,
+          "name": "UVMap",
+          "non_integer_x_loops": 270,
+          "unique_x_count": 49,
+          "unique_x_sample": [
+            -0.0,
+            0.01,
+            0.018178,
+            0.041666,
+            0.042154,
+            0.080294,
+            0.083333,
+            0.125,
+            0.13,
+            0.166666,
+            0.187883,
+            0.208333,
+            0.25,
+            0.291667,
+            0.312117,
+            0.333333,
+            0.37,
+            0.375,
+            0.416666,
+            0.419706,
+            0.457846,
+            0.458333,
+            0.481822,
+            0.49,
+            0.5,
+            0.51,
+            0.518178,
+            0.541666,
+            0.542154,
+            0.580294,
+            0.583333,
+            0.625
+          ],
+          "x_max": 1.0,
+          "x_min": -1.862645149230957e-07
+        }
+      ],
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_thigh_l_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_inventory": [
+        {
+          "loops": 276,
+          "name": "UVMap",
+          "non_integer_x_loops": 270,
+          "unique_x_count": 49,
+          "unique_x_sample": [
+            -0.0,
+            0.01,
+            0.018178,
+            0.041666,
+            0.042154,
+            0.080294,
+            0.083333,
+            0.125,
+            0.13,
+            0.166666,
+            0.187883,
+            0.208333,
+            0.25,
+            0.291667,
+            0.312117,
+            0.333333,
+            0.37,
+            0.375,
+            0.416666,
+            0.419706,
+            0.457846,
+            0.458333,
+            0.481822,
+            0.49,
+            0.5,
+            0.51,
+            0.518178,
+            0.541666,
+            0.542154,
+            0.580294,
+            0.583333,
+            0.625
+          ],
+          "x_max": 1.0,
+          "x_min": -1.862645149230957e-07
+        }
+      ],
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 150
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_thigh_r_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_inventory": [
+        {
+          "loops": 276,
+          "name": "UVMap",
+          "non_integer_x_loops": 270,
+          "unique_x_count": 49,
+          "unique_x_sample": [
+            -0.0,
+            0.01,
+            0.018178,
+            0.041666,
+            0.042154,
+            0.080294,
+            0.083333,
+            0.125,
+            0.13,
+            0.166666,
+            0.187883,
+            0.208333,
+            0.25,
+            0.291667,
+            0.312117,
+            0.333333,
+            0.37,
+            0.375,
+            0.416666,
+            0.419706,
+            0.457846,
+            0.458333,
+            0.481822,
+            0.49,
+            0.5,
+            0.51,
+            0.518178,
+            0.541666,
+            0.542154,
+            0.580294,
+            0.583333,
+            0.625
+          ],
+          "x_max": 1.0,
+          "x_min": -1.862645149230957e-07
+        }
+      ],
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 150
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_upper_arm_l_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_inventory": [
+        {
+          "loops": 276,
+          "name": "UVMap",
+          "non_integer_x_loops": 270,
+          "unique_x_count": 49,
+          "unique_x_sample": [
+            -0.0,
+            0.01,
+            0.018178,
+            0.041666,
+            0.042154,
+            0.080294,
+            0.083333,
+            0.125,
+            0.13,
+            0.166666,
+            0.187883,
+            0.208333,
+            0.25,
+            0.291667,
+            0.312117,
+            0.333333,
+            0.37,
+            0.375,
+            0.416666,
+            0.419706,
+            0.457846,
+            0.458333,
+            0.481822,
+            0.49,
+            0.5,
+            0.51,
+            0.518178,
+            0.541666,
+            0.542154,
+            0.580294,
+            0.583333,
+            0.625
+          ],
+          "x_max": 1.0,
+          "x_min": -1.862645149230957e-07
+        }
+      ],
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material_slots": [
+        "SPARTAN_Flesh"
+      ],
+      "name": "SPARTAN_gore_cap_upper_arm_r_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "triangles": 92,
+      "uv_inventory": [
+        {
+          "loops": 276,
+          "name": "UVMap",
+          "non_integer_x_loops": 270,
+          "unique_x_count": 49,
+          "unique_x_sample": [
+            -0.0,
+            0.01,
+            0.018178,
+            0.041666,
+            0.042154,
+            0.080294,
+            0.083333,
+            0.125,
+            0.13,
+            0.166666,
+            0.187883,
+            0.208333,
+            0.25,
+            0.291667,
+            0.312117,
+            0.333333,
+            0.37,
+            0.375,
+            0.416666,
+            0.419706,
+            0.457846,
+            0.458333,
+            0.481822,
+            0.49,
+            0.5,
+            0.51,
+            0.518178,
+            0.541666,
+            0.542154,
+            0.580294,
+            0.583333,
+            0.625
+          ],
+          "x_max": 1.0,
+          "x_min": -1.862645149230957e-07
+        }
+      ],
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 144
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [
+        "SPARTAN_Skeleton"
+      ],
+      "color_attributes": [],
+      "dimensions": [
+        1.9995,
+        0.448254,
+        2.024382
+      ],
+      "material_slots": [
+        "M_Armor3.001",
+        "M_Face.001",
+        "M_Eyes.001",
+        "M_Body.001",
+        "M_Armor.001",
+        "M_Armor2.001",
+        "M_Sclera.001",
+        "M_Crest.001",
+        "Armor.001",
+        "Armor2.001"
+      ],
+      "name": "SPARTAN_character_body",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "triangles": 22820,
+      "uv_inventory": [
+        {
+          "loops": 68460,
+          "name": "UVMap",
+          "non_integer_x_loops": 67554,
+          "unique_x_count": 13095,
+          "unique_x_sample": [
+            0.002848,
+            0.002851,
+            0.003078,
+            0.004421,
+            0.004701,
+            0.00534,
+            0.005621,
+            0.005978,
+            0.005981,
+            0.006262,
+            0.006345,
+            0.006481,
+            0.006483,
+            0.006486,
+            0.006491,
+            0.006492,
+            0.006494,
+            0.007256,
+            0.007808,
+            0.008063,
+            0.008248,
+            0.008495,
+            0.008521,
+            0.008575,
+            0.008633,
+            0.008664,
+            0.008748,
+            0.008776,
+            0.008811,
+            0.008813,
+            0.008905,
+            0.008941
+          ],
+          "x_max": 1.9892239570617676,
+          "x_min": 0.002848000032827258
+        },
+        {
+          "loops": 68460,
+          "name": "UVMap.001",
+          "non_integer_x_loops": 4023,
+          "unique_x_count": 885,
+          "unique_x_sample": [
+            0.0,
+            0.115958,
+            0.117528,
+            0.117545,
+            0.11799,
+            0.118265,
+            0.119748,
+            0.119775,
+            0.121064,
+            0.121442,
+            0.123237,
+            0.123636,
+            0.125547,
+            0.12725,
+            0.128936,
+            0.129442,
+            0.13009,
+            0.130453,
+            0.130706,
+            0.131254,
+            0.131505,
+            0.131513,
+            0.131544,
+            0.131563,
+            0.131698,
+            0.131763,
+            0.131832,
+            0.131836,
+            0.131929,
+            0.131962,
+            0.131966,
+            0.132151
+          ],
+          "x_max": 0.996015727519989,
+          "x_min": 0.0
+        },
+        {
+          "loops": 68460,
+          "name": "UVMap.002",
+          "non_integer_x_loops": 0,
+          "unique_x_count": 12,
+          "unique_x_sample": [
+            0.0,
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+            5.0,
+            6.0,
+            7.0,
+            8.0,
+            8.999999,
+            9.0,
+            9.000001
+          ],
+          "x_max": 9.000000953674316,
+          "x_min": 0.0
+        }
+      ],
+      "uv_layers": [
+        "UVMap",
+        "UVMap.001",
+        "UVMap.002"
+      ],
+      "vertex_groups": [
+        "root",
+        "DEF-hips",
+        "DEF-spine.001",
+        "DEF-spine.002",
+        "DEF-spine.003",
+        "DEF-neck",
+        "DEF-head",
+        "DEF-shoulder.L",
+        "DEF-upper_arm.L",
+        "DEF-forearm.L",
+        "DEF-hand.L",
+        "DEF-shoulder.R",
+        "DEF-upper_arm.R",
+        "DEF-forearm.R",
+        "DEF-hand.R",
+        "DEF-thigh.L",
+        "DEF-shin.L",
+        "DEF-foot.L",
+        "DEF-toe.L",
+        "DEF-thigh.R",
+        "DEF-shin.R",
+        "DEF-foot.R",
+        "DEF-toe.R"
+      ],
+      "vertices": 17955
+    },
+    {
+      "active_uv": "UVMap",
+      "armature_modifiers": [],
+      "color_attributes": [],
+      "dimensions": [
+        1.902116,
+        2.0,
+        2.0
+      ],
+      "material_slots": [],
+      "name": "Icosphere",
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "triangles": 80,
+      "uv_inventory": [
+        {
+          "loops": 240,
+          "name": "UVMap",
+          "non_integer_x_loops": 236,
+          "unique_x_count": 23,
+          "unique_x_sample": [
+            0.0,
+            0.045455,
+            0.09091,
+            0.136365,
+            0.181819,
+            0.227273,
+            0.272728,
+            0.318182,
+            0.363637,
+            0.409092,
+            0.454546,
+            0.5,
+            0.545455,
+            0.590909,
+            0.636364,
+            0.681818,
+            0.727273,
+            0.772727,
+            0.818182,
+            0.863636,
+            0.909091,
+            0.954545,
+            1.0
+          ],
+          "x_max": 1.0,
+          "x_min": 0.0
+        }
+      ],
+      "uv_layers": [
+        "UVMap"
+      ],
+      "vertex_groups": [],
+      "vertices": 42
+    }
+  ],
+  "objects": [
+    "Icosphere",
+    "SPARTAN_BODY_ROOT",
+    "SPARTAN_Skeleton",
+    "SPARTAN_character_body",
+    "SPARTAN_gore_cap_forearm_l_body",
+    "SPARTAN_gore_cap_forearm_r_body",
+    "SPARTAN_gore_cap_head_body",
+    "SPARTAN_gore_cap_shin_l_body",
+    "SPARTAN_gore_cap_shin_r_body",
+    "SPARTAN_gore_cap_thigh_l_body",
+    "SPARTAN_gore_cap_thigh_r_body",
+    "SPARTAN_gore_cap_upper_arm_l_body",
+    "SPARTAN_gore_cap_upper_arm_r_body"
+  ],
+  "schema_version": 1,
+  "source": "C:\\Users\\suean\\Downloads\\hoplite_ual_native_lab_v2\\assets\\characters\\enemy_v2\\hoplite\\lods\\hoplite_body_lod0_22k.gltf",
+  "source_bytes": 35061
+}

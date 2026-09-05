@@ -3,6 +3,8 @@ class_name HopliteAthenianEnemy
 
 const UAL1_PATH := "res://assets/runtime/ual1/UAL1_Standard.glb"
 const DriverScript = preload("res://scripts/animation/native_animation_driver.gd")
+const SharedHopliteDriverScript = preload("res://scripts/animation/shared_hoplite_animation_driver.gd")
+const AnimationRuntimeContract = preload("res://scripts/animation/enemy_animation_runtime_contract.gd")
 const AnatomyScript = preload("res://scripts/enemy/anatomy_hitbox.gd")
 const ShieldHitboxScript = preload("res://scripts/enemy/shield_hitbox.gd")
 const AnatomyProfileScript = preload("res://scripts/enemy/anatomy_profile.gd")
@@ -11,11 +13,14 @@ const MixamoCatalogScript = preload("res://scripts/enemy/mixamo_catalog.gd")
 const HitEventScript = preload("res://scripts/combat/hit_event.gd")
 const DetachedLimbScript = preload("res://scripts/gore/detached_limb_proxy.gd")
 const SpartanDetachedLimbScript = preload("res://scripts/gore/spartan_detached_limb.gd")
+const GoreDirectorScript = preload("res://scripts/gore/gore_director.gd")
 const SpartanPackageScript = preload("res://scripts/enemy/spartan_character_package.gd")
 const AuthoredPoseBridgeScript = preload("res://scripts/animation/authored_pose_bridge.gd")
 const BloodBurstScript = preload("res://scripts/gore/blood_burst.gd")
 const EnemyProjectileScript = preload("res://scripts/combat/enemy_projectile.gd")
+const DebrisLifecycleScript = preload("res://scripts/gore/transient_rigid_debris_lifecycle.gd")
 const RuntimeGLTFCacheScript = preload("res://scripts/environment/runtime_gltf_cache.gd")
+const EnemyNavigationComponentScript = preload("res://scripts/ai/enemy_navigation_component.gd")
 const DORY_SPEAR_SCENE := preload("res://assets/weapons/dory_spear.glb")
 const ASPIS_SHIELD_SCENE := preload("res://assets/weapons/aspis_shield.glb")
 
@@ -36,6 +41,24 @@ const RANGED_EDGE_LOOKAHEAD_MIN := 0.72
 const RANGED_EDGE_LOOKAHEAD_MAX := 1.18
 const MATCHED_WALKABLE_SURFACE_LAYER := 128
 const GIANT_TRAVERSAL_SURFACE_LAYER := 256
+
+static var _reported_character_packages: Dictionary = {}
+static var _skin_material_cache: Dictionary = {}
+static var _weapon_material_cache: Dictionary = {}
+static var _lod_settings_refresh_deadline_msec: int = 0
+static var _lod_settings_cache: Dictionary = {
+	"enabled": true,
+	"near_distance": 16.0,
+	"far_distance": 38.0,
+	"cull_distance": 90.0,
+	"full_rate_distance": 3.8,
+	"near_physics_divisor": 2,
+	"medium_physics_divisor": 3,
+	"far_physics_divisor": 5,
+	"medium_animation_hz": 30.0,
+	"far_animation_hz": 12.0,
+	"shadow_distance": 8.0,
+}
 
 signal died(enemy: Node)
 signal zone_severed(enemy: Node, zone: StringName)
@@ -58,6 +81,7 @@ var anatomy: HopliteAnatomyHitbox
 var anatomy_defs: Dictionary = {}
 var zone_state: Dictionary = {}
 var hidden_bones: Dictionary = {}
+var hidden_bones_dirty: bool = false
 
 var right_hand_bone: String = ""
 var left_hand_bone: String = ""
@@ -68,9 +92,12 @@ var shield_attachment: BoneAttachment3D
 var sword_root: Node3D
 var shield_root: Node3D
 var shield_rest_transform: Transform3D = Transform3D.IDENTITY
+var shield_guard_root_anchored: bool = false
 var shield_hitbox: HopliteShieldHitbox
 var sword_dropped: bool = false
 var shield_dropped: bool = false
+var authored_weapon_visual: Node3D
+var authored_shield_visual: Node3D
 
 # V0.0.10 archetype data. One shared enemy controller handles every humanoid
 # archetype; profiles only tune visuals, equipment, stats and tactical spacing.
@@ -122,6 +149,7 @@ var signature_chance: float = 0.0
 var formation_columns: int = 5
 var formation_spacing: float = 1.08
 var formation_rank_spacing: float = 1.18
+var formation_move_speed_multiplier: float = 1.30
 var formation_pursuit_limit: float = 7.5
 var formation_role: StringName = &"none"
 var formation_state: StringName = &"none"
@@ -137,6 +165,7 @@ var formation_reorganize_timer: float = 0.0
 var formation_guard_active: bool = false
 var formation_guard_pose_applied: bool = false
 var formation_cohort_formed: bool = false
+var formation_cohort_revision: int = 0
 var formation_turn_speed: float = deg_to_rad(30.0)
 var cohesion_radius: float = 4.4
 var cohesion_guard_bonus: float = 0.0
@@ -155,6 +184,7 @@ var poise: float = 0.0
 var defense_timer: float = 0.0
 var defense_cooldown_timer: float = 0.0
 var defense_reaction_timer: float = -1.0
+var proactive_defense_requires_attack: bool = false
 var defense_reaction_delay: float = 0.13
 var defense_reaction_range: float = 3.60
 var guard_max: float = 0.0
@@ -192,6 +222,7 @@ var combat_debug_visible: bool = false
 var body_collider: CollisionShape3D
 var death_collapse_tween: Tween
 var corpse_fallback_rest_height: float = 0.40
+var corpse_lifetime: float = 12.0
 var miniboss_scale_factor: float = 1.20
 
 # V0.0.5 AI. Static anatomy-test mannequins leave ai_enabled=false, so only the
@@ -207,6 +238,7 @@ var retaliation_target: Node3D
 var retaliation_timer: float = 0.0
 var ai_retaliation_duration: float = 3.6
 var crowd_director: Node
+var combatant_registry: Node
 var ai_miniboss: Node3D
 var ai_guard_index: int = 0
 var ai_home_position: Vector3 = Vector3.ZERO
@@ -234,6 +266,9 @@ var ai_attack_windup_timer: float = 0.0
 var ai_attack_recovery_timer: float = 0.0
 var ai_alert_timer: float = 0.0
 var ai_animation_driver = null
+var navigation_component: RefCounted
+var navigation_mode_override: int = -1
+var navigation_layers: int = 1
 
 # Battle scenes can mark large fodder packs as mass_battle_mode. They keep the
 # same anatomy/gore/AI but use only the imported UAL1 AnimationPlayer instead of
@@ -248,14 +283,23 @@ var simple_anim_state: StringName = StringName()
 var ai_think_timer: float = 0.0
 var cached_ai_goal: Dictionary = {}
 var cached_ai_separation: Vector3 = Vector3.ZERO
+var separation_candidates: Array[Node] = []
 var cached_player_distance: float = INF
 var performance_lod_timer: float = 0.0
 var render_lod_level: int = -1
+var secondary_hoplite_shadows_enabled: bool = true
 var lod_animation_accumulator: float = 0.0
+var direct_animation_sample_count: int = 0
+var physics_full_step_count: int = 0
+var physics_deferred_step_count: int = 0
+var ai_goal_evaluation_count: int = 0
+var physics_lod_accumulator: float = 0.0
+var physics_lod_phase: int = 0
 var lod_geometry_defaults: Dictionary = {}
 var lod_particle_defaults: Dictionary = {}
 var uses_mixamo_visual: bool = false
 var mixamo_model_id: StringName = StringName()
+var mixamo_model_override: StringName = StringName()
 var mixamo_clips: Dictionary = {}
 var mixamo_attack_cursor: int = 0
 var mixamo_reaction_cooldown: float = 0.0
@@ -264,13 +308,16 @@ var character_package_path: String = ""
 var uses_spartan_package_visual: bool = false
 var spartan_package_scene: PackedScene
 var spartan_package_adapter = null
+var gore_director: Node
 var spartan_animation_donor: Node3D
 var spartan_pose_bridge: HopliteAuthoredPoseBridge
 var spartan_grounding_frames: int = -1
 var spartan_corpse_grounding_timer: float = -1.0
 var spartan_corpse_grounding_tick: float = 0.0
 var attack_permission_claimed: bool = false
+var attack_permission_waiting: bool = false
 var attack_permission_target: Node3D
+var attack_permission_token: int = 0
 var coward_retreat_timer: float = 0.0
 var ranged_retreat_delay_timer: float = 0.0
 var ranged_close_contact := false
@@ -279,6 +326,10 @@ var ranged_height_preference: float = 0.0
 var ranged_height_scan_timer: float = 0.0
 var ranged_height_target: Vector3 = Vector3.ZERO
 var ranged_height_target_valid := false
+var ranged_ground_cache_initialized: bool = false
+var ranged_ground_cache_position: Vector3 = Vector3.ZERO
+var ranged_ground_cache_result: Dictionary = {}
+var ranged_ground_cache_deadline_msec: int = 0
 var ranged_high_ground_active := false
 var ranged_preserved_floor_y: float = -INF
 var demo_patrol_enabled: bool = false
@@ -286,10 +337,21 @@ var demo_patrol_points: Array[Vector3] = []
 var demo_patrol_index: int = 0
 var demo_patrol_engage_distance: float = 6.5
 var demo_patrol_move_speed: float = 0.0
+var demo_patrol_interrupted: bool = false
 var training_activation_pending: bool = false
 var training_activation_center: Vector3 = Vector3.ZERO
 var training_activation_radius: float = 0.0
 var training_activation_check_timer: float = 0.0
+
+
+func _exit_tree() -> void:
+	# A living combatant may be removed by encounter/world cleanup without first
+	# entering _die(). Release shared tactical ownership before its target remains
+	# in the scene with a stale hoplite_ai_claims count.
+	_invalidate_crowd_membership()
+	_release_attack_permission(true)
+	_set_combat_target(null)
+
 
 func _ready() -> void:
 	# Apply the archetype before creating collision, visuals or AI runtime.
@@ -315,6 +377,8 @@ func _ready() -> void:
 	_load_mannequin()
 	_build_matched_physical_colliders()
 	_build_matched_walkable_surfaces()
+	if ai_enabled:
+		_build_navigation_component()
 	if battle_player == null and ai_player != null:
 		battle_player = ai_player
 	if faction == &"spartan":
@@ -326,15 +390,25 @@ func _ready() -> void:
 	add_to_group("damageable")
 	add_to_group("combatant")
 	if ai_enabled:
+		set_physics_process(true)
 		add_to_group("combatant_ai")
 		add_to_group("ally_ai" if faction == &"spartan" else "enemy_ai")
 		if _is_phalanx_unit():
 			add_to_group("phalanx_unit")
+	else:
+		set_physics_process(false)
 	if is_miniboss and faction != &"spartan":
 		add_to_group("enemy_miniboss")
 	if combat_rank in [&"elite", &"miniboss", &"boss"] and faction != &"spartan":
 		add_to_group("enemy_epic")
 	_connect_threat_awareness()
+	_invalidate_crowd_membership()
+
+func _invalidate_crowd_membership() -> void:
+	if crowd_director == null or not is_instance_valid(crowd_director):
+		crowd_director = get_tree().get_first_node_in_group("crowd_director") if get_tree() != null else null
+	if crowd_director != null and crowd_director.has_method("invalidate_spatial_grid"):
+		crowd_director.call("invalidate_spatial_grid")
 
 func _apply_archetype_profile() -> void:
 	var profile: Dictionary = EnemyArchetypesScript.profile(archetype_id)
@@ -432,12 +506,14 @@ func _process(delta: float) -> void:
 	mixamo_reaction_cooldown = maxf(0.0, mixamo_reaction_cooldown - delta)
 	var pose_stride := 1 if render_lod_level <= 0 else (2 if render_lod_level == 1 else 4)
 	var update_pose_bridge := render_lod_level < 3 and (Engine.get_process_frames() + get_instance_id()) % pose_stride == 0
+	var skeleton_sampled := false
 	if uses_spartan_package_visual and spartan_pose_bridge != null and skeleton != null and update_pose_bridge:
 		# SkeletonModifier3D normally evaluates during skeleton/render updates.
 		# Apply once here too so physics grounding and anatomy see the same pose
 		# during their first frames (headless tests do not run a render update).
 		spartan_pose_bridge.call("_process_modification_with_delta", delta)
 		skeleton.force_update_all_bone_transforms()
+		skeleton_sampled = true
 	if dead and uses_spartan_package_visual and spartan_corpse_grounding_timer >= 0.0:
 		spartan_corpse_grounding_timer -= delta
 		spartan_corpse_grounding_tick -= delta
@@ -447,6 +523,7 @@ func _process(delta: float) -> void:
 		if spartan_corpse_grounding_timer <= 0.0:
 			spartan_corpse_grounding_timer = -1.0
 			_ground_spartan_corpse_visual()
+			_retire_corpse_runtime()
 	_update_injury_visual(delta)
 
 	if ai_enabled and not dead:
@@ -455,33 +532,50 @@ func _process(delta: float) -> void:
 			_update_performance_lod()
 			performance_lod_timer = 0.20 if mass_battle_mode else 0.14
 
-	if ai_animation_driver != null and ai_enabled and not dead:
+	if ai_enabled and not dead and (ai_animation_driver != null or _direct_animation_uses_manual_sampling()):
 		lod_animation_accumulator += delta
+		var lod_settings := _runtime_lod_settings()
 		var animation_interval := 0.0
 		if render_lod_level == 1:
-			animation_interval = 1.0 / 30.0
+			animation_interval = 1.0 / maxf(1.0, float(lod_settings["medium_animation_hz"]))
 		elif render_lod_level == 2:
-			animation_interval = 1.0 / 12.0
+			animation_interval = 1.0 / maxf(1.0, float(lod_settings["far_animation_hz"]))
 		elif render_lod_level >= 3:
 			animation_interval = INF
-		if animation_interval == 0.0 or lod_animation_accumulator >= animation_interval:
-			ai_animation_driver.tick(lod_animation_accumulator)
-			lod_animation_accumulator = 0.0
-	if _is_phalanx_unit() and not dead:
+		if animation_interval == 0.0 or lod_animation_accumulator + 0.000001 >= animation_interval:
+			var sample_delta := lod_animation_accumulator
+			var remainder := 0.0
+			if animation_interval > 0.0 and animation_interval < INF and lod_animation_accumulator >= animation_interval:
+				remainder = fmod(lod_animation_accumulator, animation_interval)
+				sample_delta = lod_animation_accumulator - remainder
+			if ai_animation_driver != null:
+				ai_animation_driver.tick(sample_delta)
+			elif animation_player != null:
+				animation_player.advance(sample_delta)
+				direct_animation_sample_count += 1
+			skeleton_sampled = true
+			lod_animation_accumulator = remainder
+	if _is_phalanx_unit() and not dead and update_pose_bridge:
 		_update_phalanx_equipment_pose()
-	if skeleton != null and not hidden_bones.is_empty():
+	if skeleton != null and not hidden_bones.is_empty() and (hidden_bones_dirty or skeleton_sampled):
 		# Prototype visual severing for the single-piece UAL1 mesh. A future gore
 		# mesh can replace this without touching AnatomyHitbox / HitEvent.
-		for raw_index: Variant in hidden_bones.keys():
+		for raw_index: Variant in hidden_bones:
 			var bone_index: int = int(raw_index)
 			if bone_index >= 0 and bone_index < skeleton.get_bone_count():
 				skeleton.set_bone_pose_scale(bone_index, Vector3(0.001, 0.001, 0.001))
+		hidden_bones_dirty = false
 
 	# String formatting + Label3D updates are pointless while diagnostics are hidden.
 	if combat_debug_visible:
 		_update_status_label()
 
 func _physics_process(delta: float) -> void:
+	if _defer_mass_battle_physics_step(delta):
+		return
+	delta += physics_lod_accumulator
+	physics_lod_accumulator = 0.0
+	physics_full_step_count += 1
 	_update_matched_physical_colliders()
 	_update_assisted_giant_traversal_collider()
 	_update_matched_walkable_surfaces()
@@ -495,6 +589,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if not ai_enabled or dead:
 		return
+	if navigation_component == null:
+		_build_navigation_component()
 
 	ai_attack_cooldown_timer = maxf(0.0, ai_attack_cooldown_timer - delta)
 	ai_attack_recovery_timer = maxf(0.0, ai_attack_recovery_timer - delta)
@@ -568,6 +664,7 @@ func _physics_process(delta: float) -> void:
 
 	ai_think_timer -= delta
 	if ai_think_timer <= 0.0 or cached_ai_goal.is_empty():
+		ai_goal_evaluation_count += 1
 		cached_ai_goal = _ai_goal()
 		# The distant autonomous fronts need separation just as much as combat
 		# near the camera. The spatial grid keeps this query inexpensive.
@@ -579,6 +676,8 @@ func _physics_process(delta: float) -> void:
 	var attack_player: bool = bool(goal.get("attack_player", false))
 	var face_target: bool = bool(goal.get("face_target", attack_player))
 	var target: Vector3 = goal.get("target", global_position)
+	if not attack_player and attack_permission_waiting:
+		_cancel_pending_attack_request()
 
 	if attack_player and ai_player != null and is_instance_valid(ai_player):
 		var player_flat: Vector3 = ai_player.global_position - global_position
@@ -592,29 +691,110 @@ func _physics_process(delta: float) -> void:
 	var flat_to_goal: Vector3 = target - global_position
 	flat_to_goal.y = 0.0
 	var desired_velocity: Vector3 = Vector3.ZERO
+	var applied_navigation_direction: Vector3 = Vector3.ZERO
 
-	if active and flat_to_goal.length() > 0.28:
-		var direction: Vector3 = flat_to_goal.normalized()
-		if cached_ai_separation.length() > 0.001:
+	if active:
+		var direction: Vector3 = flat_to_goal.normalized() if flat_to_goal.length_squared() > 0.0001 else Vector3.ZERO
+		var navigation_speed_scale := 1.0
+		var navigation_facing := Vector3.ZERO
+		var navigation_holds_position := false
+		if navigation_component != null:
+			if _is_phalanx_unit():
+				navigation_component.set_formation_anchor(target, formation_facing, formation_slot, formation_cohort_revision)
+			else:
+				navigation_component.set_destination(target)
+			var navigation_intent: Variant = navigation_component.sample_intent(delta)
+			if navigation_intent != null and bool(navigation_intent.valid):
+				direction = navigation_intent.direction
+				navigation_speed_scale = float(navigation_intent.speed_scale)
+				navigation_facing = navigation_intent.facing_direction
+			else:
+				direction = Vector3.ZERO
+				navigation_holds_position = true
+		if not navigation_holds_position and cached_ai_separation.length() > 0.001:
 			direction = (direction + cached_ai_separation * 1.35 * separation_weight).normalized()
-		var guard_move_scale: float = 0.42 if defense_timer > 0.0 else 1.0
-		var goal_move_speed := float(goal.get("move_speed", 0.0))
-		var resolved_move_speed := goal_move_speed if goal_move_speed > 0.0 else _current_ai_move_speed() * approach_speed_multiplier
-		desired_velocity = direction * resolved_move_speed * guard_move_scale
-		_ai_face_direction(_combat_facing_direction(direction, face_target), delta)
+		if direction.length_squared() > 0.0001:
+			var guard_move_scale: float = 0.42 if defense_timer > 0.0 else 1.0
+			var goal_move_speed := float(goal.get("move_speed", 0.0))
+			var resolved_move_speed := goal_move_speed if goal_move_speed > 0.0 else _current_ai_move_speed() * approach_speed_multiplier
+			if _is_phalanx_unit():
+				resolved_move_speed *= formation_move_speed_multiplier
+			desired_velocity = direction * resolved_move_speed * guard_move_scale * navigation_speed_scale
+			applied_navigation_direction = direction
+			var facing_direction := navigation_facing if navigation_facing.length_squared() > 0.001 else _combat_facing_direction(direction, face_target)
+			_ai_face_direction(facing_direction, delta)
+		elif face_target and ai_player != null and is_instance_valid(ai_player):
+			_ai_face_direction(ai_player.global_position - global_position, delta)
 	elif cached_ai_separation.length() > 0.001:
+		if navigation_component != null:
+			navigation_component.clear_destination()
 		# A soldier who reached his assigned slot must still yield personal space;
 		# otherwise stationary rings slowly collapse back into a single point.
 		var separation_strength: float = clampf(cached_ai_separation.length(), 0.22, 0.70)
 		desired_velocity = cached_ai_separation.normalized() * _current_ai_move_speed() * separation_strength * separation_weight
 		_ai_face_direction(_combat_facing_direction(desired_velocity, face_target), delta)
 	elif face_target and ai_player != null and is_instance_valid(ai_player):
+		if navigation_component != null:
+			navigation_component.clear_destination()
 		_ai_face_direction(ai_player.global_position - global_position, delta)
+	elif navigation_component != null:
+		navigation_component.clear_destination()
 
 	velocity.x = move_toward(velocity.x, desired_velocity.x, ai_acceleration * delta)
 	velocity.z = move_toward(velocity.z, desired_velocity.z, ai_acceleration * delta)
+	var navigation_previous_position := global_position
 	_move_and_slide_with_ranged_height_guard()
+	if navigation_component != null:
+		navigation_component.notify_motion_applied(navigation_previous_position, global_position, delta, applied_navigation_direction)
 	_ai_update_animation_speed()
+
+func _build_navigation_component() -> void:
+	if navigation_component != null:
+		return
+	navigation_component = EnemyNavigationComponentScript.new()
+	var navigation_mode: int = EnemyNavigationComponentScript.Mode.DIRECT_STEERING
+	var is_large_body := body_scale_factor * external_scale_multiplier >= 1.75 or archetype_id in [&"boss_colossus", &"bronze_colossus", &"giant_novice", &"giant_standard", &"giant_veteran"]
+	if navigation_mode_override >= 0 and navigation_mode_override < EnemyNavigationComponentScript.Mode.size():
+		navigation_mode = navigation_mode_override
+	elif is_large_body:
+		navigation_mode = EnemyNavigationComponentScript.Mode.LARGE_BODY
+	elif _route_has_navigation_regions():
+		# Ground units automatically consume a level-owned NavigationRegion3D.
+		# Phalanx members still receive their local slot as the destination and
+		# retain formation facing while the coarse path goes around obstacles.
+		navigation_mode = EnemyNavigationComponentScript.Mode.NAVMESH_GROUND
+	elif _is_phalanx_unit():
+		navigation_mode = EnemyNavigationComponentScript.Mode.FORMATION_LOCAL
+	navigation_component.configure(self, navigation_mode, {
+		"arrival_distance": 0.28,
+		"arrival_slowdown_distance": 0.55,
+		"arrival_min_speed_scale": 0.80,
+		"navigation_layers": navigation_layers,
+		"formation_facing": _is_phalanx_unit(),
+		"fallback_mode": EnemyNavigationComponentScript.Mode.FORMATION_LOCAL if _is_phalanx_unit() else EnemyNavigationComponentScript.Mode.DIRECT_STEERING,
+		"minimum_progress_speed": 0.12,
+		"stuck_timeout": 0.82 if navigation_mode != EnemyNavigationComponentScript.Mode.LARGE_BODY else 1.15,
+		"recovery_duration": 0.48 if navigation_mode != EnemyNavigationComponentScript.Mode.LARGE_BODY else 0.72,
+		"recovery_speed_scale": 0.72,
+	})
+
+func _route_has_navigation_regions() -> bool:
+	if not is_inside_tree() or get_world_3d() == null:
+		return false
+	# A freshly constructed Forge route registers its region node before the
+	# NavigationServer uploads the region RID. Consulting the explicit scene group
+	# closes that one-frame bootstrap gap without forcing factory-specific modes.
+	for candidate: Node in get_tree().get_nodes_in_group("enemy_navigation_region"):
+		var region := candidate as NavigationRegion3D
+		if region != null and region.enabled and region.navigation_layers & navigation_layers:
+			return true
+	var map_rid := get_world_3d().navigation_map
+	if not map_rid.is_valid():
+		return false
+	for region_rid: RID in NavigationServer3D.map_get_regions(map_rid):
+		if NavigationServer3D.region_get_navigation_layers(region_rid) & navigation_layers:
+			return true
+	return false
 
 func _ai_goal() -> Dictionary:
 	_refresh_combat_target()
@@ -623,11 +803,16 @@ func _ai_goal() -> Dictionary:
 		# otherwise a quiet formation order could walk them down the very ramp or
 		# tower that combat logic would correctly preserve a moment later.
 		_refresh_ranged_height_awareness()
-	if demo_patrol_enabled and not demo_patrol_points.is_empty() and not _is_active_retaliation_target():
+	if demo_patrol_enabled and not demo_patrol_points.is_empty():
+		var patrol_blocked := _is_active_retaliation_target()
 		var commander_distance: float = INF
 		if battle_player != null and is_instance_valid(battle_player):
 			commander_distance = _flat_distance_to(battle_player)
-		if commander_distance > demo_patrol_engage_distance:
+		patrol_blocked = patrol_blocked or commander_distance <= demo_patrol_engage_distance
+		if not patrol_blocked:
+			if demo_patrol_interrupted:
+				demo_patrol_index = nearest_patrol_index(demo_patrol_points, global_position)
+				demo_patrol_interrupted = false
 			var patrol_target: Vector3 = demo_patrol_points[demo_patrol_index]
 			var patrol_delta: Vector3 = patrol_target - global_position
 			patrol_delta.y = 0.0
@@ -648,6 +833,7 @@ func _ai_goal() -> Dictionary:
 				formation_guard_active = shield_enabled and not shield_dropped and guard_stamina > 0.0
 			ai_state = &"patrol"
 			return {"active": true, "target": patrol_target, "attack_player": false, "move_speed": demo_patrol_move_speed}
+		demo_patrol_interrupted = true
 	if faction == &"spartan" and battle_player != null and is_instance_valid(battle_player):
 		var hostile_distance: float = INF
 		if ai_player != null and is_instance_valid(ai_player):
@@ -717,6 +903,14 @@ func _ai_goal() -> Dictionary:
 func _ai_combat_goal(base_target: Vector3, player_distance: float, state_prefix: StringName, defending_boss: bool) -> Dictionary:
 	if ai_player == null or not is_instance_valid(ai_player):
 		return {"active": false, "target": global_position, "attack_player": false}
+	# Formation actors are coordinated as one cohort footprint. They must never
+	# reserve an individual ring slot before switching to their phalanx goal.
+	if _is_phalanx_unit():
+		if crowd_director == null or not is_instance_valid(crowd_director):
+			crowd_director = get_tree().get_first_node_in_group("crowd_director") if get_tree() != null else null
+		if crowd_director != null and crowd_director.has_method("release_engagement"):
+			crowd_director.call("release_engagement", self, ai_player)
+		return _phalanx_combat_goal(player_distance)
 
 	var target: Vector3 = base_target
 	var to_player: Vector3 = ai_player.global_position - global_position
@@ -751,8 +945,6 @@ func _ai_combat_goal(base_target: Vector3, player_distance: float, state_prefix:
 			else:
 				target = global_position
 				ai_state = &"spear_hold"
-		&"phalanx", &"phalanx_veteran":
-			return _phalanx_combat_goal(player_distance)
 		&"flank":
 			if player_distance > ai_attack_range * 0.92:
 				target = _orbit_position(ai_player, maxf(flank_distance, 2.10), 0.62)
@@ -851,6 +1043,19 @@ func _uses_imported_phalanx_gear() -> bool:
 func is_phalanx_unit() -> bool:
 	return _is_phalanx_unit()
 
+func crowd_participant_descriptor() -> Dictionary:
+	var crowd_role := &"melee"
+	if is_miniboss:
+		crowd_role = &"boss"
+	elif behavior_mode == &"ranged" or attack_delivery == &"projectile":
+		crowd_role = &"ranged"
+	return {
+		"formation_kind": &"phalanx" if _is_phalanx_unit() else &"individual",
+		"crowd_role": crowd_role,
+		"cohort_id": StringName(get_meta("formation_group", StringName())),
+		"combat_rank": combat_rank,
+	}
+
 func _phalanx_combat_goal(player_distance: float) -> Dictionary:
 	if ai_player == null or not is_instance_valid(ai_player):
 		formation_guard_active = false
@@ -876,6 +1081,15 @@ func _phalanx_combat_goal(player_distance: float) -> Dictionary:
 		return {"active": true, "target": ai_home_position, "attack_player": false}
 
 	var assigned_position: Vector3 = assignment.get("position", global_position)
+	formation_columns = int(assignment.get("formation_columns", formation_columns))
+	formation_spacing = float(assignment.get("formation_spacing", formation_spacing))
+	formation_rank_spacing = float(assignment.get("formation_rank_spacing", formation_rank_spacing))
+	formation_move_speed_multiplier = float(assignment.get("move_speed_multiplier", formation_move_speed_multiplier))
+	if navigation_component != null and navigation_component.has_method("set_arrival_profile"):
+		navigation_component.set_arrival_profile(
+			float(assignment.get("arrival_slowdown_distance", 0.55)),
+			float(assignment.get("arrival_min_speed_scale", 0.80))
+		)
 	formation_facing = assignment.get("facing", ai_player.global_position - global_position)
 	formation_facing.y = 0.0
 	if formation_facing.length_squared() > 0.001:
@@ -887,6 +1101,8 @@ func _phalanx_combat_goal(player_distance: float) -> Dictionary:
 	formation_nearby_veterans = int(assignment.get("nearby_veterans", 0))
 	formation_veteran_count = int(assignment.get("veteran_count", 0))
 	formation_cohort_formed = bool(assignment.get("cohort_formed", false))
+	formation_cohort_revision = int(assignment.get("cohort_revision", formation_cohort_revision))
+	var formation_member_ready := bool(assignment.get("member_ready", true))
 	var breach_active := bool(assignment.get("breach", false))
 	var breach_tactic := StringName(assignment.get("breach_tactic", &"none"))
 	var new_slot := int(assignment.get("slot", formation_slot))
@@ -946,10 +1162,26 @@ func _phalanx_combat_goal(player_distance: float) -> Dictionary:
 	else:
 		formation_state = &"poussee"
 
-	var can_threaten := formation_cohort_formed and formation_row <= 1 and player_distance <= preferred_range_max + 0.42
+	var formation_reach := formation_rank_spacing * 0.72 if formation_row == 1 else 0.0
+	var minimum_attack_distance := preferred_range_min * 0.68
+	var maximum_attack_distance := minf(preferred_range_max + 0.42, ai_attack_range + formation_reach)
+	var can_threaten := (
+		formation_cohort_formed
+		and formation_member_ready
+		and formation_row <= 1
+		and player_distance >= minimum_attack_distance
+		and player_distance <= maximum_attack_distance
+	)
 	if breach_active:
-		can_threaten = bool(assignment.get("breach_can_attack", false)) and player_distance <= preferred_range_max + 0.62
-		_queue_expulsion_shield_push(assignment)
+		can_threaten = (
+			bool(assignment.get("breach_can_attack", false))
+			and player_distance >= minimum_attack_distance
+			and player_distance <= minf(preferred_range_max + 0.62, ai_attack_range + formation_reach)
+		)
+		if breach_tactic == &"expulsion_arc":
+			_queue_expulsion_shield_push(assignment)
+		elif bool(forced_attack_step.get("expulsion_push", false)):
+			forced_attack_step.clear()
 	elif bool(forced_attack_step.get("expulsion_push", false)):
 		forced_attack_step.clear()
 	formation_guard_active = (
@@ -958,7 +1190,7 @@ func _phalanx_combat_goal(player_distance: float) -> Dictionary:
 		and guard_stamina > 0.0
 		and not ai_attack_pending
 		and ai_attack_recovery_timer <= 0.0
-		and formation_state in [&"rassemblement", &"marche", &"garde", &"poussee", &"reorganisation", &"rupture", &"expulsion_arc"]
+		and formation_state in [&"rassemblement", &"marche", &"garde", &"poussee", &"reorganisation", &"rupture", &"expulsion_arc", &"coordinated_arc", &"coordinated_sortie"]
 	)
 	ai_state = StringName("phalanx_" + String(formation_state))
 	return {"active": true, "target": assigned_position, "attack_player": can_threaten, "face_target": true}
@@ -1029,7 +1261,7 @@ func _refresh_ranged_height_awareness(force: bool = false) -> void:
 	ranged_height_scan_timer = 0.72 + float((get_instance_id() + ai_guard_index) % 5) * 0.055
 	ranged_height_target_valid = false
 
-	var current_ground := _ranged_ground_sample(global_position, 0.55, 1.35)
+	var current_ground := _ranged_current_ground_sample()
 	if current_ground.is_empty():
 		return
 	var current_floor_y := (current_ground.get("position", global_position) as Vector3).y
@@ -1121,6 +1353,18 @@ func _ranged_ground_sample(sample_position: Vector3, scan_up: float, scan_down: 
 		return {}
 	return hit
 
+func _ranged_current_ground_sample() -> Dictionary:
+	var now_msec := Time.get_ticks_msec()
+	var moved := global_position - ranged_ground_cache_position
+	moved.y = 0.0
+	if ranged_ground_cache_initialized and now_msec < ranged_ground_cache_deadline_msec and moved.length_squared() <= 0.12 * 0.12:
+		return ranged_ground_cache_result
+	ranged_ground_cache_position = global_position
+	ranged_ground_cache_result = _ranged_ground_sample(global_position, 0.55, 1.35)
+	ranged_ground_cache_initialized = true
+	ranged_ground_cache_deadline_msec = now_msec + 60
+	return ranged_ground_cache_result
+
 func _move_and_slide_with_ranged_height_guard() -> void:
 	_constrain_ranged_velocity_to_height()
 	move_and_slide()
@@ -1132,7 +1376,7 @@ func _constrain_ranged_velocity_to_height() -> void:
 	var speed := horizontal_velocity.length()
 	if speed < 0.05:
 		return
-	var current_ground := _ranged_ground_sample(global_position, 0.55, 1.35)
+	var current_ground := _ranged_current_ground_sample()
 	if current_ground.is_empty():
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -1162,14 +1406,12 @@ func _ai_separation_vector() -> Vector3:
 		return push
 	if crowd_director == null or not is_instance_valid(crowd_director):
 		crowd_director = get_tree().get_first_node_in_group("crowd_director")
-	var nearby: Array[Node] = []
-	if crowd_director != null and crowd_director.has_method("nearby_combatants"):
-		var nearby_value: Variant = crowd_director.call("nearby_combatants", global_position)
-		if nearby_value is Array:
-			nearby.assign(nearby_value)
+	separation_candidates.clear()
+	if crowd_director != null and crowd_director.has_method("fill_nearby_combatants"):
+		crowd_director.call("fill_nearby_combatants", global_position, separation_candidates)
 	else:
-		nearby.assign(get_tree().get_nodes_in_group("combatant_ai"))
-	for other: Node in nearby:
+		separation_candidates.assign(get_tree().get_nodes_in_group("combatant_ai"))
+	for other: Node in separation_candidates:
 		if other == self or not (other is Node3D):
 			continue
 		if other.has_method("is_dead_for_combat") and bool(other.call("is_dead_for_combat")):
@@ -1177,8 +1419,14 @@ func _ai_separation_vector() -> Vector3:
 		var delta_pos: Vector3 = global_position - (other as Node3D).global_position
 		delta_pos.y = 0.0
 		var distance: float = delta_pos.length()
-		var same_faction: bool = other is HopliteAthenianEnemy and (other as HopliteAthenianEnemy).faction == faction
-		var personal_space: float = 1.78 if same_faction else 1.22
+		var other_enemy := other as HopliteAthenianEnemy
+		var same_faction: bool = other_enemy != null and other_enemy.faction == faction
+		var same_phalanx_cohort := same_faction and _shares_phalanx_cohort(other_enemy)
+		# Slot geometry already owns spacing inside a phalanx. The generic 1.78 m
+		# personal space was wider than the authored 1.08/1.18 m formation grid, so
+		# every member continuously pushed against its own assigned post.
+		var cohort_space := maxf(0.68, minf(formation_spacing, formation_rank_spacing) * 0.74)
+		var personal_space: float = cohort_space if same_phalanx_cohort else (1.78 if same_faction else 1.22)
 		if distance < 0.025:
 			# Perfect overlaps used to produce a zero vector and could therefore
 			# remain locked forever. A stable per-pair angle breaks the symmetry.
@@ -1190,6 +1438,17 @@ func _ai_separation_vector() -> Vector3:
 			var pressure: float = (personal_space - distance) / personal_space
 			push += delta_pos.normalized() * (pressure * pressure + pressure * 0.45)
 	return push
+
+func _shares_phalanx_cohort(other: HopliteAthenianEnemy) -> bool:
+	if other == null or not _is_phalanx_unit() or not other._is_phalanx_unit():
+		return false
+	var own_group := StringName(get_meta("formation_group", StringName()))
+	var other_group := StringName(other.get_meta("formation_group", StringName()))
+	if own_group == StringName() and other_group == StringName():
+		# Legacy unlabelled phalanxes are grouped by proximity by the director; if
+		# they can enter this local separation query they belong to that same cohort.
+		return true
+	return own_group != StringName() and own_group == other_group
 
 func _apply_attack_spacing(delta: float) -> void:
 	var target_velocity: Vector3 = Vector3.ZERO
@@ -1263,6 +1522,11 @@ func _on_threat_attack_started(slot: StringName, context: StringName, power: flo
 		attack_delay += 0.025
 	if defense_mode == &"parry":
 		attack_delay += 0.045
+	# Units sharing an archetype must not raise every shield on the same frame.
+	# The stable instance-based phase is replayable and costs no per-frame RNG.
+	var reaction_jitter := float(ProjectSettings.get_setting("hoplite/crowd/defense_reaction_jitter", 0.06))
+	var reaction_phase := float((get_instance_id() * 37) % 1000) / 999.0 * 2.0 - 1.0
+	attack_delay += reaction_phase * reaction_jitter
 	defense_reaction_timer = maxf(0.015, attack_delay)
 
 func _begin_defense_window() -> void:
@@ -1294,7 +1558,9 @@ func _end_defense_window() -> void:
 	if _formation_should_guard():
 		_update_shield_guard_visual()
 		return
-	if shield_root != null and not shield_dropped:
+	if shield_guard_root_anchored and not shield_dropped:
+		_set_shield_guard_root_anchored(false)
+	elif shield_root != null and not shield_dropped:
 		shield_root.transform = shield_rest_transform
 	if ai_animation_driver != null:
 		ai_animation_driver.end_block()
@@ -1352,13 +1618,30 @@ func _update_defense(delta: float) -> void:
 				_begin_defense_window()
 		return
 	if threat_distance > 3.1:
+		proactive_defense_requires_attack = false
 		return
 	if ai_attack_pending or ai_attack_recovery_timer > 0.0 or defense_cooldown_timer > 0.0:
+		return
+	if (
+		_is_phalanx_unit()
+		and formation_cohort_formed
+		and formation_row <= 1
+		and ai_attack_cooldown_timer <= 0.0
+		and threat_distance <= ai_attack_range + (formation_rank_spacing * 0.72 if formation_row == 1 else 0.0)
+	):
+		# Auto-guard used to reopen on the exact frame its cooldown ended. Because
+		# attack eligibility is evaluated later in the same physics tick, a formed
+		# shield line could turtle forever after its first pair of thrusts. Keep
+		# reactive blocks intact, but yield this proactive window to the scheduler.
+		return
+	if _is_phalanx_unit() and proactive_defense_requires_attack:
 		return
 	# Shield infantry deliberately open an observable guard beat before their next
 	# attack. This makes the behaviour immediately testable in the annex too.
 	if defense_mode == &"shield":
 		_begin_defense_window()
+		if _is_phalanx_unit():
+			proactive_defense_requires_attack = true
 
 func _engagement_position(target_node: Node3D, preferred_radius: float) -> Vector3:
 	return _engagement_assignment(target_node, preferred_radius).get("position", global_position)
@@ -1369,7 +1652,7 @@ func _engagement_assignment(target_node: Node3D, preferred_radius: float) -> Dic
 	if crowd_director == null or not is_instance_valid(crowd_director):
 		crowd_director = get_tree().get_first_node_in_group("crowd_director")
 	if crowd_director != null and crowd_director.has_method("engagement_assignment"):
-		var result: Variant = crowd_director.call("engagement_assignment", self, target_node, preferred_radius)
+		var result: Variant = crowd_director.call("engagement_assignment", self, target_node, preferred_radius, crowd_participant_descriptor())
 		if result is Dictionary:
 			return result as Dictionary
 	if crowd_director != null and crowd_director.has_method("engagement_position"):
@@ -1388,11 +1671,87 @@ func _current_ai_think_interval() -> float:
 	# selection does not need 60 Hz, especially for soldiers still crossing the field.
 	if not mass_battle_mode:
 		return 0.045 if cached_player_distance <= 9.0 else 0.085
+	if _is_phalanx_unit():
+		# The cohort director owns formation decisions. Soldiers only resample the
+		# published order; local attacks, defense and collisions keep their own cadence.
+		if cached_player_distance <= 7.0:
+			return 0.10
+		if cached_player_distance <= 14.0:
+			return 0.16
+		return 0.25
 	if cached_player_distance <= 7.0:
 		return 0.055
 	if cached_player_distance <= 14.0:
 		return 0.10
 	return 0.18
+
+func _defer_mass_battle_physics_step(delta: float) -> bool:
+	if not mass_battle_mode or not ai_enabled or dead or training_activation_pending:
+		physics_lod_phase = 0
+		return false
+	var lod_settings := _runtime_lod_settings()
+	if not bool(lod_settings["enabled"]):
+		physics_lod_phase = 0
+		return false
+	# Contact, authored attacks and defensive reactions retain full-rate physics.
+	if (
+		ai_attack_pending
+		or attack_permission_claimed
+		or ai_attack_recovery_timer > 0.0
+		or defense_timer > 0.0
+		or defense_reaction_timer >= 0.0
+		or guard_break_timer > 0.0
+		or parry_counter_queued
+	):
+		physics_lod_phase = 0
+		return false
+	var target_in_contact := false
+	if ai_player != null and is_instance_valid(ai_player):
+		var target_delta := ai_player.global_position - global_position
+		target_delta.y = 0.0
+		var full_rate_distance := float(lod_settings["full_rate_distance"])
+		target_in_contact = target_delta.length_squared() <= full_rate_distance * full_rate_distance
+	var divisor := int(lod_settings["near_physics_divisor"])
+	if render_lod_level == 1:
+		divisor = int(lod_settings["medium_physics_divisor"])
+	elif render_lod_level >= 2:
+		divisor = int(lod_settings["far_physics_divisor"])
+	if target_in_contact:
+		divisor = 1
+	if divisor <= 1:
+		physics_lod_phase = 0
+		return false
+	physics_lod_phase = (physics_lod_phase + 1) % divisor
+	if physics_lod_phase == 0:
+		return false
+	physics_lod_accumulator += delta
+	physics_deferred_step_count += 1
+	return true
+
+static func _runtime_lod_settings() -> Dictionary:
+	var now_msec := Time.get_ticks_msec()
+	if now_msec >= _lod_settings_refresh_deadline_msec:
+		var enabled := bool(ProjectSettings.get_setting("hoplite/enemy_lod/enabled", true))
+		var near_distance := float(ProjectSettings.get_setting("hoplite/enemy_lod/near_distance", 16.0))
+		var far_distance := maxf(near_distance + 2.0, float(ProjectSettings.get_setting("hoplite/enemy_lod/far_distance", 38.0)))
+		var cull_distance := maxf(far_distance + 5.0, float(ProjectSettings.get_setting("hoplite/enemy_lod/cull_distance", 90.0)))
+		var full_rate_distance := clampf(float(ProjectSettings.get_setting("hoplite/enemy_lod/full_rate_distance", 3.8)), 2.0, near_distance)
+		_lod_settings_cache["enabled"] = enabled
+		_lod_settings_cache["near_distance"] = near_distance
+		_lod_settings_cache["far_distance"] = far_distance
+		_lod_settings_cache["cull_distance"] = cull_distance
+		_lod_settings_cache["full_rate_distance"] = full_rate_distance
+		_lod_settings_cache["near_physics_divisor"] = clampi(int(ProjectSettings.get_setting("hoplite/enemy_lod/near_physics_divisor", 2)), 1, 6)
+		_lod_settings_cache["medium_physics_divisor"] = clampi(int(ProjectSettings.get_setting("hoplite/enemy_lod/medium_physics_divisor", 3)), 1, 8)
+		_lod_settings_cache["far_physics_divisor"] = clampi(int(ProjectSettings.get_setting("hoplite/enemy_lod/far_physics_divisor", 5)), 1, 10)
+		_lod_settings_cache["medium_animation_hz"] = clampf(float(ProjectSettings.get_setting("hoplite/enemy_lod/medium_animation_hz", 30.0)), 12.0, 60.0)
+		_lod_settings_cache["far_animation_hz"] = clampf(float(ProjectSettings.get_setting("hoplite/enemy_lod/far_animation_hz", 12.0)), 4.0, 30.0)
+		_lod_settings_cache["shadow_distance"] = clampf(float(ProjectSettings.get_setting("hoplite/enemy_lod/shadow_distance", 8.0)), 0.0, near_distance)
+		_lod_settings_refresh_deadline_msec = now_msec + 250
+	return _lod_settings_cache
+
+static func invalidate_runtime_lod_settings_cache() -> void:
+	_lod_settings_refresh_deadline_msec = 0
 
 func _update_performance_lod() -> void:
 	# Performance/anatomy precision follows the human camera, not the nearest AI
@@ -1406,10 +1765,11 @@ func _update_performance_lod() -> void:
 		delta_to_player.y = 0.0
 		cached_player_distance = delta_to_player.length()
 
-	var lod_enabled := bool(ProjectSettings.get_setting("hoplite/enemy_lod/enabled", true))
-	var near_distance := float(ProjectSettings.get_setting("hoplite/enemy_lod/near_distance", 16.0))
-	var far_distance := maxf(near_distance + 2.0, float(ProjectSettings.get_setting("hoplite/enemy_lod/far_distance", 38.0)))
-	var cull_distance := maxf(far_distance + 5.0, float(ProjectSettings.get_setting("hoplite/enemy_lod/cull_distance", 90.0)))
+	var lod_settings := _runtime_lod_settings()
+	var lod_enabled := bool(lod_settings["enabled"])
+	var near_distance := float(lod_settings["near_distance"])
+	var far_distance := float(lod_settings["far_distance"])
+	var cull_distance := float(lod_settings["cull_distance"])
 	var next_render_lod := 0
 	if lod_enabled:
 		if cached_player_distance > cull_distance:
@@ -1418,22 +1778,75 @@ func _update_performance_lod() -> void:
 			next_render_lod = 2
 		elif cached_player_distance > near_distance:
 			next_render_lod = 1
-	if next_render_lod != render_lod_level:
+	var next_secondary_shadows := _secondary_hoplite_should_cast_shadows(next_render_lod, lod_enabled)
+	if next_render_lod != render_lod_level or next_secondary_shadows != secondary_hoplite_shadows_enabled:
+		secondary_hoplite_shadows_enabled = next_secondary_shadows
 		_apply_render_lod(next_render_lod, lod_enabled, cull_distance)
 
 	if anatomy == null:
 		return
-	if combat_debug_visible or cached_player_distance <= 6.5:
-		# Sword range: exact bone-following hitboxes remain full-rate.
-		anatomy.set_update_interval(0.0)
-	elif cached_player_distance <= 13.0:
-		anatomy.set_update_interval(0.045 if mass_battle_mode else 0.030)
+	var target_in_contact := false
+	if ai_player != null and is_instance_valid(ai_player):
+		var target_delta: Vector3 = ai_player.global_position - global_position
+		target_delta.y = 0.0
+		target_in_contact = target_delta.length_squared() <= 5.5 * 5.5
+	var anatomy_in_combat := (
+		combat_debug_visible
+		or cached_player_distance <= 8.0
+		or target_in_contact
+		or ai_attack_pending
+		or ai_attack_recovery_timer > 0.0
+		or defense_timer > 0.0
+		or ai_alert_timer > 0.0
+		or retaliation_timer > 0.0
+	)
+	anatomy.set_tracking_enabled(anatomy_in_combat)
+	if not anatomy_in_combat:
+		return
+	if combat_debug_visible or ai_attack_pending or defense_timer > 0.0 or cached_player_distance <= 3.8:
+		# Exact following is reserved for the actual strike/guard window.
+		anatomy.set_update_interval(0.0 if not mass_battle_mode else 0.030)
+	elif cached_player_distance <= 10.0 or target_in_contact:
+		anatomy.set_update_interval(0.065 if mass_battle_mode else 0.045)
 	else:
-		anatomy.set_update_interval(0.14 if mass_battle_mode else 0.075)
+		anatomy.set_update_interval(0.20 if mass_battle_mode else 0.12)
+
+func _secondary_hoplite_should_cast_shadows(level: int, lod_enabled: bool) -> bool:
+	if not lod_enabled:
+		return true
+	if level > 0 or mass_battle_mode:
+		return false
+	if not _is_phalanx_unit():
+		return true
+	var secondary: bool = formation_row > 0 or (formation_row == 0 and absi(formation_column) >= 2)
+	return not secondary or cached_player_distance <= float(_runtime_lod_settings()["shadow_distance"])
+
+func _direct_animation_uses_manual_sampling() -> bool:
+	return (
+		ai_animation_driver == null
+		and animation_player != null
+		and render_lod_level > 0
+		and animation_player.callback_mode_process == AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	)
+
+func _apply_direct_animation_lod(level: int) -> void:
+	if ai_animation_driver != null or animation_player == null:
+		return
+	if level <= 0:
+		animation_player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
+		# Re-sample immediately on wake so a player culled at LOD3 can never keep
+		# its last far-away pose until the following idle frame.
+		animation_player.advance(0.0)
+		direct_animation_sample_count += 1
+	else:
+		animation_player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 
 func _apply_render_lod(level: int, lod_enabled: bool, cull_distance: float) -> void:
 	render_lod_level = level
 	lod_animation_accumulator = 0.0
+	if ai_animation_driver != null and ai_animation_driver.has_method("set_simulation_lod"):
+		ai_animation_driver.set_simulation_lod(level if lod_enabled else 0)
+	_apply_direct_animation_lod(level if lod_enabled else 0)
 	for candidate: Node in find_children("*", "GeometryInstance3D", true, false):
 		var geometry := candidate as GeometryInstance3D
 		if geometry == null:
@@ -1461,7 +1874,7 @@ func _apply_render_lod(level: int, lod_enabled: bool, cull_distance: float) -> v
 		# Compatibility renderer cannot use smooth range fades. Disabled fade mode
 		# keeps the fast hysteresis path and avoids the transparent pipeline.
 		geometry.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
-		geometry.cast_shadow = int(defaults["cast_shadow"]) if level == 0 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		geometry.cast_shadow = int(defaults["cast_shadow"]) if level == 0 and secondary_hoplite_shadows_enabled else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for candidate: Node in find_children("*", "GPUParticles3D", true, false):
 		var particles := candidate as GPUParticles3D
 		if particles == null:
@@ -1476,11 +1889,15 @@ func _apply_render_lod(level: int, lod_enabled: bool, cull_distance: float) -> v
 func _begin_ai_attack() -> void:
 	if ai_attack_pending or ai_player == null or not is_instance_valid(ai_player) or not _can_ai_attack():
 		return
-	if attack_delivery != &"projectile" and not _claim_attack_permission(ai_player):
+	# Melee and ranged attacks share the same bounded scheduler. Projectiles used
+	# to bypass crowd capacity entirely, allowing every archer to fire together.
+	if not _claim_attack_permission(ai_player):
 		ai_state = &"pressure_wait"
 		ai_attack_cooldown_timer = randf_range(0.16, 0.30)
 		return
 	ai_attack_pending = true
+	proactive_defense_requires_attack = false
+	_force_animation_sample()
 	defense_timer = 0.0
 	defense_reaction_timer = -1.0
 	_set_shield_guard_active(false)
@@ -1510,7 +1927,11 @@ func _begin_ai_attack() -> void:
 		_play_mixamo_attack_animation()
 	elif ai_animation_driver != null:
 		ai_animation_driver.play_attack_variant(active_attack_slot, &"idle", false, ai_attack_anim_speed)
-	elif mass_battle_mode:
+	# Lightweight authored packages intentionally drive their hidden UAL1 donor
+	# directly instead of allocating a full retarget driver per troop. They need
+	# the same readable Sword_Attack fallback outside mass battles (Lab/Forge),
+	# otherwise the hit resolves while the visual remains in locomotion/idle.
+	elif mass_battle_mode or uses_spartan_package_visual:
 		_play_mass_attack_animation()
 
 func _next_combat_pattern_step() -> Dictionary:
@@ -1599,6 +2020,15 @@ func _choose_ai_attack_slot() -> StringName:
 
 func _resolve_ai_attack() -> void:
 	if not ai_attack_pending:
+		return
+	if attack_permission_claimed and not _has_authoritative_attack_permission():
+		ai_attack_pending = false
+		ai_attack_windup_timer = 0.0
+		ai_attack_recovery_timer = 0.16
+		ai_state = &"pressure_wait"
+		attack_permission_claimed = false
+		attack_permission_target = null
+		attack_permission_token = 0
 		return
 	if not _can_ai_attack():
 		ai_attack_pending = false
@@ -1781,11 +2211,19 @@ func _claim_attack_permission(target: Node3D) -> bool:
 	if target == null or not is_instance_valid(target):
 		return false
 	if attack_permission_claimed and attack_permission_target == target:
-		return true
-	_release_attack_permission()
+		if crowd_director == null or not is_instance_valid(crowd_director):
+			return true
+		if _has_authoritative_attack_permission():
+			return true
+		# The director may have expired a stalled lease. Never let the local cache
+		# continue authorizing attacks after the scheduler revoked it.
+		attack_permission_claimed = false
+		attack_permission_target = null
+		attack_permission_token = 0
 	if crowd_director == null or not is_instance_valid(crowd_director):
 		crowd_director = get_tree().get_first_node_in_group("crowd_director") if get_tree() != null else null
 	if crowd_director == null or not crowd_director.has_method("request_attack_permission"):
+		attack_permission_waiting = false
 		return true
 	var attack_capacity := 3
 	if crowd_director.has_method("attack_capacity_for"):
@@ -1794,20 +2232,54 @@ func _claim_attack_permission(target: Node3D) -> bool:
 		# A line alternates one thrust or a neighboring pair instead of allowing
 		# the whole front rank to fire on the same frame.
 		attack_capacity = mini(attack_capacity, 2)
-	if not bool(crowd_director.call("request_attack_permission", self, target, attack_capacity)):
+	if crowd_director.has_method("request_attack_lease"):
+		attack_permission_token = int(crowd_director.call("request_attack_lease", self, target, attack_capacity))
+		if attack_permission_token <= 0:
+			attack_permission_waiting = true
+			return false
+	elif not bool(crowd_director.call("request_attack_permission", self, target, attack_capacity)):
+		attack_permission_waiting = true
 		return false
+	else:
+		attack_permission_token = 1
 	attack_permission_claimed = true
+	attack_permission_waiting = false
 	attack_permission_target = target
 	return true
 
-func _release_attack_permission() -> void:
+func _release_attack_permission(cancel_waiting: bool = false) -> void:
+	# A failed claim means the director has queued this attacker. Normal polling
+	# must preserve that FIFO position; only teardown, target changes and explicit
+	# participation changes cancel all pending requests.
+	if cancel_waiting and crowd_director != null and is_instance_valid(crowd_director) and crowd_director.has_method("cancel_attack_requests"):
+		crowd_director.call("cancel_attack_requests", self)
+		attack_permission_waiting = false
 	if not attack_permission_claimed:
 		attack_permission_target = null
+		attack_permission_token = 0
 		return
 	if crowd_director != null and is_instance_valid(crowd_director) and crowd_director.has_method("release_attack_permission"):
-		crowd_director.call("release_attack_permission", self, attack_permission_target)
+		crowd_director.call("release_attack_permission", self, attack_permission_target, attack_permission_token)
 	attack_permission_claimed = false
 	attack_permission_target = null
+	attack_permission_token = 0
+
+
+func _cancel_pending_attack_request() -> void:
+	if crowd_director != null and is_instance_valid(crowd_director) and crowd_director.has_method("cancel_attack_requests"):
+		crowd_director.call("cancel_attack_requests", self)
+	attack_permission_waiting = false
+
+func _has_authoritative_attack_permission() -> bool:
+	if not attack_permission_claimed or attack_permission_target == null or not is_instance_valid(attack_permission_target):
+		return false
+	if crowd_director == null or not is_instance_valid(crowd_director):
+		return true
+	if crowd_director.has_method("is_attack_lease_valid"):
+		return bool(crowd_director.call("is_attack_lease_valid", self, attack_permission_target, attack_permission_token))
+	if crowd_director.has_method("has_attack_permission"):
+		return bool(crowd_director.call("has_attack_permission", self, attack_permission_target))
+	return true
 
 func _play_signature_attack() -> bool:
 	if signature_animations.is_empty() or randf() > signature_chance:
@@ -1857,9 +2329,8 @@ func _spawn_ai_projectile(target: Node3D) -> void:
 		randf_range(-projectile_spread, projectile_spread),
 		randf_range(-projectile_spread, projectile_spread)
 	)).normalized()
-	var projectile = EnemyProjectileScript.new()
+	var projectile = EnemyProjectileScript.acquire(get_tree().current_scene, projectile_kind)
 	projectile.name = "%sProjectile" % String(projectile_kind).capitalize()
-	get_tree().current_scene.add_child(projectile)
 	var target_mask: int = (1 | 4) if faction == &"spartan" else (1 | 2)
 	projectile.setup(self, origin, direction * projectile_speed, ai_attack_damage, projectile_kind, projectile_gravity, target_mask)
 
@@ -1986,18 +2457,39 @@ func _play_mixamo_attack_animation() -> void:
 	animation_player.play(clip, 0.055, playback_speed)
 	simple_anim_state = clip
 
-func _play_mixamo_reaction() -> void:
+func _play_mixamo_reaction() -> bool:
 	if not uses_mixamo_visual or animation_player == null or ai_attack_pending or ai_attack_recovery_timer > 0.0 or mixamo_reaction_cooldown > 0.0:
-		return
+		return false
 	var clip := StringName(mixamo_clips.get("reaction", StringName()))
 	if clip == StringName() or not animation_player.has_animation(clip):
-		return
+		return false
 	var animation := animation_player.get_animation(clip)
 	var playback_speed: float = 1.55
 	simple_anim_lock_timer = minf(0.58, animation.length / playback_speed) if animation != null else 0.42
 	mixamo_reaction_cooldown = 0.70
 	animation_player.play(clip, 0.035, playback_speed)
 	simple_anim_state = clip
+	return true
+
+func _play_hit_reaction() -> bool:
+	if _play_mixamo_reaction():
+		return true
+	if ai_animation_driver != null and ai_animation_driver.has_method("play_block_impact"):
+		ai_animation_driver.begin_block()
+		if ai_animation_driver.play_block_impact():
+			return true
+		ai_animation_driver.end_block()
+	# Some authored packages intentionally ship no block/hit donor. They still
+	# receive a deterministic, bounded root-independent recoil instead of a
+	# silent impact. The CharacterBody transform and physics remain untouched.
+	if visual_root == null:
+		return false
+	var original_roll := visual_root.rotation.z
+	visual_root.rotation.z = original_roll + 0.18
+	var recoil := create_tween()
+	recoil.tween_interval(0.35)
+	recoil.tween_property(visual_root, "rotation:z", original_roll, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	return true
 
 func _ai_face_direction(direction: Vector3, delta: float) -> void:
 	var flat: Vector3 = direction
@@ -2034,17 +2526,73 @@ func _combat_facing_direction(movement_direction: Vector3, attack_player: bool) 
 func alert_ai(duration: float = 8.0) -> void:
 	ai_alert_timer = maxf(ai_alert_timer, duration)
 
+func is_ai_participating_for_combat() -> bool:
+	return ai_enabled and not dead
+
+func set_ai_participation(enabled: bool) -> void:
+	if dead and enabled:
+		return
+	if not enabled:
+		_release_attack_permission(true)
+		_set_combat_target(null)
+		ai_attack_pending = false
+		ai_attack_windup_timer = 0.0
+		velocity.x = 0.0
+		velocity.z = 0.0
+		cached_ai_goal.clear()
+		cached_ai_separation = Vector3.ZERO
+		if navigation_component != null:
+			navigation_component.clear_destination()
+	ai_enabled = enabled
+	collision_mask = (1 | 2) if ai_enabled else 1
+	if not is_inside_tree():
+		return
+	if ai_enabled:
+		set_physics_process(true)
+		add_to_group("combatant_ai")
+		add_to_group("ally_ai" if faction == &"spartan" else "enemy_ai")
+		if _is_phalanx_unit():
+			add_to_group("phalanx_unit")
+		if ai_player == null and battle_player != null and is_instance_valid(battle_player):
+			ai_player = battle_player
+		_build_navigation_component()
+		ai_think_timer = 0.0
+	else:
+		remove_from_group("combatant_ai")
+		remove_from_group("ally_ai")
+		remove_from_group("enemy_ai")
+		remove_from_group("phalanx_unit")
+		set_physics_process(false)
+	_invalidate_crowd_membership()
+	if combatant_registry != null and is_instance_valid(combatant_registry) and combatant_registry.has_method("refresh_liveness"):
+		combatant_registry.call("refresh_liveness", self)
+
 func configure_demo_patrol(points: Array[Vector3], phase: int = 0, engage_distance: float = 6.5, patrol_speed: float = 0.0) -> void:
 	demo_patrol_points = points.duplicate()
 	demo_patrol_index = posmod(phase, demo_patrol_points.size()) if not demo_patrol_points.is_empty() else 0
 	demo_patrol_enabled = not demo_patrol_points.is_empty()
 	demo_patrol_engage_distance = maxf(2.0, engage_distance)
 	demo_patrol_move_speed = maxf(0.0, patrol_speed)
+	demo_patrol_interrupted = false
 	# The package uses the existing lightweight UAL1 loops directly. This is the
 	# same inexpensive path used by mass-battle soldiers, without a UAL2 donor tree.
 	mass_battle_mode = true
 	cached_ai_goal.clear()
 	ai_think_timer = 0.0
+
+static func nearest_patrol_index(points: Array[Vector3], from_position: Vector3) -> int:
+	if points.is_empty():
+		return 0
+	var nearest_index := 0
+	var nearest_distance_squared := INF
+	for index in range(points.size()):
+		var offset := points[index] - from_position
+		offset.y = 0.0
+		var distance_squared := offset.length_squared()
+		if distance_squared < nearest_distance_squared:
+			nearest_distance_squared = distance_squared
+			nearest_index = index
+	return nearest_index
 
 func configure_training_activation(center: Vector3, radius: float) -> void:
 	training_activation_center = center
@@ -2101,11 +2649,17 @@ func _refresh_combat_target() -> void:
 
 	var best: Node3D = null
 	var best_score: float = INF
-	var candidates: Array[Node] = []
-	if faction == &"spartan":
-		candidates.assign(get_tree().get_nodes_in_group("enemy"))
-	else:
-		candidates.assign(get_tree().get_nodes_in_group("spartan_ally"))
+	if crowd_director == null or not is_instance_valid(crowd_director):
+		crowd_director = get_tree().get_first_node_in_group("crowd_director")
+	var candidates: Array = []
+	var used_candidate_snapshot := false
+	if crowd_director != null and crowd_director.has_method("target_candidates_for"):
+		var candidate_snapshot: Variant = crowd_director.call("target_candidates_for", faction)
+		if candidate_snapshot is Array:
+			candidates = candidate_snapshot as Array
+			used_candidate_snapshot = true
+	if not used_candidate_snapshot:
+		candidates = get_tree().get_nodes_in_group("enemy" if faction == &"spartan" else "spartan_ally")
 
 	for candidate: Node in candidates:
 		if candidate == self or not (candidate is Node3D) or not _is_valid_combat_target(candidate as Node3D):
@@ -2165,7 +2719,7 @@ func _set_combat_target(next_target: Node3D) -> void:
 	if claimed_ai_target == next_target:
 		ai_player = next_target
 		return
-	_release_attack_permission()
+	_release_attack_permission(true)
 	if claimed_ai_target != null and is_instance_valid(claimed_ai_target):
 		if crowd_director == null or not is_instance_valid(crowd_director):
 			crowd_director = get_tree().get_first_node_in_group("crowd_director") if get_tree() != null else null
@@ -2180,7 +2734,7 @@ func _set_combat_target(next_target: Node3D) -> void:
 		claimed_ai_target.set_meta("hoplite_ai_claims", new_claims + 1)
 
 func hold_battlefield_position() -> void:
-	ai_enabled = false
+	set_ai_participation(false)
 	ai_state = &"hold_the_city"
 	velocity = Vector3.ZERO
 	_set_combat_target(null)
@@ -2625,13 +3179,23 @@ func _load_mannequin() -> void:
 	add_child(visual_root)
 	visual_root.rotation.y = PI
 
-	if not character_package_path.is_empty() and _try_load_spartan_character_package():
+	# A validated per-archetype Mixamo override is explicit test/authored intent and
+	# must win over the normal package-first route. Invalid cross-pool overrides do
+	# not bypass the canonical package.
+	var forced_mixamo_appearance: Dictionary = {}
+	if faction != &"spartan" and mixamo_model_override != StringName():
+		forced_mixamo_appearance = MixamoCatalogScript.appearance_for_model(archetype_id, mixamo_model_override)
+		if forced_mixamo_appearance.is_empty():
+			push_warning("Rejected Mixamo override %s outside archetype pool %s; using canonical selection." % [mixamo_model_override, archetype_id])
+	if forced_mixamo_appearance.is_empty() and not character_package_path.is_empty() and _try_load_spartan_character_package():
 		_finish_mannequin_setup()
 		return
 
 	var packed_path: String = UAL1_PATH
 	if faction != &"spartan":
-		var appearance: Dictionary = MixamoCatalogScript.appearance(archetype_id, ai_guard_index, get_instance_id(), mass_battle_mode)
+		var appearance: Dictionary = forced_mixamo_appearance
+		if appearance.is_empty():
+			appearance = MixamoCatalogScript.appearance(archetype_id, ai_guard_index, get_instance_id(), mass_battle_mode)
 		var candidate_path: String = String(appearance.get("path", ""))
 		if not candidate_path.is_empty() and ResourceLoader.exists(candidate_path):
 			packed_path = candidate_path
@@ -2716,10 +3280,14 @@ func _try_load_spartan_character_package() -> bool:
 
 	var candidate_adapter = SpartanPackageScript.new()
 	if not candidate_adapter.bind(candidate_root):
+		if _uses_shared_hoplite_animation() and _finish_clean_hoplite_package(candidate_scene, candidate_root):
+			return true
 		push_warning("[SPARTAN PACKAGE] Validation failed (%s); using legacy visual." % candidate_adapter.validation_error)
 		visual_root.remove_child(candidate_root)
 		candidate_root.free()
 		return false
+	if _uses_shared_hoplite_animation():
+		return _finish_shared_hoplite_package(candidate_scene, candidate_root, candidate_adapter)
 
 	var donor_packed := load(UAL1_PATH) as PackedScene
 	var donor_root := donor_packed.instantiate() as Node3D if donor_packed != null else null
@@ -2761,17 +3329,18 @@ func _try_load_spartan_character_package() -> bool:
 	spartan_package_scene = candidate_scene
 	spartan_package_adapter = candidate_adapter
 	uses_spartan_package_visual = true
+	_register_gore_package()
 	right_hand_bone = _find_hand_bone(true)
 	left_hand_bone = _find_hand_bone(false)
 	_build_character_package_equipment()
 	# Generic troops use the package's single UAL1 donor directly. Weapon roles
 	# that explicitly request a selective donor need the retarget driver too;
 	# mass crowds still stay on the cheap procedural/UAL1 fallback.
-	var needs_specialized_driver := (
-		combat_rank in [&"elite", &"miniboss", &"boss"]
-		or _is_phalanx_unit()
-		or weapon_kind == &"bow"
-		or not external_animation_keys.is_empty()
+	var needs_specialized_driver := AnimationRuntimeContract.needs_specialized_driver_values(
+		combat_rank,
+		behavior_mode,
+		weapon_kind,
+		external_animation_keys
 	)
 	if ai_enabled and not mass_battle_mode and needs_specialized_driver:
 		_setup_ai_animation_driver()
@@ -2781,7 +3350,99 @@ func _try_load_spartan_character_package() -> bool:
 	# animated feet. This removes exporter/root-height differences without a
 	# model-specific magic number and works on future packages using the same rig.
 	spartan_grounding_frames = 20
-	print("[SPARTAN PACKAGE] Loaded %s (53 bones, segmented gore, UAL1 animation donor)." % character_package_path)
+	if not _reported_character_packages.has(character_package_path):
+		print("[SPARTAN PACKAGE] Loaded %s (53 bones, segmented gore, UAL1 animation donor)." % character_package_path)
+		_reported_character_packages[character_package_path] = true
+	return true
+
+
+func _finish_clean_hoplite_package(candidate_scene: PackedScene, candidate_root: Node3D) -> bool:
+	# Clean UAL1 exports intentionally keep one skinned body mesh instead of the
+	# segmented SPARTAN_ASSET gore schema. They can still use the exact shared
+	# animation/equipment/anatomy path when the canonical 53-bone rig is intact.
+	_disable_animation_trees(candidate_root)
+	var candidate_skeleton := _find_skeleton(candidate_root)
+	if candidate_skeleton == null or candidate_skeleton.get_bone_count() != 53:
+		return false
+	# Blender disambiguates the armature object and its root bone with the same
+	# source name. Godot may consequently import the bone as root_2; normalize it
+	# so the baked shared-library tracks targeting .:root resolve correctly.
+	if candidate_skeleton.find_bone("root") < 0:
+		for bone_index: int in range(candidate_skeleton.get_bone_count()):
+			var imported_name := String(candidate_skeleton.get_bone_name(bone_index))
+			if candidate_skeleton.get_bone_parent(bone_index) < 0 and imported_name.begins_with("root_"):
+				for mesh_node: Node in candidate_root.find_children("*", "MeshInstance3D", true, false):
+					var mesh_instance := mesh_node as MeshInstance3D
+					if mesh_instance.skin == null:
+						continue
+					var instance_skin := mesh_instance.skin.duplicate() as Skin
+					for bind_index: int in range(instance_skin.get_bind_count()):
+						if String(instance_skin.get_bind_name(bind_index)) == imported_name:
+							instance_skin.set_bind_name(bind_index, "root")
+					mesh_instance.skin = instance_skin
+				candidate_skeleton.set_bone_name(bone_index, "root")
+				break
+	for bone_name: String in [
+		"root", "DEF-hips", "DEF-spine.001", "DEF-spine.002", "DEF-spine.003",
+		"DEF-neck", "DEF-head", "DEF-hand.L", "DEF-hand.R",
+		"DEF-thigh.L", "DEF-shin.L", "DEF-foot.L",
+		"DEF-thigh.R", "DEF-shin.R", "DEF-foot.R",
+	]:
+		if candidate_skeleton.find_bone(bone_name) < 0:
+			return false
+	for player_node: Node in candidate_root.find_children("*", "AnimationPlayer", true, false):
+		(player_node as AnimationPlayer).stop()
+		player_node.queue_free()
+
+	mannequin_scene = candidate_root
+	skeleton = candidate_skeleton
+	animation_player = AnimationPlayer.new()
+	animation_player.name = "HopliteAnimationPlayer"
+	animation_player.root_node = NodePath("..")
+	skeleton.add_child(animation_player)
+	spartan_package_scene = candidate_scene
+	spartan_package_adapter = null
+	uses_spartan_package_visual = true
+	right_hand_bone = _find_hand_bone(true)
+	left_hand_bone = _find_hand_bone(false)
+	_build_character_package_equipment()
+	_setup_ai_animation_driver()
+	if ai_animation_driver == null:
+		return false
+	spartan_grounding_frames = 20
+	if not _reported_character_packages.has(character_package_path):
+		print("[HOPLITE CLEAN MODEL] Loaded %s (one skinned mesh, shared clips)." % character_package_path)
+		_reported_character_packages[character_package_path] = true
+	return true
+
+
+func _finish_shared_hoplite_package(candidate_scene: PackedScene, candidate_root: Node3D, candidate_adapter: RefCounted) -> bool:
+	mannequin_scene = candidate_root
+	skeleton = candidate_adapter.get("skeleton") as Skeleton3D
+	if skeleton == null:
+		push_error("[HOPLITE SHARED ANIMATION] ngeneral package lost its canonical skeleton")
+		return false
+	if not candidate_adapter.call("optimize_body_meshes"):
+		push_warning("[HOPLITE BODY] could not merge the ten skinned body zones; segmented fallback kept")
+	animation_player = AnimationPlayer.new()
+	animation_player.name = "HopliteAnimationPlayer"
+	animation_player.root_node = NodePath("..")
+	skeleton.add_child(animation_player)
+	spartan_package_scene = candidate_scene
+	spartan_package_adapter = candidate_adapter
+	uses_spartan_package_visual = true
+	_register_gore_package()
+	right_hand_bone = _find_hand_bone(true)
+	left_hand_bone = _find_hand_bone(false)
+	_build_character_package_equipment()
+	_setup_ai_animation_driver()
+	if ai_animation_driver == null:
+		push_error("[HOPLITE SHARED ANIMATION] shared driver setup failed")
+		return false
+	spartan_grounding_frames = 20
+	if not _reported_character_packages.has(character_package_path):
+		print("[HOPLITE SHARED ANIMATION] Loaded %s (one visible skeleton, shared clips, no donors)." % character_package_path)
+		_reported_character_packages[character_package_path] = true
 	return true
 
 func _character_package_scene(path: String) -> PackedScene:
@@ -2822,7 +3483,8 @@ func _ground_spartan_package_visual() -> void:
 	var world_scale_y := maxf(absf(global_basis.get_scale().y), 0.01)
 	visual_root.position.y += correction / world_scale_y
 	visual_ground_offset = visual_root.position.y
-	print("[SPARTAN PACKAGE] Grounded visual by %.3f m (floor %.3f, foot %.3f)." % [correction, floor_y, lowest_foot_y])
+	if combat_debug_visible:
+		print("[SPARTAN PACKAGE] Grounded visual by %.3f m (floor %.3f, foot %.3f)." % [correction, floor_y, lowest_foot_y])
 
 func _build_character_package_equipment() -> void:
 	if skeleton == null or right_hand_bone.is_empty():
@@ -2877,9 +3539,7 @@ func _update_shield_guard_visual() -> void:
 	# torso for the active window, while retaining its authored/rest transform when
 	# guard ends.
 	var toward_threat: Vector3 = -global_basis.z
-	if _is_phalanx_unit() and formation_facing.length_squared() > 0.001:
-		toward_threat = formation_facing
-	elif ai_player != null and is_instance_valid(ai_player):
+	if not _is_phalanx_unit() and ai_player != null and is_instance_valid(ai_player):
 		toward_threat = ai_player.global_position - global_position
 		toward_threat.y = 0.0
 	if toward_threat.length_squared() < 0.001:
@@ -2902,11 +3562,25 @@ func _update_shield_guard_visual() -> void:
 	var guard_basis := Basis.looking_at(toward_threat, Vector3.UP).orthonormalized()
 	shield_root.global_transform = Transform3D(guard_basis.scaled(world_scale), guard_position)
 
+func _set_shield_guard_root_anchored(enabled: bool) -> void:
+	if shield_root == null or shield_attachment == null or shield_dropped:
+		shield_guard_root_anchored = false
+		return
+	if enabled:
+		if shield_root.get_parent() != self:
+			# During guard the actor root owns the plate. Leaving it under the animated
+			# hand made every arm sample drag the shield away before the next world-space
+			# correction, which read as network lag even in a local 50+ FPS session.
+			shield_root.reparent(self, true)
+		shield_guard_root_anchored = true
+		return
+	if shield_root.get_parent() != shield_attachment:
+		shield_root.reparent(shield_attachment, true)
+	shield_root.transform = shield_rest_transform
+	shield_guard_root_anchored = false
+
 func _update_phalanx_equipment_pose() -> void:
 	var wants_guard := _formation_should_guard()
-	_set_shield_guard_active(wants_guard)
-	if wants_guard:
-		_update_shield_guard_visual()
 	if wants_guard != formation_guard_pose_applied:
 		formation_guard_pose_applied = wants_guard
 		if ai_animation_driver != null:
@@ -2914,13 +3588,17 @@ func _update_phalanx_equipment_pose() -> void:
 				ai_animation_driver.begin_block()
 			elif defense_timer <= 0.0:
 				ai_animation_driver.end_block()
-		if not wants_guard and defense_timer <= 0.0 and shield_root != null and not shield_dropped:
-			shield_root.transform = shield_rest_transform
+		_set_shield_guard_root_anchored(wants_guard)
+	_set_shield_guard_active(wants_guard)
+	if wants_guard:
+		_update_shield_guard_visual()
 
 	if weapon_kind != &"spear" or sword_root == null or sword_dropped or sword_attachment == null:
 		return
 	var spear_origin := sword_attachment.global_position
-	var spear_direction := formation_facing
+	# Equipment follows the body's actually integrated yaw. formation_facing is a
+	# 12 Hz tactical target and can jump ahead of the smoothly turning torso.
+	var spear_direction := -global_basis.z
 	if spear_direction.length_squared() < 0.001:
 		spear_direction = -global_basis.z
 	spear_direction.y = 0.0
@@ -3061,12 +3739,18 @@ func receive_anatomy_hit(hit: Variant, zone: StringName) -> void:
 		_spawn_blood_hit(hit_position, hit_direction, blood_intensity, false)
 	_flash_hit()
 	if contact == &"flesh" and randf() > poise:
-		_play_mixamo_reaction()
+		_play_hit_reaction()
 
 	var severable: bool = bool(definition.get("severable", false))
 	var threshold: float = float(definition.get("sever_threshold", 9999.0))
 	if severable and float(state["sever"]) >= threshold:
 		_sever(zone, hit)
+		# A non-fatal limb sever used to return before the ordinary health death
+		# path, leaving an active actor at zero health. The sever consequence is
+		# resolved first so its visual and equipment loss remain intact, then the
+		# lethal-health invariant finalizes death exactly once.
+		if health <= 0.0 and not dead:
+			_die(false)
 		return
 
 	if health <= 0.0:
@@ -3222,6 +3906,7 @@ func _hide_zone_bone_chain(zone: StringName) -> void:
 	for bone_index: int in range(skeleton.get_bone_count()):
 		if _bone_is_descendant_of(bone_index, root_bone):
 			hidden_bones[bone_index] = true
+	hidden_bones_dirty = not hidden_bones.is_empty()
 
 func _bone_is_descendant_of(bone_index: int, root_bone: int) -> bool:
 	var current: int = bone_index
@@ -3235,13 +3920,21 @@ func _spawn_detached_proxy(zone: StringName, hit: Variant) -> void:
 	if anatomy == null or get_tree().current_scene == null:
 		return
 	var transform: Transform3D = anatomy.get_zone_world_transform(zone)
-	var radius: float = anatomy.get_zone_radius(zone)
+	# Anatomy collision transforms deliberately use an orthonormal world basis;
+	# dimensions therefore need the already-scaled world radius as well. Passing
+	# the authored local radius made Forge x3/x4 limbs collide at human size.
+	var radius: float = anatomy.get_zone_world_radius(zone)
 	var length: float = anatomy.get_zone_length(zone)
 	var direction: Vector3 = hit.direction
 	var sever_damage: float = hit.sever_damage
 	var impulse: Vector3 = direction.normalized() * clampf(2.2 + sever_damage * 0.055, 2.5, 9.0)
 
 	if uses_spartan_package_visual and spartan_package_scene != null and spartan_package_adapter != null:
+		var director: Node = _get_gore_director()
+		if director != null and director.spawn_spartan_fragment(
+			spartan_package_scene, spartan_package_adapter, zone, transform, radius, length, impulse
+		):
+			return
 		var detached = SpartanDetachedLimbScript.new()
 		get_tree().current_scene.add_child(detached)
 		if detached.setup(spartan_package_scene, spartan_package_adapter, zone, transform, radius, length, impulse):
@@ -3265,9 +3958,13 @@ func _handle_equipment_loss(zone: StringName) -> void:
 func _die(_from_sever: bool) -> void:
 	if dead:
 		return
-	_release_attack_permission()
+	_release_attack_permission(true)
 	_set_combat_target(null)
 	dead = true
+	# Death is an atomic exit from every AI consumer. Keeping a corpse in
+	# combatant_ai made the spatial grid and formation scheduler continue to scan
+	# it even though the registry already considered it dead.
+	set_ai_participation(false)
 	health = 0.0
 	velocity = Vector3.ZERO
 	ai_attack_pending = false
@@ -3304,16 +4001,18 @@ func _die(_from_sever: bool) -> void:
 		visual_root.rotation = Vector3(0.0, visual_root.rotation.y, 0.0)
 
 	var played_authored_death: bool = false
+	var corpse_settle_time: float = 0.85
 	if animation_player != null and animation_player.has_animation("Death01"):
 		var death_anim: Animation = animation_player.get_animation("Death01")
 		if death_anim != null:
 			death_anim.loop_mode = Animation.LOOP_NONE
+			corpse_settle_time = maxf(0.18, death_anim.length + 0.12)
 		animation_player.stop()
 		animation_player.play("Death01", 0.035, 1.0)
 		animation_player.advance(0.0)
 		played_authored_death = true
 		if uses_spartan_package_visual and death_anim != null:
-			spartan_corpse_grounding_timer = maxf(0.18, death_anim.length + 0.12)
+			spartan_corpse_grounding_timer = corpse_settle_time
 			spartan_corpse_grounding_tick = 0.0
 
 	# UAL1 normally provides Death01. Keep a small deterministic fallback only for
@@ -3321,7 +4020,35 @@ func _die(_from_sever: bool) -> void:
 	if not played_authored_death:
 		_collapse_dead_body_fallback()
 
+	# Keep the authored collapse visible, then turn the settled corpse into a
+	# render-only prop: no process callback, particles or dynamic shadows.
+	if spartan_corpse_grounding_timer < 0.0 and get_tree() != null:
+		get_tree().create_timer(corpse_settle_time).timeout.connect(_retire_corpse_runtime)
+	_schedule_corpse_release(corpse_settle_time)
+
 	died.emit(self)
+
+func _retire_corpse_runtime() -> void:
+	if not dead:
+		return
+	for candidate: Node in find_children("*", "GPUParticles3D", true, false):
+		var particles := candidate as GPUParticles3D
+		if particles != null:
+			particles.emitting = false
+	for candidate: Node in find_children("*", "GeometryInstance3D", true, false):
+		var geometry := candidate as GeometryInstance3D
+		if geometry != null:
+			geometry.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	set_process(false)
+
+func _schedule_corpse_release(settle_delay: float = 0.0) -> void:
+	if get_tree() == null or corpse_lifetime <= 0.0:
+		return
+	get_tree().create_timer(maxf(0.0, settle_delay) + corpse_lifetime).timeout.connect(_release_expired_corpse)
+
+func _release_expired_corpse() -> void:
+	if dead and is_inside_tree():
+		queue_free()
 
 func _ground_spartan_corpse_visual() -> void:
 	if visual_root == null or anatomy == null:
@@ -3344,7 +4071,8 @@ func _ground_spartan_corpse_visual() -> void:
 	var correction: float = clampf(floor_y - lowest_surface_y, -1.80, 0.45)
 	var world_scale_y := maxf(absf(global_basis.get_scale().y), 0.01)
 	visual_root.position.y += correction / world_scale_y
-	print("[SPARTAN PACKAGE] Grounded corpse by %.3f m." % correction)
+	if combat_debug_visible:
+		print("[SPARTAN PACKAGE] Grounded corpse by %.3f m." % correction)
 
 func _shutdown_ai_animation_for_death() -> void:
 	if ai_animation_driver == null:
@@ -3414,9 +4142,32 @@ func _spawn_blood_hit(world_position: Vector3, direction: Vector3, intensity: fl
 	var scene: Node = get_tree().current_scene
 	if scene == null:
 		return
+	var director: Node = _get_gore_director()
+	if director != null:
+		director.spawn_blood(world_position, direction, intensity, sever)
+		return
 	var burst = BloodBurstScript.new()
 	scene.add_child(burst)
 	burst.setup(world_position, direction, intensity, sever)
+
+func _get_gore_director() -> Node:
+	if gore_director == null or not is_instance_valid(gore_director):
+		gore_director = get_tree().get_first_node_in_group(&"gore_director") if get_tree() != null else null
+		if gore_director == null and get_tree() != null:
+			gore_director = GoreDirectorScript.new()
+			gore_director.name = "GoreDirector"
+			var owner: Node = get_tree().current_scene
+			if owner == null:
+				owner = get_tree().root
+			owner.add_child(gore_director)
+	return gore_director
+
+func _register_gore_package() -> void:
+	if spartan_package_scene == null:
+		return
+	var director: Node = _get_gore_director()
+	if director != null:
+		director.register_spartan_package(spartan_package_scene)
 
 func _flash_hit() -> void:
 	if body_material == null:
@@ -3451,6 +4202,7 @@ func set_combat_debug_visible(enabled: bool) -> void:
 	if anatomy != null:
 		anatomy.set_debug_visible(enabled)
 		if enabled:
+			anatomy.set_tracking_enabled(true)
 			anatomy.set_update_interval(0.0)
 		else:
 			_update_performance_lod()
@@ -3590,14 +4342,24 @@ func _play_mixamo_intro() -> void:
 func _setup_ai_animation_driver() -> void:
 	if mannequin_scene == null or skeleton == null or animation_player == null:
 		return
-	ai_animation_driver = DriverScript.new()
+	ai_animation_driver = SharedHopliteDriverScript.new() if _uses_shared_hoplite_animation() else DriverScript.new()
 	ai_animation_driver.name = "AthenianAIDriver"
 	add_child(ai_animation_driver)
 	var enable_external := not external_animation_keys.is_empty()
-	if not ai_animation_driver.configure(mannequin_scene, skeleton, animation_player, enable_external, external_animation_keys):
+	# Enemies never wall-run. Keep those four heavy Mixamo donors player-only.
+	if not ai_animation_driver.configure(mannequin_scene, skeleton, animation_player, enable_external, external_animation_keys, false, archetype_id):
 		ai_animation_driver.queue_free()
 		ai_animation_driver = null
 		_play_idle()
+	elif ai_animation_driver.has_method("set_simulation_lod"):
+		ai_animation_driver.set_simulation_lod(maxi(render_lod_level, 0))
+
+func _force_animation_sample() -> void:
+	if ai_animation_driver != null and ai_animation_driver.has_method("force_simulation_sample"):
+		ai_animation_driver.force_simulation_sample()
+
+func _uses_shared_hoplite_animation() -> bool:
+	return AnimationRuntimeContract.uses_shared_driver(archetype_id)
 
 func _tint_body() -> void:
 	body_material = StandardMaterial3D.new()
@@ -3637,8 +4399,19 @@ func _build_mixamo_weapon() -> void:
 	if weapon_kind == &"unarmed":
 		return
 	if mixamo_model_id == &"knight3":
-		# Knight3 renders an authored shield, but it needs the same physical combat
-		# surface as procedural equipment.
+		# Knight3 renders skinned authored equipment. Keep explicit hand anchors so
+		# severing can hide those meshes and spawn ordinary detachable replacements.
+		authored_weapon_visual = mannequin_scene.find_child("*Sword*", true, false) as Node3D
+		authored_shield_visual = mannequin_scene.find_child("*Shield*", true, false) as Node3D
+		sword_attachment = BoneAttachment3D.new()
+		sword_attachment.name = "AuthoredWeaponDropAttachment"
+		sword_attachment.bone_name = right_hand_bone
+		skeleton.add_child(sword_attachment)
+		sword_root = Node3D.new()
+		sword_root.name = "AuthoredWeaponDropAnchor"
+		sword_attachment.add_child(sword_root)
+		# The authored shield also needs the same physical combat surface as
+		# procedural equipment.
 		if shield_enabled and left_hand_bone != "":
 			shield_attachment = BoneAttachment3D.new()
 			shield_attachment.name = "AuthoredShieldCollisionAttachment"
@@ -3726,10 +4499,14 @@ func _build_armor_skin() -> void:
 			_add_skirt(leather, 5)
 
 func _make_skin_material(color: Color, metallic_value: float, roughness_value: float) -> StandardMaterial3D:
+	var key := _material_cache_key(color, roughness_value, metallic_value)
+	if _skin_material_cache.has(key):
+		return _skin_material_cache[key] as StandardMaterial3D
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.metallic = metallic_value
 	material.roughness = roughness_value
+	_skin_material_cache[key] = material
 	return material
 
 func _skin_attachment(bone_name: String, node_name: String) -> BoneAttachment3D:
@@ -3875,13 +4652,21 @@ func _drop_weapon() -> void:
 	sword_dropped = true
 	var t: Transform3D = sword_root.global_transform
 	sword_root.visible = false
+	if authored_weapon_visual != null:
+		authored_weapon_visual.visible = false
 	var body := RigidBody3D.new()
 	body.name = "DroppedAthenian%s" % String(weapon_kind).capitalize()
 	body.collision_layer = 16
 	body.collision_mask = 1
+	body.can_sleep = true
 	get_tree().current_scene.add_child(body)
 	body.global_transform = t
-	var visual: Node3D = _make_right_hand_weapon()
+	# Duplicate the carried visual so PrimitiveMesh and Material resources remain
+	# shared; rebuilding the procedural weapon here doubled every resource.
+	var visual := _make_right_hand_weapon() if authored_weapon_visual != null else sword_root.duplicate() as Node3D
+	if visual == null:
+		visual = _make_right_hand_weapon()
+	visual.visible = true
 	body.add_child(visual)
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
@@ -3909,6 +4694,9 @@ func _drop_weapon() -> void:
 	collision.shape = shape
 	body.add_child(collision)
 	body.apply_central_impulse(Vector3(randf_range(-1.2, 1.2), 2.5, randf_range(-1.2, 1.2)))
+	var lifecycle = DebrisLifecycleScript.new()
+	body.add_child(lifecycle)
+	lifecycle.setup(body, collision, 12.0, 4.0)
 
 func _drop_shield() -> void:
 	if shield_dropped or shield_root == null or get_tree().current_scene == null:
@@ -3922,13 +4710,19 @@ func _drop_shield() -> void:
 	_end_defense_window()
 	var t: Transform3D = shield_root.global_transform
 	shield_root.visible = false
+	if authored_shield_visual != null:
+		authored_shield_visual.visible = false
 	var body := RigidBody3D.new()
 	body.name = "DroppedAthenianShield"
 	body.collision_layer = 16
 	body.collision_mask = 1
+	body.can_sleep = true
 	get_tree().current_scene.add_child(body)
 	body.global_transform = t
-	var visual: Node3D = _make_shield()
+	var visual := _make_shield() if authored_shield_visual != null else shield_root.duplicate() as Node3D
+	if visual == null:
+		visual = _make_shield()
+	visual.visible = true
 	body.add_child(visual)
 	var collision := CollisionShape3D.new()
 	var shape := CylinderShape3D.new()
@@ -3938,17 +4732,14 @@ func _drop_shield() -> void:
 	collision.rotation_degrees = Vector3(90.0, 0.0, 0.0)
 	body.add_child(collision)
 	body.apply_central_impulse(Vector3(randf_range(-1.0, 1.0), 2.0, randf_range(-1.0, 1.0)))
+	var lifecycle = DebrisLifecycleScript.new()
+	body.add_child(lifecycle)
+	lifecycle.setup(body, collision, 12.0, 4.0)
 
 func _make_sword() -> Node3D:
 	var root := Node3D.new()
-	var bronze := StandardMaterial3D.new()
-	bronze.albedo_color = Color(0.33, 0.16, 0.05)
-	bronze.metallic = 0.55
-	bronze.roughness = 0.34
-	var steel := StandardMaterial3D.new()
-	steel.albedo_color = Color(0.68, 0.72, 0.76)
-	steel.metallic = 0.82
-	steel.roughness = 0.22
+	var bronze := _make_weapon_material(Color(0.33, 0.16, 0.05), 0.34, 0.55)
+	var steel := _make_weapon_material(Color(0.68, 0.72, 0.76), 0.22, 0.82)
 
 	var blade := MeshInstance3D.new()
 	var blade_mesh := BoxMesh.new()
@@ -4072,11 +4863,18 @@ func _make_bow() -> Node3D:
 	return root
 
 func _make_weapon_material(color: Color, roughness_value: float, metallic_value: float) -> StandardMaterial3D:
+	var key := _material_cache_key(color, roughness_value, metallic_value)
+	if _weapon_material_cache.has(key):
+		return _weapon_material_cache[key] as StandardMaterial3D
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = roughness_value
 	material.metallic = metallic_value
+	_weapon_material_cache[key] = material
 	return material
+
+func _material_cache_key(color: Color, roughness_value: float, metallic_value: float) -> String:
+	return "%s|%.4f|%.4f" % [color.to_html(true), roughness_value, metallic_value]
 
 func _make_spear() -> Node3D:
 	if _uses_imported_phalanx_gear():
@@ -4085,13 +4883,8 @@ func _make_spear() -> Node3D:
 	var root := Node3D.new()
 	root.name = "DorySpear"
 
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.26, 0.11, 0.035)
-	wood.roughness = 0.72
-	var bronze := StandardMaterial3D.new()
-	bronze.albedo_color = Color(0.62, 0.34, 0.08)
-	bronze.metallic = 0.72
-	bronze.roughness = 0.28
+	var wood := _make_weapon_material(Color(0.26, 0.11, 0.035), 0.72, 0.0)
+	var bronze := _make_weapon_material(Color(0.62, 0.34, 0.08), 0.28, 0.72)
 
 	var shaft := MeshInstance3D.new()
 	var shaft_mesh := CylinderMesh.new()
@@ -4128,17 +4921,9 @@ func _make_hammer() -> Node3D:
 	var root := Node3D.new()
 	root.name = "ColossusWarHammer"
 
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.19, 0.065, 0.018)
-	wood.roughness = 0.78
-	var bronze := StandardMaterial3D.new()
-	bronze.albedo_color = Color(0.45, 0.24, 0.055)
-	bronze.metallic = 0.76
-	bronze.roughness = 0.28
-	var iron := StandardMaterial3D.new()
-	iron.albedo_color = Color(0.24, 0.27, 0.30)
-	iron.metallic = 0.90
-	iron.roughness = 0.18
+	var wood := _make_weapon_material(Color(0.19, 0.065, 0.018), 0.78, 0.0)
+	var bronze := _make_weapon_material(Color(0.45, 0.24, 0.055), 0.28, 0.76)
+	var iron := _make_weapon_material(Color(0.24, 0.27, 0.30), 0.18, 0.90)
 
 	var haft := MeshInstance3D.new()
 	var haft_mesh := CylinderMesh.new()
@@ -4185,17 +4970,9 @@ func _make_axe() -> Node3D:
 	var root := Node3D.new()
 	root.name = "WarAxe"
 
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.22, 0.075, 0.022)
-	wood.roughness = 0.76
-	var steel := StandardMaterial3D.new()
-	steel.albedo_color = Color(0.38, 0.43, 0.48)
-	steel.metallic = 0.88
-	steel.roughness = 0.20
-	var bronze := StandardMaterial3D.new()
-	bronze.albedo_color = Color(0.52, 0.27, 0.055)
-	bronze.metallic = 0.68
-	bronze.roughness = 0.30
+	var wood := _make_weapon_material(Color(0.22, 0.075, 0.022), 0.76, 0.0)
+	var steel := _make_weapon_material(Color(0.38, 0.43, 0.48), 0.20, 0.88)
+	var bronze := _make_weapon_material(Color(0.52, 0.27, 0.055), 0.30, 0.68)
 
 	var haft := MeshInstance3D.new()
 	var haft_mesh := CylinderMesh.new()
@@ -4227,7 +5004,16 @@ func _make_axe() -> Node3D:
 
 func _make_shield() -> Node3D:
 	if _uses_imported_phalanx_gear():
-		return _instantiate_imported_phalanx_gear(ASPIS_SHIELD_SCENE, "AspisShield", "SM_Aspis_Shield")
+		var imported_root := _instantiate_imported_phalanx_gear(ASPIS_SHIELD_SCENE, "AspisShield", "SM_Aspis_Shield")
+		# The Blender aspis is authored with its handle side on the attachment's
+		# outward axis. Rotate only the imported visual so the bronze face points
+		# away from the left forearm. The physical guard root/hitbox keeps its
+		# existing hand-space orientation.
+		var imported_visual := imported_root.get_child(0) as Node3D if imported_root.get_child_count() > 0 else null
+		if imported_visual != null:
+			imported_visual.rotation.y = PI
+			imported_visual.set_meta("aspis_face_corrected", true)
+		return imported_root
 	var root := Node3D.new()
 	var shield := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
@@ -4236,10 +5022,7 @@ func _make_shield() -> Node3D:
 	mesh.bottom_radius = 0.48
 	shield.mesh = mesh
 	shield.rotation_degrees = Vector3(90.0, 0.0, 0.0)
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.52, 0.29, 0.075)
-	material.metallic = 0.72
-	material.roughness = 0.31
+	var material := _make_weapon_material(Color(0.52, 0.29, 0.075), 0.31, 0.72)
 	shield.material_override = material
 	root.add_child(shield)
 

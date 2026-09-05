@@ -7,10 +7,12 @@ var zone_defs: Dictionary = {}
 var zone_runtime: Dictionary = {}
 var debug_missing_bones: Array[String] = []
 var debug_visible: bool = false
+var bone_world_position_mapper := Callable()
 
 # V0.0.12 performance LOD. Hitboxes close to the player can still track bones every
 # physics frame; distant crowds update less often. Debug geometry is created lazily.
 var tracking_enabled: bool = true
+var query_enabled: bool = true
 var update_interval: float = 0.0
 var update_accumulator: float = 0.0
 
@@ -35,6 +37,9 @@ func configure(owner_node: Node, skeleton_node: Skeleton3D, definitions: Diction
 
 	return not zone_runtime.is_empty()
 
+func set_bone_world_position_mapper(mapper: Callable) -> void:
+	bone_world_position_mapper = mapper
+
 func _physics_process(delta: float) -> void:
 	if skeleton == null or not tracking_enabled:
 		return
@@ -57,10 +62,26 @@ func set_update_interval(seconds: float) -> void:
 	update_accumulator = update_interval
 
 func set_tracking_enabled(enabled: bool) -> void:
+	if tracking_enabled == enabled:
+		return
 	tracking_enabled = enabled
 	set_physics_process(enabled)
 	if enabled:
 		force_update()
+
+## Separates combat participation from bone tracking. Distant EnemyV2 actors
+## must leave the physics broad phase entirely; merely stopping this callback
+## keeps twelve stale query shapes registered for every soldier.
+func set_runtime_query_enabled(enabled: bool) -> void:
+	if query_enabled == enabled and tracking_enabled == enabled:
+		return
+	query_enabled = enabled
+	if enabled:
+		set_tracking_enabled(true)
+		collision_layer = 8
+	else:
+		collision_layer = 0
+		set_tracking_enabled(false)
 
 func force_update() -> void:
 	if skeleton == null:
@@ -70,6 +91,7 @@ func force_update() -> void:
 
 func shutdown() -> void:
 	tracking_enabled = false
+	query_enabled = false
 	collision_layer = 0
 	set_physics_process(false)
 	set_debug_visible(false)
@@ -137,7 +159,7 @@ func _update_zone_shape(zone: StringName) -> void:
 	if bone_a < 0:
 		return
 
-	var a_world: Vector3 = skeleton.to_global(skeleton.get_bone_global_pose(bone_a).origin)
+	var a_world: Vector3 = _bone_world_position(bone_a)
 	var shape_kind: StringName = StringName(runtime.get("shape", &"sphere"))
 	# CollisionShape3D transforms are written in world space below so that their
 	# orientation stays clean while following animated bones. That deliberately
@@ -149,15 +171,18 @@ func _update_zone_shape(zone: StringName) -> void:
 	runtime["world_radius"] = world_radius
 
 	if shape_kind == &"capsule" and bone_b >= 0:
-		var b_world: Vector3 = skeleton.to_global(skeleton.get_bone_global_pose(bone_b).origin)
+		var b_world: Vector3 = _bone_world_position(bone_b)
 		var segment: Vector3 = b_world - a_world
 		var length: float = segment.length()
 		var capsule := collision.shape as CapsuleShape3D
 		if capsule != null:
-			capsule.radius = world_radius
+			if absf(capsule.radius - world_radius) > 0.001:
+				capsule.radius = world_radius
 			# CapsuleShape3D.height includes both hemispheres. Add the diameters
 			# so the hit volume truly spans from bone A all the way to bone B.
-			capsule.height = maxf(length + world_radius * 2.0, world_radius * 2.05)
+			var wanted_height := maxf(length + world_radius * 2.0, world_radius * 2.05)
+			if absf(capsule.height - wanted_height) > 0.001:
+				capsule.height = wanted_height
 		if length < 0.05:
 			collision.global_position = a_world
 			if debug_mesh != null:
@@ -174,7 +199,7 @@ func _update_zone_shape(zone: StringName) -> void:
 		runtime["length"] = length
 	else:
 		var sphere := collision.shape as SphereShape3D
-		if sphere != null:
+		if sphere != null and absf(sphere.radius - world_radius) > 0.001:
 			sphere.radius = world_radius
 		collision.global_transform = Transform3D(Basis.IDENTITY, a_world)
 		if debug_mesh != null:
@@ -295,7 +320,7 @@ func estimate_lowest_surface_y() -> float:
 		for key: String in ["bone_a", "bone_b"]:
 			var bone_index: int = int(runtime.get(key, -1))
 			if bone_index >= 0 and bone_index < skeleton.get_bone_count():
-				var bone_world: Vector3 = skeleton.to_global(skeleton.get_bone_global_pose(bone_index).origin)
+				var bone_world: Vector3 = _bone_world_position(bone_index)
 				lowest = minf(lowest, bone_world.y - radius)
 	return lowest
 
@@ -385,6 +410,13 @@ func _sync_debug_mesh_geometry(zone: StringName) -> void:
 func _world_radius_scale() -> float:
 	var world_scale := global_basis.get_scale()
 	return maxf(maxf(absf(world_scale.x), absf(world_scale.y)), maxf(absf(world_scale.z), 0.01))
+
+func _bone_world_position(bone_index: int) -> Vector3:
+	if bone_world_position_mapper.is_valid():
+		var mapped: Variant = bone_world_position_mapper.call(bone_index)
+		if mapped is Vector3:
+			return mapped as Vector3
+	return skeleton.to_global(skeleton.get_bone_global_pose(bone_index).origin)
 
 func _debug_material_for_zone(zone: StringName) -> StandardMaterial3D:
 	var color := Color(0.12, 0.48, 1.0, 0.22)

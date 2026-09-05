@@ -32,6 +32,17 @@ func _run() -> void:
 	corner_wall.add_child(corner_collision)
 	corner_wall.position = Vector3(1.75, 1.0, 1.25)
 	world.add_child(corner_wall)
+	var cylinder := StaticBody3D.new()
+	cylinder.name = "CurvedWallRunRegressionCylinder"
+	cylinder.collision_layer = 1
+	cylinder.position = Vector3(20.0, 4.0, 0.0)
+	var cylinder_collision := CollisionShape3D.new()
+	var cylinder_shape := CylinderShape3D.new()
+	cylinder_shape.radius = 0.80
+	cylinder_shape.height = 8.0
+	cylinder_collision.shape = cylinder_shape
+	cylinder.add_child(cylinder_collision)
+	world.add_child(cylinder)
 
 	var regular_enemy := StaticBody3D.new()
 	regular_enemy.name = "RegularEnemyWallRunReject"
@@ -81,6 +92,20 @@ func _run() -> void:
 	giant_floor.add_child(giant_floor_collision)
 	world.add_child(giant_floor)
 
+	var dinosaur_floor := AnimatableBody3D.new()
+	dinosaur_floor.name = "TyrannosaurusAnimatedBack"
+	dinosaur_floor.collision_layer = 256
+	dinosaur_floor.collision_mask = 0
+	dinosaur_floor.sync_to_physics = true
+	dinosaur_floor.position = Vector3(18.0, 0.05, 0.0)
+	dinosaur_floor.add_to_group("giant_wall_run_surface")
+	var dinosaur_floor_collision := CollisionShape3D.new()
+	var dinosaur_floor_shape := BoxShape3D.new()
+	dinosaur_floor_shape.size = Vector3(4.0, 0.10, 4.0)
+	dinosaur_floor_collision.shape = dinosaur_floor_shape
+	dinosaur_floor.add_child(dinosaur_floor_collision)
+	world.add_child(dinosaur_floor)
+
 	var player := PlayerScript.new() as HopliteUALNativePlayer
 	player.name = "WallRunProbePlayer"
 	player.process_mode = Node.PROCESS_MODE_DISABLED
@@ -102,6 +127,13 @@ func _run() -> void:
 	_assert(player.is_on_floor(), "horizontal Forge giant surface was not recognized as floor")
 	_assert(player.jumps_used == 0, "standing on a giant did not reset double jump")
 	_assert(player.wall_run_runs_used == 0 and player.wall_run_attach_available, "standing on a giant did not reset wall runs")
+	player.global_position = Vector3(18.0, 0.80, 0.0)
+	player.velocity = Vector3.DOWN * 8.0
+	for _step: int in range(16):
+		await physics_frame
+	_assert(player.is_on_floor(), "animated dinosaur traversal surface was not recognized as floor")
+	_assert(player.giant_traversal_support_active, "player did not identify the animated dinosaur support")
+	_assert(player.platform_on_leave == CharacterBody3D.PLATFORM_ON_LEAVE_DO_NOTHING, "dinosaur support still transfers its leave velocity")
 	# Clear CharacterBody3D's cached floor state before the remaining airborne
 	# release tests resume in their original disabled/manual mode.
 	player.global_position = Vector3(0.0, 2.0, 1.0)
@@ -277,6 +309,8 @@ func _run() -> void:
 	_assert(is_equal_approx(enemy_vertical_repulsion.length(), vertical_repulsion.length()), "enemy vertical repulsion changed even though only horizontal/diagonal should be reduced")
 	player._perform_wall_jump()
 	_assert(player.animation_driver == null or player.animation_driver.wall_visual_mode == &"vertical_release", "early vertical jump did not preserve the backflip")
+	var manual_vertical_release_speed: float = player.velocity.y
+	_assert(is_equal_approx(manual_vertical_release_speed, player.wall_jump_up_speed), "manual vertical wall jump lost its deliberate upward speed")
 	if player.animation_driver != null:
 		var release_duration: float = player.animation_driver.wall_visual_timer
 		player.animation_driver.tick(release_duration * 0.70)
@@ -290,19 +324,134 @@ func _run() -> void:
 		_assert(player.animation_driver.wall_visual_mode == StringName(), "second-jump aerial twist did not finish")
 		_assert(player.animation_driver.wall_release_air_pose_active, "second-jump twist did not return to NinjaJump_Idle")
 
+	player._reset_wall_run_after_landing()
+	player.velocity = Vector3.UP * player.wall_run_vertical_speed
+	player._begin_wall_run(Vector3.LEFT, Vector3.RIGHT, &"giant_enemy")
+	player._detach_wall_run("probe passive giant crest", true)
+	_assert(player.velocity.y <= 2.21, "passive giant vertical detachment still launches the player")
+	_assert(is_zero_approx(player.wall_run_repulsion_control_lock), "passive giant vertical detachment unnecessarily locks air steering")
+
+	# Isolate traversal framing from the heavy/light attack FOV residue exercised
+	# immediately above; those systems are composed in runtime but tested apart.
+	player.combat_feedback.fov_offset = 0.0
+	player.combat_feedback.camera_kick = Vector3.ZERO
+	player.combat_feedback.perfect_response_active = false
+	player.combat_feedback.cinematic_active = false
+	player.combat_feedback.epic_run_kind = StringName()
+	player.combat_feedback.epic_run_contact_active = false
+	player.combat_feedback.epic_run_envelope = 0.0
+	player.combat_feedback.epic_run_elapsed = 0.0
+	player.combat_feedback.wall_run_envelope = 0.0
+	player.combat_feedback.time_effect_owned = false
+	Engine.time_scale = 1.0
+	player.camera_distance = 7.0
+	player.spring_arm.spring_length = 7.0
+	player._reset_epic_wall_run_camera_settings()
+	player.combat_feedback.configure_epic_wall_run_settings(player.epic_wall_run_camera_settings)
 	player.wall_run_active = true
 	player.wall_run_mode = &"horizontal"
 	player.wall_run_normal = Vector3.LEFT
 	player.wall_run_last_tangent = Vector3.FORWARD
 	for frame: int in range(5):
 		player._update_camera(0.05)
-	_assert(player.camera.fov > player.camera_base_fov + 1.0, "wall-run camera FOV accent did not engage")
+		player.combat_feedback._tick_feedback(0.05)
+	_assert(player.camera.fov > player.camera_base_fov + 1.0, "wall-run camera FOV accent did not engage (fov=%.2f base=%.2f envelope=%.2f)" % [player.camera.fov, player.camera_base_fov, player.combat_feedback.wall_run_envelope])
 	_assert(absf(player.camera.rotation.z) > deg_to_rad(0.5), "wall-run camera roll did not engage")
 	player.wall_run_active = false
 	for frame: int in range(20):
 		player._update_camera(0.05)
+		player.combat_feedback._tick_feedback(0.05)
 	_assert(absf(player.camera.fov - player.camera_base_fov) < 0.2, "wall-run camera FOV did not recover smoothly")
 	_assert(absf(player.camera.rotation.z) < deg_to_rad(0.2), "wall-run camera roll did not recover smoothly")
+
+	player._begin_wall_run(Vector3.LEFT, Vector3.FORWARD, &"giant_enemy")
+	player.combat_feedback._tick_feedback(0.05)
+	var giant_raw_entry: float = player.combat_feedback.epic_run_envelope
+	var giant_eased_entry: float = player.combat_feedback._epic_run_eased_envelope()
+	_assert(giant_eased_entry < giant_raw_entry, "giant run camera did not ease in gently from zero")
+	for frame: int in range(14):
+		player._update_camera(0.05)
+		player.combat_feedback._tick_feedback(0.05)
+	var giant_run_scale: float = Engine.time_scale
+	_assert(player.combat_feedback.is_epic_wall_run_active(), "giant run did not activate the global epic traversal feedback")
+	_assert(giant_run_scale > 0.68 and giant_run_scale < 0.84, "giant run slow motion is not in the reduced readable range")
+	_assert(player.combat_feedback.epic_run_label.text == "GIANT RUN", "giant run HUD callout is ambiguous")
+	_assert(player.combat_feedback.epic_run_hud_root.visible, "giant run HUD was not shown")
+	_assert(absf(player.camera.fov - player.camera_base_fov) < 0.75, "giant run did not preserve the newly tuned subtle FOV zoom")
+	_assert(player.camera_yaw.global_position.y - player.global_position.y < 0.25, "giant run camera pivot did not settle near the newly tuned 0.10 metre height")
+	_assert(player.camera.rotation.x > deg_to_rad(20.0), "giant run camera did not adopt the strong upward-looking angle")
+	_assert(player.spring_arm.spring_length < player.camera_distance - 0.55, "giant run camera did not move closer through the SpringArm (length=%.2f base=%.2f envelope=%.2f)" % [player.spring_arm.spring_length, player.camera_distance, player.combat_feedback.epic_run_envelope])
+	player._detach_wall_run("short giant feedback probe", false)
+	player.combat_feedback._tick_feedback(0.04)
+	_assert(player.combat_feedback.is_epic_wall_run_active(), "a short giant run snapped its presentation off")
+	_assert(player.combat_feedback._epic_run_eased_envelope() > player.combat_feedback.epic_run_envelope, "giant run camera did not ease out from full strength")
+	for frame: int in range(24):
+		player._update_camera(0.05)
+		player.combat_feedback._tick_feedback(0.05)
+	_assert(not player.combat_feedback.is_epic_wall_run_active(), "giant run presentation did not release")
+	_assert(is_equal_approx(Engine.time_scale, 1.0), "giant run did not restore the global time scale")
+	_assert(player.spring_arm.spring_length > player.camera_distance - 0.20, "giant run camera distance did not recover")
+
+	player._reset_wall_run_after_landing()
+	# Explicit rightward travel: the camera must orbit to the player's left and
+	# look right, so it remains behind the action rather than watching side-on.
+	player._begin_wall_run(Vector3.FORWARD, Vector3.RIGHT, &"phalanx_shields")
+	for frame: int in range(10):
+		player._update_camera(0.05)
+		player.combat_feedback._tick_feedback(0.05)
+	_assert(player.combat_feedback.epic_run_label.text == "SHIELD RUN", "shield run HUD callout is ambiguous")
+	_assert(Engine.time_scale > giant_run_scale and Engine.time_scale > 0.86, "shield run did not use the newly tuned light slow-motion profile")
+	_assert(absf(player.camera.h_offset) > 0.20, "shield run did not engage its lateral camera displacement")
+	var rightward_camera_forward: Vector3 = -player.camera_yaw.global_basis.z
+	rightward_camera_forward.y = 0.0
+	rightward_camera_forward = rightward_camera_forward.normalized()
+	var rightward_camera_position_side: Vector3 = player.camera_yaw.global_basis.z
+	rightward_camera_position_side.y = 0.0
+	rightward_camera_position_side = rightward_camera_position_side.normalized()
+	_assert(rightward_camera_forward.dot(Vector3.RIGHT) > 0.90, "rightward shield run camera did not look along player travel")
+	_assert(rightward_camera_position_side.dot(Vector3.LEFT) > 0.90, "rightward shield run camera did not move behind the player on the left")
+	_assert(player.camera_pitch.rotation.x > -0.12, "shield run SpringArm did not ease toward a low, level position")
+	_assert(player.camera.rotation.x > deg_to_rad(5.0), "shield run camera did not aim back up at the player")
+
+	var yaw_before_direction_change: float = player.camera_yaw.rotation.y
+	player.wall_run_last_tangent = Vector3.BACK
+	player._update_camera(0.05)
+	player.combat_feedback._tick_feedback(0.05)
+	var first_yaw_step: float = absf(angle_difference(yaw_before_direction_change, player.camera_yaw.rotation.y))
+	_assert(first_yaw_step < deg_to_rad(40.0), "wall-run direction change snapped the chase camera")
+	for frame: int in range(9):
+		player._update_camera(0.05)
+		player.combat_feedback._tick_feedback(0.05)
+	var changed_camera_forward: Vector3 = -player.camera_yaw.global_basis.z
+	changed_camera_forward.y = 0.0
+	changed_camera_forward = changed_camera_forward.normalized()
+	_assert(changed_camera_forward.dot(Vector3.BACK) > 0.90, "chase camera did not follow the changed wall-run direction")
+	var horizontal_focus_height: float = player.combat_feedback.epic_camera_focus_height(player.camera_pivot_height)
+	var horizontal_fov: float = player.camera.fov
+	player.wall_run_mode = &"diagonal"
+	for frame: int in range(8):
+		player._update_camera(0.05)
+		player.combat_feedback._tick_feedback(0.05)
+	_assert(player.combat_feedback.wall_run_orientation_blend.y > 0.70, "diagonal run did not blend into its camera profile")
+	var diagonal_focus_height: float = player.combat_feedback.epic_camera_focus_height(player.camera_pivot_height)
+	_assert(diagonal_focus_height < horizontal_focus_height, "diagonal run did not lower the player focus beyond the lateral profile")
+	var rotation_before_vertical: Vector3 = player.camera.rotation
+	player.wall_run_mode = &"vertical"
+	player._update_camera(0.05)
+	player.combat_feedback._tick_feedback(0.05)
+	_assert(player.camera.rotation.distance_to(rotation_before_vertical) < deg_to_rad(3.0), "orientation change snapped the epic camera rotation")
+	for frame: int in range(10):
+		player._update_camera(0.05)
+		player.combat_feedback._tick_feedback(0.05)
+	_assert(player.combat_feedback.wall_run_orientation_blend.z > 0.85, "vertical run did not blend into its camera profile")
+	_assert(player.camera.rotation.x > deg_to_rad(3.0), "vertical run camera did not adopt the low upward-looking angle")
+	_assert(player.camera.fov < horizontal_fov - 0.45, "vertical run did not receive the stronger directional focus zoom")
+	player._detach_wall_run("short shield feedback probe", false)
+	for frame: int in range(24):
+		player._update_camera(0.05)
+		player.combat_feedback._tick_feedback(0.05)
+	_assert(is_equal_approx(Engine.time_scale, 1.0), "shield run did not restore the global time scale")
+	player._reset_wall_run_after_landing()
 
 	_assert(player._wall_run_corner_is_interior(Vector3.BACK, Vector3.RIGHT, Vector3.LEFT), "90-degree interior corner was rejected")
 	_assert(not player._wall_run_corner_is_interior(Vector3.FORWARD, Vector3.RIGHT, Vector3.RIGHT), "270-degree exterior corner was accepted")
@@ -317,15 +466,44 @@ func _run() -> void:
 
 	player._reset_wall_run_after_landing()
 	_assert(player.animation_driver == null or (not player.animation_driver.wall_release_air_pose_requested and not player.animation_driver.wall_release_air_pose_active), "landing did not clear the wall-release airborne pose")
+
+	# Regression: on a convex cylinder the surface normal rotates until the held
+	# direction has almost no tangent component. Normalizing that tiny projection
+	# used to flip the run direction every few frames and loop the chase camera.
+	player.process_mode = Node.PROCESS_MODE_ALWAYS
+	player.set_physics_process(false)
+	player.camera_yaw.rotation.y = 0.0
+	player.global_position = Vector3(21.19, 1.0, 0.0)
+	player.velocity = Vector3.FORWARD * player.wall_run_horizontal_speed
+	Input.action_press(&"move_forward")
+	player._begin_wall_run(Vector3.RIGHT, Vector3.FORWARD)
+	var cylinder_detach_frame: int = -1
+	for frame: int in range(30):
+		player._update_wall_run(1.0 / 60.0)
+		if not player.wall_run_active:
+			cylinder_detach_frame = frame
+			break
+	Input.action_release(&"move_forward")
+	_assert(cylinder_detach_frame >= 0 and cylinder_detach_frame < 20, "cylindrical wall run reached the tangent reversal instead of detaching")
+	_assert(player.wall_run_debug_reason == "curved surface course exhausted", "cylindrical wall run did not report the isolated tangent-collapse trigger")
+	_assert(player.wall_run_passive_detach_locked, "cylindrical tangent collapse did not reuse passive end-of-run detachment")
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	player._reset_wall_run_after_landing()
+
 	player.global_position = Vector3(0.0, 0.05, 1.0)
-	player.wall_run_active = true
-	player.wall_run_mode = &"vertical"
-	player.wall_run_normal = Vector3.BACK
+	player.velocity = Vector3.UP * 6.0
+	player._begin_wall_run(Vector3.BACK, Vector3.FORWARD)
+	_assert(player.wall_run_runs_used == 1 and not player.wall_run_attach_available, "vertical wall-run setup did not consume the airborne attachment")
 	var climb_started: bool = player._try_start_parkour(Vector3.FORWARD, true)
 	_assert(climb_started and player.parkour_active and player.parkour_kind == &"climb", "climb did not override the vertical wall-run at a reachable lip")
+	_assert(player.parkour_started_from_wall_run, "climb did not remember that it interrupted a wall run")
+	player._finish_parkour()
+	_assert(not player.parkour_active and not player.parkour_started_from_wall_run, "wall-run mantle did not finish cleanly")
+	_assert(player.wall_run_attach_available and player.wall_run_runs_used == 0, "wall-run mantle did not rearm before an immediate jump")
+	_assert(player.wall_run_debug_reason == "parkour exit -> rearmed", "wall-run mantle rearm did not report its dedicated exit path")
 
 	if failures.is_empty():
-		print("[WALL RUN PROBE] PASS — wall lights/heavy release, charge preserved through attachment+jump, layered animation, world/enemy tuning, shields and corners")
+		print("[WALL RUN PROBE] PASS — wall combat, curved-surface detach, mantle rearm, enemy traversal, reduced slow-mo, behind-player chase framing, foot-focus aim, directional blends, short-contact tails and corners")
 	else:
 		for failure: String in failures:
 			push_error("[WALL RUN PROBE] " + failure)

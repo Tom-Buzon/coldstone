@@ -1,0 +1,231 @@
+{
+  "engine": "Godot 4.7 stable",
+  "renderer": "OpenGL Compatibility",
+  "gpu": "RTX 4060 Laptop GPU",
+  "world": "champsDeBataille_V2_Commandement_414",
+  "note": "180 frames per stage, stationary initial view, uncapped; later feature-disable stages are indicative, not a deterministic A/B experiment.",
+  "results": [
+    {
+      "active_physics_objects": 7,
+      "actors": 414,
+      "anatomy_distribution": {
+        "coarse": 2,
+        "exact": 4,
+        "off": 408
+      },
+      "average_draw_calls": 3001,
+      "average_frame_ms": 16.513,
+      "average_primitives": 1996285,
+      "lod_distribution": {
+        "culled": 121,
+        "lod0": 21,
+        "lod1": 83,
+        "lod2": 189
+      },
+      "lod_settings": {
+        "cull": 65.0,
+        "enabled": true,
+        "far": 26.0,
+        "far_hz": 10.0,
+        "full_rate": 3.0,
+        "medium_hz": 24.0,
+        "near": 10.0
+      },
+      "movement_distribution": {
+        "individual_physics": 5,
+        "standalone": 0,
+        "troop_transform": 409
+      },
+      "node_count": 20995,
+      "p95_frame_ms": 20.004,
+      "sample_frames": 180,
+      "scenario": "battlefield_414_full",
+      "troop_decision_ticks": 776
+    },
+    {
+      "active_physics_objects": 20,
+      "actors": 414,
+      "anatomy_distribution": {
+        "coarse": 0,
+        "exact": 4,
+        "off": 410
+      },
+      "average_draw_calls": 3114,
+      "average_frame_ms": 16.277,
+      "average_primitives": 2017808,
+      "lod_distribution": {
+        "culled": 133,
+        "lod0": 13,
+        "lod1": 88,
+        "lod2": 180
+      },
+      "lod_settings": {
+        "cull": 65.0,
+        "enabled": true,
+        "far": 26.0,
+        "far_hz": 10.0,
+        "full_rate": 3.0,
+        "medium_hz": 24.0,
+        "near": 10.0
+      },
+      "movement_distribution": {
+        "individual_physics": 5,
+        "standalone": 0,
+        "troop_transform": 409
+      },
+      "node_count": 20995,
+      "p95_frame_ms": 18.959,
+      "sample_frames": 180,
+      "scenario": "battlefield_414_anatomy_15hz",
+      "troop_decision_ticks": 1167
+    },
+    {
+      "active_physics_objects": 6,
+      "actors": 414,
+      "anatomy_distribution": {
+        "coarse": 2,
+        "exact": 4,
+        "off": 408
+      },
+      "average_draw_calls": 3102,
+      "average_frame_ms": 14.29,
+      "average_primitives": 1999257,
+      "lod_distribution": {
+        "culled": 141,
+        "lod0": 17,
+        "lod1": 79,
+        "lod2": 177
+      },
+      "lod_settings": {
+        "cull": 65.0,
+        "enabled": true,
+        "far": 26.0,
+        "far_hz": 10.0,
+        "full_rate": 3.0,
+        "medium_hz": 24.0,
+        "near": 10.0
+      },
+      "movement_distribution": {
+        "individual_physics": 4,
+        "standalone": 0,
+        "troop_transform": 410
+      },
+      "node_count": 20995,
+      "p95_frame_ms": 17.155,
+      "sample_frames": 180,
+      "scenario": "battlefield_414_anatomy_off",
+      "troop_decision_ticks": 1486
+    },
+    {
+      "active_physics_objects": 3,
+      "actors": 414,
+      "anatomy_distribution": {
+        "coarse": 2,
+        "exact": 4,
+        "off": 408
+      },
+      "average_draw_calls": 3073,
+      "average_frame_ms": 11.295,
+      "average_primitives": 1950807,
+      "lod_distribution": {
+        "culled": 141,
+        "lod0": 17,
+        "lod1": 79,
+        "lod2": 177
+      },
+      "lod_settings": {
+        "cull": 65.0,
+        "enabled": true,
+        "far": 26.0,
+        "far_hz": 10.0,
+        "full_rate": 3.0,
+        "medium_hz": 24.0,
+        "near": 10.0
+      },
+      "movement_distribution": {
+        "individual_physics": 4,
+        "standalone": 0,
+        "troop_transform": 410
+      },
+      "node_count": 20995,
+      "p95_frame_ms": 13.287,
+      "sample_frames": 180,
+      "scenario": "battlefield_414_member_physics_off",
+      "troop_decision_ticks": 1486
+    },
+    {
+      "active_physics_objects": 3,
+      "actors": 414,
+      "anatomy_distribution": {
+        "coarse": 2,
+        "exact": 4,
+        "off": 408
+      },
+      "average_draw_calls": 3073,
+      "average_frame_ms": 8.205,
+      "average_primitives": 1950806,
+      "lod_distribution": {
+        "culled": 141,
+        "lod0": 17,
+        "lod1": 79,
+        "lod2": 177
+      },
+      "lod_settings": {
+        "cull": 65.0,
+        "enabled": true,
+        "far": 26.0,
+        "far_hz": 10.0,
+        "full_rate": 3.0,
+        "medium_hz": 24.0,
+        "near": 10.0
+      },
+      "movement_distribution": {
+        "individual_physics": 4,
+        "standalone": 0,
+        "troop_transform": 410
+      },
+      "node_count": 20995,
+      "p95_frame_ms": 9.945,
+      "sample_frames": 180,
+      "scenario": "battlefield_414_animation_off",
+      "troop_decision_ticks": 1486
+    },
+    {
+      "active_physics_objects": 1,
+      "actors": 414,
+      "anatomy_distribution": {
+        "coarse": 2,
+        "exact": 4,
+        "off": 408
+      },
+      "average_draw_calls": 1374,
+      "average_frame_ms": 4.899,
+      "average_primitives": 684081,
+      "lod_distribution": {
+        "culled": 141,
+        "lod0": 17,
+        "lod1": 79,
+        "lod2": 177
+      },
+      "lod_settings": {
+        "cull": 65.0,
+        "enabled": true,
+        "far": 26.0,
+        "far_hz": 10.0,
+        "full_rate": 3.0,
+        "medium_hz": 24.0,
+        "near": 10.0
+      },
+      "movement_distribution": {
+        "individual_physics": 4,
+        "standalone": 0,
+        "troop_transform": 410
+      },
+      "node_count": 20995,
+      "p95_frame_ms": 5.779,
+      "sample_frames": 180,
+      "scenario": "battlefield_without_enemies",
+      "troop_decision_ticks": 1486
+    }
+  ]
+}

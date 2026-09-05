@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CombatGuardProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/guard_profile.gd" id="1_guard"]
+
+[resource]
+script = ExtResource("1_guard")
+light_break_chance = 0.08
+heavy_break_chance = 0.30
+spiral_up_break_chance = 0.72
+spiral_down_break_chance = 0.78
+fallback_break_chance = 0.12
+fully_charged_threshold = 0.98
+break_resistance = 1.0
+stun_seconds = 0.75
+step_back_distance = 0.55
+block_reaction_seconds = 0.30

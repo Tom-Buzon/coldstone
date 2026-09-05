@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="HopliteEquipmentItemData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/equipment/equipment_item_data.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://assets/weapons/aegis_fang.glb" id="2_visual"]
+
+[resource]
+script = ExtResource("1_script")
+item_id = &"aegis_fang"
+display_name = "Lame d'Égide"
+slot = 0
+visual_scene = ExtResource("2_visual")
+visual_mesh_name = &"SM_Aegis_Fang"
+blade_material_name = &"MAT_Aegisfang_Steel"
+blade_base_y = 0.16
+blade_tip_y = 1.45
+hit_radius = 0.14

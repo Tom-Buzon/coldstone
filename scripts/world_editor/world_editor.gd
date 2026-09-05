@@ -8,25 +8,36 @@ const WorldTerrainFoliageScript = preload("res://scripts/world_editor/world_terr
 const EventRuntimeScript = preload("res://scripts/world_editor/world_event_runtime.gd")
 const AssetCatalogScript = preload("res://scripts/environment/environment_asset_catalog.gd")
 const MaterialLibraryScript = preload("res://scripts/environment/procedural_material_library.gd")
+const MaterialCatalogScript = preload("res://scripts/environment/material_catalog.gd")
+const AtmosphereCatalogScript = preload("res://scripts/environment/world_atmosphere_catalog.gd")
 const EnemyArchetypesScript = preload("res://scripts/enemy/enemy_archetypes.gd")
+const EnemyRuntimeMigrationScript = preload("res://scripts/enemy/enemy_runtime_migration.gd")
+const HopliteV2CatalogScript = preload("res://scripts/enemy_v2/hoplite_v2_catalog.gd")
+const EncounterBudgetScript = preload("res://scripts/world_editor/world_encounter_budget.gd")
 const EditorGridScript = preload("res://scripts/world_editor/world_editor_grid.gd")
 const AssetLibraryRoomScript = preload("res://scripts/environment/asset_library_room.gd")
 const HelpCenterScript = preload("res://scripts/world_editor/world_editor_help.gd")
+const EquipmentCatalogScript = preload("res://scripts/equipment/equipment_catalog.gd")
 
 const SAVE_DIR := "user://hoplite_worlds"
-const MATERIALS := ["mediterranean_grass", "pavers", "dirt_path", "scorched_ground", "cracked_weeds", "bone_gravel", "limestone_brick", "fortress", "rough_stone", "marble", "white_marble_floor", "mural", "ornate_stone_wall", "sandstone_floor"]
-const ATMOSPHERE_PRESETS := {
-	"Jour antique": {"sun_energy": 1.15, "ambient_energy": 0.72, "fog_density": 0.006, "sky_top": "#263850", "sky_horizon": "#d8ad78"},
-	"Siege enfume": {"sun_energy": 0.66, "ambient_energy": 0.42, "fog_density": 0.027, "sky_top": "#1d2029", "sky_horizon": "#9e6549"},
-	"Crepuscule sanglant": {"sun_energy": 0.82, "ambient_energy": 0.48, "fog_density": 0.014, "sky_top": "#151d38", "sky_horizon": "#d65c46"},
-	"Nuit sacree": {"sun_energy": 0.18, "ambient_energy": 0.28, "fog_density": 0.019, "sky_top": "#080d20", "sky_horizon": "#31456b"}
-}
-const LAB_SCENE := "res://combat_lab.tscn"
+var material_ids: Array[String] = MaterialCatalogScript.all_ids()
+const PROP_COLLISION_LABELS := ["Boîte", "Cylindre", "Capsule", "Optimisée précise (recommandé)", "Sphère"]
+const PROP_COLLISION_VALUES := ["box", "cylinder", "capsule", "convex", "sphere"]
+const ATMOSPHERE_PRESETS := AtmosphereCatalogScript.PRESETS
+const LAB_SCENE := "res://lobby.tscn"
+const FORGE_PORTAL_ASSET := "res://assets/blenderAseet/07_portes/portal_world_forge/portal_world_forge_LOD0.glb"
+const CAMPAIGN_PORTAL_ASSET := "res://assets/blenderAseet/07_portes/portal_official_campaign/portal_official_campaign_LOD0.glb"
+const SAVED_WORLD_PORTAL_ASSET := "res://assets/blenderAseet/07_portes/portal_saved_world/portal_saved_world_LOD0.glb"
+const LOBBY_PORTAL_ROLE_LABELS := ["Aucun — decor seulement", "Editeur de mondes", "Campagne", "Zone Stand + mondes crees"]
+const LOBBY_PORTAL_ROLE_VALUES := ["", "world_editor", "official_campaign", "saved_worlds_anchor"]
+const CAMPAIGN_PORTAL_LABELS := ["Grand Siege", "Campagne procedurale", "La Derniere Flamme"]
+const CAMPAIGN_PORTAL_VALUES := ["grand_siege", "procedural_campaign", "last_flame"]
 
 var document: HopliteWorldDocument
 var runtime: HopliteWorldRuntime
 var event_runtime: HopliteWorldEventRuntime
 var selected_id := ""
+var selected_ids: Array[String] = []
 var undo_stack: Array[String] = []
 var redo_stack: Array[String] = []
 var dirty := false
@@ -40,6 +51,7 @@ var tool_mode := "select"
 var brush_type := "surface"
 var brush_properties: Dictionary = {"shape": "floor", "size": [4.0, 0.35, 4.0], "material": "pavers"}
 var brush_title := "Sol 4 × 4"
+var selected_asset_entry: Dictionary = {}
 var active_material := "pavers"
 var surface_brush_shape := "floor"
 var surface_brush_size := Vector3(4.0, 0.35, 4.0)
@@ -53,6 +65,11 @@ var resize_original_size := Vector3.ONE
 var resize_axis_world := Vector3.RIGHT
 var resize_original_uniform_scale := 1.0
 var resize_uniform := false
+var resize_terrain := false
+var resize_original_terrain_properties: Dictionary = {}
+var resize_pending_terrain_size := Vector2.ZERO
+var resize_pending_terrain_position := Vector3.ZERO
+var resize_original_visual_center := Vector3.ZERO
 var moving_entity := false
 var move_mode := ""
 var move_original_position := Vector3.ZERO
@@ -65,7 +82,7 @@ var move_vertical_world_per_pixel := 0.01
 var rotating_entity := false
 var rotation_axis := 1
 var rotation_start_mouse := Vector2.ZERO
-var rotation_original := Vector3.ZERO
+var transform_originals: Dictionary = {}
 var capture_mode := ""
 var capture_source_id := ""
 var capture_route_id := ""
@@ -86,6 +103,10 @@ var active_foliage_preset := "mediterranean_grass"
 var terrain_painting := false
 var terrain_stroke_last := Vector3(INF, INF, INF)
 var terrain_flatten_height := 0.0
+var terrain_live_update_pending := false
+var terrain_live_update_entity_id := ""
+var terrain_live_update_kind := ""
+var terrain_live_update_deadline_msec := 0
 
 var camera_rig: Node3D
 var camera_yaw: Node3D
@@ -119,6 +140,7 @@ var right_panel_open := true
 var library_category: OptionButton
 var library_items: VBoxContainer
 var workspace_tabs: TabContainer
+var atmosphere_content: VBoxContainer
 var ghost_mode_button: Button
 var select_tool_button: Button
 var brush_tool_button: Button
@@ -131,9 +153,19 @@ var chapter_picker: OptionButton
 var chapter_name_edit: LineEdit
 var hierarchy: Tree
 var hierarchy_filter: LineEdit
+var group_picker: OptionButton
+var group_name_edit: LineEdit
+var create_group_dialog: ConfirmationDialog
+var create_group_name_edit: LineEdit
+var create_group_kind_label: Label
+var active_editor_group_id := ""
+var syncing_hierarchy_selection := false
+var hierarchy_sync_pending := false
 var inspector_content: VBoxContainer
 var world_name: LineEdit
 var save_picker: OptionButton
+var delete_save_dialog: ConfirmationDialog
+var current_save_filename := ""
 var population_label: Label
 var status_label: Label
 var test_overlay: Control
@@ -167,7 +199,7 @@ func _ready() -> void:
 	for raw: Variant in _chapter_entities():
 		var entity := raw as Dictionary
 		if String(entity.get("type", "")) == "surface":
-			selected_id = String(entity.get("id", ""))
+			_set_single_selection(String(entity.get("id", "")))
 			break
 	_build_camera()
 	grid = EditorGridScript.new() as HopliteWorldEditorGrid
@@ -185,6 +217,8 @@ func _ready() -> void:
 	_set_status("EDITION UNIFIEE — choisissez une categorie, prenez un outil, puis agissez directement dans la vue 3D.")
 
 func _process(delta: float) -> void:
+	if terrain_live_update_pending and Time.get_ticks_msec() >= terrain_live_update_deadline_msec:
+		_flush_terrain_live_update()
 	if preview_rebuild_pending and not test_mode:
 		preview_rebuild_pending = false
 		_rebuild_preview()
@@ -387,8 +421,8 @@ func _build_ui() -> void:
 	top.custom_minimum_size.y = 46
 	top.add_theme_constant_override("separation", 5)
 	top_stack.add_child(top)
-	var back_button := _button("‹  LABO", _return_to_lab, Color("252a31"))
-	back_button.tooltip_text = "Quitter la Forge et revenir au laboratoire"
+	var back_button := _button("‹  LOBBY", _return_to_lab, Color("252a31"))
+	back_button.tooltip_text = "Quitter la Forge et revenir au lobby"
 	top.add_child(back_button)
 	left_panel_toggle_button = _button("▥  CONTENU", _toggle_left_panel, Color("252a31"))
 	left_panel_toggle_button.tooltip_text = "Afficher ou masquer Construction"
@@ -405,11 +439,18 @@ func _build_ui() -> void:
 	top.add_child(save_command_button)
 	save_picker = OptionButton.new()
 	save_picker.custom_minimum_size = Vector2(148, 30)
+	save_picker.custom_maximum_size = Vector2(200, -1)
+	save_picker.fit_to_longest_item = false
+	save_picker.clip_text = true
+	save_picker.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	save_picker.tooltip_text = "Mondes sauvegardés"
 	top.add_child(save_picker)
 	var load_button := _button("OUVRIR", _load_selected_world, Color("252a31"))
 	load_button.tooltip_text = "Charger le monde sélectionné"
 	top.add_child(load_button)
+	var delete_save_button := _button("SUPPR.", _request_delete_selected_world, Color("6f3538"))
+	delete_save_button.tooltip_text = "Supprimer le monde sauvegardé et le portail associé"
+	top.add_child(delete_save_button)
 	top.add_child(VSeparator.new())
 	undo_command_button = _button("↶", _undo, Color("252a31"))
 	undo_command_button.tooltip_text = "Annuler  Ctrl+Z"
@@ -502,7 +543,7 @@ func _build_ui() -> void:
 	map_extent_picker.item_selected.connect(_on_map_extent_selected)
 	extent_row.add_child(map_extent_picker)
 	left.add_child(extent_row)
-	brush_label = _label("SÉLECTION  •  clic : choisir\nCtrl + glisser : plan  •  Maj + glisser : hauteur\nR : tourner  •  Maj+R : incliner", 11, Color("70b7d1"))
+	brush_label = _label("SÉLECTION  •  Ctrl+clic : ajouter/retirer\nAlt+glisser : plan  •  Maj+glisser : hauteur\nR : tourner  •  Maj+R : incliner", 11, Color("70b7d1"))
 	brush_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	brush_label.custom_minimum_size.y = 48
 	brush_label.add_theme_stylebox_override("normal", _flat_style(Color("171a1f"), Color("30353d"), 3, 7))
@@ -540,10 +581,63 @@ func _build_ui() -> void:
 	hierarchy_filter = LineEdit.new(); hierarchy_filter.placeholder_text = "⌕  Filtrer les éléments…"
 	hierarchy_filter.text_changed.connect(func(_text: String) -> void: _refresh_hierarchy())
 	hierarchy_page.add_child(hierarchy_filter)
+	var group_row := HBoxContainer.new()
+	group_picker = OptionButton.new(); group_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	group_picker.tooltip_text = "Groupes d'édition sauvegardés dans ce monde"
+	group_picker.item_selected.connect(_on_editor_group_selected)
+	group_row.add_child(group_picker)
+	group_row.add_child(_button("CHOISIR", _select_active_editor_group, Color("31566a")))
+	group_row.add_child(_button("NOM", _rename_active_editor_group, Color("303745")))
+	hierarchy_page.add_child(group_row)
+	group_name_edit = LineEdit.new(); group_name_edit.placeholder_text = "Nom du groupe sélectionné…"
+	group_name_edit.tooltip_text = "Renomme le groupe actuellement choisi"
+	group_name_edit.text_submitted.connect(func(_value: String) -> void: _rename_active_editor_group())
+	hierarchy_page.add_child(group_name_edit)
+	var group_actions := HBoxContainer.new()
+	var create_group_button := _button("CRÉER", _request_save_selection_as_group, Color("285143"))
+	create_group_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	group_actions.add_child(create_group_button)
+	var update_group_button := _button("↻ METTRE À JOUR", _update_active_editor_group_from_selection, Color("31566a"))
+	update_group_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	update_group_button.tooltip_text = "Remplace les membres du groupe par la sélection actuelle"
+	group_actions.add_child(update_group_button)
+	hierarchy_page.add_child(group_actions)
+	var group_member_actions := HBoxContainer.new()
+	group_member_actions.add_child(_button("＋ AJOUTER", _add_selection_to_active_group, Color("303745")))
+	group_member_actions.add_child(_button("－ RETIRER", _remove_selection_from_active_group, Color("303745")))
+	group_member_actions.add_child(_button("SUPPR. GROUPE", _delete_active_editor_group, Color("6f3538")))
+	hierarchy_page.add_child(group_member_actions)
 	hierarchy = Tree.new(); hierarchy.hide_root = true; hierarchy.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hierarchy.select_mode = Tree.SELECT_MULTI
 	hierarchy.item_selected.connect(_on_tree_selected)
+	hierarchy.multi_selected.connect(_on_tree_multi_selected)
 	hierarchy_page.add_child(hierarchy)
+	_build_atmosphere_workspace()
 	_refresh_library()
+
+	delete_save_dialog = ConfirmationDialog.new()
+	delete_save_dialog.title = "Supprimer le monde sauvegardé"
+	delete_save_dialog.ok_button_text = "SUPPRIMER"
+	delete_save_dialog.cancel_button_text = "ANNULER"
+	delete_save_dialog.confirmed.connect(_delete_selected_world_save)
+	canvas.add_child(delete_save_dialog)
+
+	create_group_dialog = ConfirmationDialog.new()
+	create_group_dialog.title = "Créer un groupe"
+	create_group_dialog.ok_button_text = "CRÉER LE GROUPE"
+	create_group_dialog.cancel_button_text = "ANNULER"
+	create_group_dialog.confirmed.connect(_save_selection_as_group)
+	var create_group_content := VBoxContainer.new()
+	create_group_content.custom_minimum_size = Vector2(420, 88)
+	create_group_content.add_theme_constant_override("separation", 8)
+	create_group_kind_label = _label("", 11, Color("6fe1bd"))
+	create_group_content.add_child(create_group_kind_label)
+	create_group_name_edit = LineEdit.new()
+	create_group_name_edit.placeholder_text = "Nom du groupe…"
+	create_group_name_edit.text_submitted.connect(func(_value: String) -> void: _save_selection_as_group())
+	create_group_content.add_child(create_group_name_edit)
+	create_group_dialog.add_child(create_group_content)
+	canvas.add_child(create_group_dialog)
 
 	right_panel = _panel(Rect2(942, 76, 338, 618), Color("1d2025"))
 	right_panel.anchor_left = 1.0
@@ -670,8 +764,89 @@ func _build_test_overlay() -> void:
 	narrative_timer = Timer.new(); narrative_timer.one_shot = true; narrative_timer.timeout.connect(func() -> void: narrative_panel.visible = false); add_child(narrative_timer)
 
 func _toggle_workspace_tab() -> void:
-	if workspace_tabs != null:
-		workspace_tabs.current_tab = 1 - workspace_tabs.current_tab
+	if workspace_tabs != null and workspace_tabs.get_tab_count() > 0:
+		workspace_tabs.current_tab = (workspace_tabs.current_tab + 1) % workspace_tabs.get_tab_count()
+
+func _build_atmosphere_workspace() -> void:
+	var page := VBoxContainer.new()
+	page.name = "CIEL & ATMOSPHÈRE"
+	page.add_theme_constant_override("separation", 8)
+	workspace_tabs.add_child(page)
+	var heading := _label("ENVIRONNEMENT GLOBAL DU NIVEAU", 10, Color("7cc5dc"))
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	page.add_child(heading)
+	var hint := _label("Un seul environnement et un seul soleil sont partagés par le chapitre. Les panoramas HDR sont limités à 1K et leur radiance à 256 pour préserver la mémoire.", 10, Color("9aaac1"))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	page.add_child(hint)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	atmosphere_content = VBoxContainer.new()
+	atmosphere_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	atmosphere_content.add_theme_constant_override("separation", 7)
+	scroll.add_child(atmosphere_content)
+	page.add_child(scroll)
+	_refresh_atmosphere_workspace()
+
+func _refresh_atmosphere_workspace() -> void:
+	if atmosphere_content == null or document == null:
+		return
+	for child in atmosphere_content.get_children():
+		child.queue_free()
+	var values := document.data.get("atmosphere", {}) as Dictionary
+	atmosphere_content.add_child(_section("PRÉRÉGLAGE"))
+	_add_option_to(atmosphere_content, "Ambiance", ATMOSPHERE_PRESETS.keys(), String(values.get("preset", "Jour antique")), _apply_global_atmosphere_preset)
+	_add_mapped_option_to(atmosphere_content, "Fond / skybox", AtmosphereCatalogScript.sky_labels(), AtmosphereCatalogScript.sky_ids(), String(values.get("sky_id", "procedural")), func(value: String) -> void: _set_global_atmosphere_value("sky_id", value))
+	_add_number_to(atmosphere_content, "Rotation skybox", float(values.get("sky_rotation", 0.0)), -180.0, 180.0, 1.0, func(value: float) -> void: _set_global_atmosphere_value("sky_rotation", value))
+	_add_number_to(atmosphere_content, "Énergie du fond", float(values.get("background_energy", 1.0)), 0.0, 4.0, 0.05, func(value: float) -> void: _set_global_atmosphere_value("background_energy", value))
+	atmosphere_content.add_child(_section("CIEL PROCÉDURAL"))
+	_add_color_to(atmosphere_content, "Zénith", String(values.get("sky_top", "#263850")), func(value: String) -> void: _set_global_atmosphere_value("sky_top", value))
+	_add_color_to(atmosphere_content, "Horizon", String(values.get("sky_horizon", "#d8ad78")), func(value: String) -> void: _set_global_atmosphere_value("sky_horizon", value))
+	atmosphere_content.add_child(_section("SOLEIL"))
+	_add_color_to(atmosphere_content, "Couleur du soleil", String(values.get("sun_color", "#f9dfb2")), func(value: String) -> void: _set_global_atmosphere_value("sun_color", value))
+	_add_number_to(atmosphere_content, "Intensité", float(values.get("sun_energy", 1.15)), 0.0, 8.0, 0.05, func(value: float) -> void: _set_global_atmosphere_value("sun_energy", value))
+	_add_number_to(atmosphere_content, "Hauteur", float(values.get("sun_rotation_x", -48.0)), -90.0, 20.0, 1.0, func(value: float) -> void: _set_global_atmosphere_value("sun_rotation_x", value))
+	_add_number_to(atmosphere_content, "Azimut", float(values.get("sun_rotation_y", -28.0)), -180.0, 180.0, 1.0, func(value: float) -> void: _set_global_atmosphere_value("sun_rotation_y", value))
+	atmosphere_content.add_child(_section("LUMIÈRE AMBIANTE & IMAGE"))
+	_add_number_to(atmosphere_content, "Ambiance", float(values.get("ambient_energy", 0.72)), 0.0, 3.0, 0.05, func(value: float) -> void: _set_global_atmosphere_value("ambient_energy", value))
+	_add_number_to(atmosphere_content, "Contribution du ciel", float(values.get("sky_contribution", 0.72)), 0.0, 1.0, 0.05, func(value: float) -> void: _set_global_atmosphere_value("sky_contribution", value))
+	_add_number_to(atmosphere_content, "Exposition", float(values.get("exposure", 1.08)), 0.25, 4.0, 0.05, func(value: float) -> void: _set_global_atmosphere_value("exposure", value))
+	_add_number_to(atmosphere_content, "Saturation", float(values.get("saturation", 1.0)), 0.0, 2.0, 0.05, func(value: float) -> void: _set_global_atmosphere_value("saturation", value))
+	_add_number_to(atmosphere_content, "Contraste", float(values.get("contrast", 1.0)), 0.25, 2.0, 0.05, func(value: float) -> void: _set_global_atmosphere_value("contrast", value))
+	atmosphere_content.add_child(_section("BROUILLARD"))
+	_add_color_to(atmosphere_content, "Couleur", String(values.get("fog_color", "#d8ad78")), func(value: String) -> void: _set_global_atmosphere_value("fog_color", value))
+	_add_number_to(atmosphere_content, "Densité", float(values.get("fog_density", 0.006)), 0.0, 0.15, 0.001, func(value: float) -> void: _set_global_atmosphere_value("fog_density", value))
+	_add_number_to(atmosphere_content, "Hauteur", float(values.get("fog_height", 0.0)), -100.0, 100.0, 0.5, func(value: float) -> void: _set_global_atmosphere_value("fog_height", value))
+	_add_number_to(atmosphere_content, "Densité verticale", float(values.get("fog_height_density", 0.0)), -2.0, 2.0, 0.01, func(value: float) -> void: _set_global_atmosphere_value("fog_height_density", value))
+	_add_number_to(atmosphere_content, "Perspective aérienne", float(values.get("fog_aerial_perspective", 0.35)), 0.0, 1.0, 0.05, func(value: float) -> void: _set_global_atmosphere_value("fog_aerial_perspective", value))
+	_add_number_to(atmosphere_content, "Impact sur le ciel", float(values.get("fog_sky_affect", 0.35)), 0.0, 1.0, 0.05, func(value: float) -> void: _set_global_atmosphere_value("fog_sky_affect", value))
+
+func _apply_global_atmosphere_preset(preset: String) -> void:
+	if not ATMOSPHERE_PRESETS.has(preset):
+		return
+	_push_undo()
+	var values := document.data.get("atmosphere", {}) as Dictionary
+	values.clear()
+	values.merge((ATMOSPHERE_PRESETS[preset] as Dictionary).duplicate(true), true)
+	values["preset"] = preset
+	dirty = true
+	world_name.text = String(document.data.get("name", "Monde")) + " *"
+	if runtime != null:
+		runtime.apply_atmosphere(values)
+	_refresh_atmosphere_workspace()
+	_set_status("Atmosphère globale : %s" % preset)
+
+func _set_global_atmosphere_value(key: String, value: Variant) -> void:
+	var values := document.data.get("atmosphere", {}) as Dictionary
+	if values.get(key) == value:
+		return
+	_push_undo()
+	values[key] = value
+	values["preset"] = "Personnalisée"
+	dirty = true
+	world_name.text = String(document.data.get("name", "Monde")) + " *"
+	if runtime != null:
+		runtime.apply_atmosphere(values)
 
 func _toggle_ghost_mode() -> void:
 	_set_ghost_mode(not ghost_mode)
@@ -755,7 +930,7 @@ func _on_chapter_selected(index: int) -> void:
 	if index < 0 or index >= chapter_picker.item_count:
 		return
 	active_chapter_id = String(chapter_picker.get_item_metadata(index))
-	selected_id = ""
+	_set_single_selection("")
 	chapter_name_edit.text = _chapter_name(active_chapter_id)
 	_rebuild_preview()
 	_set_status("Chapitre ouvert dans la Forge : %s" % _chapter_name(active_chapter_id))
@@ -766,7 +941,7 @@ func _add_chapter() -> void:
 	var chapter_id := "chapter_%d_%d" % [chapter_number, Time.get_ticks_msec() % 100000]
 	(document.data["chapters"] as Array).append({"id": chapter_id, "name": "Chapitre %d" % chapter_number})
 	active_chapter_id = chapter_id
-	selected_id = ""
+	_set_single_selection("")
 	dirty = true
 	_refresh_chapter_picker()
 	_rebuild_preview()
@@ -804,9 +979,287 @@ func _chapter_exists(chapter_id: String) -> bool:
 func _chapter_entities() -> Array[Dictionary]:
 	return document.entities_for_chapter(active_chapter_id)
 
+func _set_single_selection(entity_id: String) -> void:
+	selected_ids.clear()
+	if not entity_id.is_empty():
+		selected_ids.append(entity_id)
+	selected_id = entity_id
+
+func _set_selection(entity_ids: Array, primary_id: String = "") -> void:
+	selected_ids.clear()
+	for raw_id: Variant in entity_ids:
+		var entity_id := String(raw_id)
+		var entity := document.find_entity(entity_id)
+		if entity.is_empty() or String(entity.get("chapter", document.start_chapter())) != active_chapter_id or selected_ids.has(entity_id):
+			continue
+		selected_ids.append(entity_id)
+	if not primary_id.is_empty() and selected_ids.has(primary_id):
+		selected_id = primary_id
+	else:
+		selected_id = selected_ids.back() if not selected_ids.is_empty() else ""
+
+func _toggle_entity_selection(entity_id: String) -> void:
+	if selected_ids.has(entity_id):
+		selected_ids.erase(entity_id)
+		if selected_id == entity_id:
+			selected_id = selected_ids.back() if not selected_ids.is_empty() else ""
+	else:
+		selected_ids.append(entity_id)
+		selected_id = entity_id
+
+func _normalize_selection() -> void:
+	if not selected_id.is_empty() and not selected_ids.has(selected_id):
+		var externally_selected := document.find_entity(selected_id)
+		if not externally_selected.is_empty() and String(externally_selected.get("chapter", document.start_chapter())) == active_chapter_id:
+			selected_ids = [selected_id]
+	var valid_ids: Array[String] = []
+	for entity_id: String in selected_ids:
+		var entity := document.find_entity(entity_id)
+		if not entity.is_empty() and String(entity.get("chapter", document.start_chapter())) == active_chapter_id:
+			valid_ids.append(entity_id)
+	if selected_ids.is_empty() and not selected_id.is_empty():
+		var primary := document.find_entity(selected_id)
+		if not primary.is_empty() and String(primary.get("chapter", document.start_chapter())) == active_chapter_id:
+			valid_ids.append(selected_id)
+	_set_selection(valid_ids, selected_id)
+
+func _selected_entities() -> Array[Dictionary]:
+	_normalize_selection()
+	var result: Array[Dictionary] = []
+	for entity_id: String in selected_ids:
+		var entity := document.find_entity(entity_id)
+		if not entity.is_empty():
+			result.append(entity)
+	return result
+
+func _selection_center() -> Vector3:
+	var entities := _selected_entities()
+	if entities.is_empty():
+		return Vector3.ZERO
+	var minimum := Vector3(INF, INF, INF)
+	var maximum := Vector3(-INF, -INF, -INF)
+	for entity: Dictionary in entities:
+		var center := _entity_visual_center(entity)
+		var half_size := _entity_visual_size(entity) * 0.5
+		minimum = minimum.min(center - half_size)
+		maximum = maximum.max(center + half_size)
+	return (minimum + maximum) * 0.5
+
+func _selection_size() -> Vector3:
+	var entities := _selected_entities()
+	if entities.is_empty():
+		return Vector3.ZERO
+	var minimum := Vector3(INF, INF, INF)
+	var maximum := Vector3(-INF, -INF, -INF)
+	for entity: Dictionary in entities:
+		var center := _entity_visual_center(entity)
+		var half_size := _entity_visual_size(entity) * 0.5
+		minimum = minimum.min(center - half_size)
+		maximum = maximum.max(center + half_size)
+	return maximum - minimum
+
+func _refresh_selection_ui() -> void:
+	_refresh_hierarchy()
+	_rebuild_inspector()
+	_update_selection_marker()
+
+func _refresh_group_picker() -> void:
+	if group_picker == null:
+		return
+	group_picker.clear()
+	var selected_index := -1
+	for raw: Variant in document.editor_groups():
+		var group := raw as Dictionary
+		var visible_count := 0
+		for member_raw: Variant in group.get("entity_ids", []):
+			var entity := document.find_entity(String(member_raw))
+			if not entity.is_empty() and String(entity.get("chapter", document.start_chapter())) == active_chapter_id:
+				visible_count += 1
+		if visible_count == 0:
+			continue
+		var kind_label := "⚔ ENNEMIS" if String(group.get("kind", "object")) == "enemy" else "▦ OBJETS"
+		group_picker.add_item("%s • %s (%d)" % [kind_label, String(group.get("name", "Groupe")), visible_count])
+		group_picker.set_item_metadata(group_picker.item_count - 1, String(group.get("id", "")))
+		if String(group.get("id", "")) == active_editor_group_id:
+			selected_index = group_picker.item_count - 1
+	if group_picker.item_count == 0:
+		active_editor_group_id = ""
+		if group_name_edit != null:
+			group_name_edit.text = ""
+		return
+	if selected_index < 0:
+		selected_index = 0
+	group_picker.select(selected_index)
+	active_editor_group_id = String(group_picker.get_item_metadata(selected_index))
+	var active_group := document.find_editor_group(active_editor_group_id)
+	if group_name_edit != null and not active_group.is_empty():
+		group_name_edit.text = String(active_group.get("name", "Groupe"))
+
+func _on_editor_group_selected(index: int) -> void:
+	if group_picker == null or index < 0 or index >= group_picker.item_count:
+		return
+	active_editor_group_id = String(group_picker.get_item_metadata(index))
+	var group := document.find_editor_group(active_editor_group_id)
+	if not group.is_empty() and group_name_edit != null:
+		group_name_edit.text = String(group.get("name", "Groupe"))
+
+func _selection_group_kind() -> String:
+	if selected_ids.is_empty():
+		return ""
+	var enemy_count := 0
+	for entity: Dictionary in _selected_entities():
+		if String(entity.get("type", "")) == "enemy_group":
+			enemy_count += 1
+	if enemy_count == selected_ids.size():
+		return "enemy"
+	if enemy_count == 0:
+		return "object"
+	return ""
+
+func _request_save_selection_as_group() -> void:
+	if selected_ids.is_empty():
+		_set_status("Sélectionnez au moins un élément avant de créer un groupe.", true)
+		return
+	var kind := _selection_group_kind()
+	if kind.is_empty():
+		_set_status("Un groupe ne peut pas mélanger troupes ennemies et objets.", true)
+		return
+	create_group_name_edit.text = ""
+	create_group_kind_label.text = "GROUPE D'ENNEMIS • %d troupe(s)" % selected_ids.size() if kind == "enemy" else "GROUPE D'OBJETS • %d élément(s)" % selected_ids.size()
+	create_group_kind_label.modulate = Color("ef9d5b") if kind == "enemy" else Color("6fe1bd")
+	create_group_dialog.popup_centered()
+	create_group_name_edit.grab_focus.call_deferred()
+
+func _save_selection_as_group() -> void:
+	var kind := _selection_group_kind()
+	if selected_ids.is_empty() or kind.is_empty():
+		_set_status("La sélection doit contenir uniquement des objets ou uniquement des troupes.", true)
+		return
+	var display_name := create_group_name_edit.text.strip_edges() if create_group_name_edit != null else ""
+	if display_name.is_empty():
+		_set_status("Donnez un nom au groupe avant de le créer.", true)
+		if create_group_dialog != null:
+			create_group_dialog.popup_centered()
+			create_group_name_edit.grab_focus.call_deferred()
+		return
+	_push_undo()
+	active_editor_group_id = document.create_editor_group(display_name, selected_ids, kind)
+	if active_editor_group_id.is_empty():
+		_set_status("Impossible de créer ce groupe : vérifiez sa sélection.", true)
+		return
+	dirty = true
+	_refresh_group_picker()
+	if create_group_dialog != null:
+		create_group_dialog.hide()
+	world_name.text = String(document.data.get("name", "Monde")) + " *"
+	_set_status("Groupe '%s' sauvegardé avec %d élément(s)." % [display_name, selected_ids.size()])
+
+func _rename_active_editor_group() -> void:
+	var group := document.find_editor_group(active_editor_group_id)
+	var display_name := group_name_edit.text.strip_edges() if group_name_edit != null else ""
+	if group.is_empty() or display_name.is_empty():
+		_set_status("Choisissez un groupe et saisissez son nouveau nom.", true)
+		return
+	_push_undo()
+	document.rename_editor_group(active_editor_group_id, display_name)
+	_mark_changed()
+	_refresh_group_picker()
+	_set_status("Groupe renommé en '%s'." % display_name)
+
+func _select_active_editor_group() -> void:
+	var group := document.find_editor_group(active_editor_group_id)
+	if group.is_empty():
+		_set_status("Aucun groupe d'édition sélectionné.", true)
+		return
+	var ids: Array[String] = []
+	for raw_id: Variant in group.get("entity_ids", []):
+		ids.append(String(raw_id))
+	_set_selection(ids)
+	_refresh_selection_ui()
+	_set_status("Groupe '%s' sélectionné : %d élément(s) dans ce chapitre." % [String(group.get("name", "Groupe")), selected_ids.size()])
+
+func _select_editor_group_by_id(group_id: String) -> void:
+	active_editor_group_id = group_id
+	_refresh_group_picker()
+	_select_active_editor_group()
+
+func _update_active_editor_group_from_selection() -> void:
+	var group := document.find_editor_group(active_editor_group_id)
+	if group.is_empty() or selected_ids.is_empty():
+		_set_status("Choisissez un groupe puis préparez la sélection qui doit le remplacer.", true)
+		return
+	var selection_kind := _selection_group_kind()
+	if selection_kind.is_empty() or selection_kind != String(group.get("kind", "object")):
+		_set_status("Mise à jour refusée : la sélection doit garder le type du groupe.", true)
+		return
+	_push_undo()
+	if not document.set_editor_group_members(active_editor_group_id, selected_ids):
+		_set_status("Impossible de mettre à jour la composition du groupe.", true)
+		return
+	_mark_changed()
+	_refresh_group_picker()
+	_set_status("Groupe '%s' mis à jour avec la sélection actuelle : %d membre(s)." % [String(group.get("name", "Groupe")), selected_ids.size()])
+
+func _add_selection_to_active_group() -> void:
+	var group := document.find_editor_group(active_editor_group_id)
+	if group.is_empty() or selected_ids.is_empty():
+		_set_status("Choisissez un groupe et une sélection à ajouter.", true)
+		return
+	var selection_kind := _selection_group_kind()
+	if selection_kind.is_empty() or selection_kind != String(group.get("kind", "object")):
+		_set_status("Ajout refusé : les groupes d'ennemis et d'objets restent séparés.", true)
+		return
+	var members: Array[String] = []
+	for raw_id: Variant in group.get("entity_ids", []):
+		members.append(String(raw_id))
+	for entity_id: String in selected_ids:
+		if not members.has(entity_id):
+			members.append(entity_id)
+	_push_undo()
+	if not document.set_editor_group_members(active_editor_group_id, members):
+		_set_status("Impossible d'ajouter cette sélection au groupe.", true)
+		return
+	_mark_changed()
+	_refresh_group_picker()
+	_set_status("Sélection ajoutée au groupe '%s'." % String(group.get("name", "Groupe")))
+
+func _remove_selection_from_active_group() -> void:
+	var group := document.find_editor_group(active_editor_group_id)
+	if group.is_empty() or selected_ids.is_empty():
+		_set_status("Choisissez un groupe et les éléments à en retirer.", true)
+		return
+	var members: Array[String] = []
+	for raw_id: Variant in group.get("entity_ids", []):
+		var member_id := String(raw_id)
+		if not selected_ids.has(member_id):
+			members.append(member_id)
+	_push_undo()
+	if members.is_empty():
+		document.remove_editor_group(active_editor_group_id)
+		active_editor_group_id = ""
+	else:
+		document.set_editor_group_members(active_editor_group_id, members)
+	_mark_changed()
+	_refresh_group_picker()
+	_set_status("Éléments retirés du groupe.")
+
+func _delete_active_editor_group() -> void:
+	var group := document.find_editor_group(active_editor_group_id)
+	if group.is_empty():
+		return
+	var group_name := String(group.get("name", "Groupe"))
+	_push_undo()
+	document.remove_editor_group(active_editor_group_id)
+	active_editor_group_id = ""
+	_mark_changed()
+	_refresh_group_picker()
+	_set_status("Groupe '%s' supprimé. Les objets restent dans la scène." % group_name)
+
 func _set_tool_mode(value: String) -> void:
 	tool_mode = value
 	resizing = false
+	resize_terrain = false
+	resize_original_terrain_properties = {}
 	moving_entity = false
 	terrain_painting = false
 	_update_ground_snap_marker({})
@@ -816,7 +1269,7 @@ func _set_tool_mode(value: String) -> void:
 			"brush": brush_label.text = "PINCEAU  •  %s\nMaintenez le clic pour tracer  •  Maj : ligne" % brush_title
 			"eraser": brush_label.text = "GOMME  •  survolez puis cliquez\nLa cible devient rouge avant suppression"
 			"terrain": brush_label.text = "TERRAIN  •  %s\nClic-glisse : appliquer le pinceau" % _terrain_tool_label(terrain_tool)
-			_: brush_label.text = "SÉLECTION  •  clic : choisir\nCtrl + glisser : plan  •  Maj + glisser : hauteur\nR : tourner  •  Maj+R : incliner"
+			_: brush_label.text = "SÉLECTION  •  Ctrl+clic : ajouter/retirer\nAlt+glisser : plan  •  Maj+glisser : hauteur\nR : tourner  •  Maj+R : incliner"
 	if brush_cursor != null:
 		brush_cursor.visible = tool_mode == "brush"
 	if terrain_brush_marker != null:
@@ -851,29 +1304,29 @@ func _refresh_library() -> void:
 			hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			library_items.add_child(hint)
 		2:
-			for material: String in MATERIALS:
-				_add_material_card(material)
+			_add_texture_paint_workspace()
+			_add_categorized_material_library()
 		3:
-			var placeable_count := automatic_assets.filter(func(entry: Dictionary) -> bool: return StringName(entry.get("category", &"environment")) != &"characters").size()
+			var placeable_count := automatic_assets.filter(func(entry: Dictionary) -> bool: return StringName(entry.get("category", &"environment")) != &"characters" and StringName(entry.get("subcategory", &"decor")) not in [&"ground_cover", &"shrubs"]).size()
 			var count_label := _label("%d MODÈLES 3D • CLASSÉS PAR DOSSIER" % placeable_count, 11, Color("68d9b6"))
 			library_items.add_child(count_label)
+			var vegetation_hint := _label("Fleurs, herbes, champignons et buissons sont disponibles dans Terrain > Végétation : chaque variété y est regroupée en MultiMesh au lieu de créer un objet par plante.", 10, Color("8ee0bd"))
+			vegetation_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			library_items.add_child(vegetation_hint)
 			_add_automatic_asset_folders()
 		4:
 			var troop_hint := _label("Placez une troupe comme un bloc, puis configurez son comportement et son apparition dans l'inspecteur.", 12, Color("9aaac1"))
 			troop_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			library_items.add_child(troop_hint)
+			library_items.add_child(_section("PRÉRÉGLAGES DE TROUPES"))
 			_library_button("♟  TROUPE ENNEMIE — 6 soldats", "enemy_group", {"group_id": "nouvelle_troupe", "archetype": "nathenian1", "count": 6, "rank": "normal", "size_multiplier": 1.0, "match_perfect_hitbox": false, "behavior": "normal", "route_id": "", "protect_target": "", "spawn_condition": "start", "spawn_trigger": "", "spawn_dead_group": "", "spawn_delay": 3.0, "deployment_mode": "all", "formation": "line"})
 			_library_button("▦  PHALANGE 15 — 4 veterans + 11 lanciers", "enemy_group", {"group_id": "phalange_mixte", "archetype": "ngeneral", "count": 15, "composition": [{"archetype": "ngeneral", "count": 11}, {"archetype": "ngeneral_veteran", "count": 4}], "rank": "normal", "size_multiplier": 1.0, "match_perfect_hitbox": false, "behavior": "normal", "route_id": "", "protect_target": "", "spawn_condition": "start", "spawn_trigger": "", "spawn_dead_group": "", "spawn_delay": 3.0, "deployment_mode": "all", "formation": "phalanx"})
-			library_items.add_child(_section("GEANTS ESCALADABLES — SOLO / PETIT GROUPE"))
-			for archetype: StringName in EnemyArchetypesScript.giant_ids():
-				var profile := EnemyArchetypesScript.profile(archetype)
-				_library_button("♜  %s" % String(profile.get("display_name", String(archetype))).capitalize(), "enemy_group", {"group_id": "groupe_%s" % String(archetype), "archetype": String(archetype), "count": 1, "rank": "normal", "size_multiplier": 1.0, "match_perfect_hitbox": bool(profile.get("forge_default_match_perfect_hitbox", true)), "giant_traversal_mode": "assisted", "giant_capsule_radius_multiplier": 0.90, "giant_capsule_height_multiplier": 1.0, "giant_walkable_tops": true, "behavior": "normal", "route_id": "", "protect_target": "", "spawn_condition": "start", "spawn_trigger": "", "spawn_dead_group": "", "spawn_delay": 3.0, "deployment_mode": "all", "formation": "line"})
-			library_items.add_child(_section("AUTRES PERSONNAGES"))
-			for archetype: StringName in EnemyArchetypesScript.all_ids():
-				if EnemyArchetypesScript.is_giant(archetype):
-					continue
-				var profile := EnemyArchetypesScript.profile(archetype)
-				_library_button("♙  %s" % String(profile.get("display_name", String(archetype))).capitalize(), "enemy_group", {"group_id": "groupe_%s" % String(archetype), "archetype": String(archetype), "count": 1, "rank": "miniboss" if EnemyArchetypesScript.is_miniboss(archetype) or EnemyArchetypesScript.is_boss(archetype) else "normal", "size_multiplier": 1.0, "match_perfect_hitbox": false, "behavior": "normal", "route_id": "", "protect_target": "", "spawn_condition": "start", "spawn_trigger": "", "spawn_dead_group": "", "spawn_delay": 3.0, "deployment_mode": "all", "formation": "line"})
+			_library_button("◇  PHALANGE V2 — 24 hoplites coordonnés", "enemy_group", {"group_id": "phalange_v2_lab", "archetype": String(HopliteV2CatalogScript.FORGE_HOPLITE_ID), "count": 24, "composition": [{"archetype": String(HopliteV2CatalogScript.FORGE_HOPLITE_ID), "count": 18}, {"archetype": String(HopliteV2CatalogScript.FORGE_VETERAN_ID), "count": 6}], "rank": "normal", "size_multiplier": 1.0, "match_perfect_hitbox": false, "behavior": "normal", "route_id": "", "protect_target": "", "spawn_condition": "start", "spawn_trigger": "", "spawn_dead_group": "", "spawn_delay": 3.0, "deployment_mode": "all", "formation": "phalanx", "formation_columns": 8, "formation_spacing": 1.20, "formation_rank_spacing": 1.05, "v2_animation": "block_idle", "v2_combat_lab": true, "v2_troop_mode": "hoplite_phalanx", "v2_persistent_fronts": true})
+			_library_button("ARCHERS V2 — 12 tireurs", "enemy_group", _combined_arms_preset("enemy_v2_archer", "archer", 12))
+			_library_button("FANTASSINS V2 — 12 épées", "enemy_group", _combined_arms_preset("enemy_v2_infantry", "infantry", 12))
+			_library_button("GÉANT V2 — miniboss ×3", "enemy_group", _combined_arms_preset("enemy_v2_giant", "giant", 1))
+			_library_button("⚔  DUEL V2 LAB — 1 hoplite combattant", "enemy_group", {"group_id": "duel_v2_lab", "archetype": String(HopliteV2CatalogScript.FORGE_HOPLITE_ID), "count": 1, "rank": "normal", "size_multiplier": 1.0, "match_perfect_hitbox": false, "behavior": "normal", "route_id": "", "protect_target": "", "spawn_condition": "start", "spawn_trigger": "", "spawn_dead_group": "", "spawn_delay": 0.0, "deployment_mode": "all", "formation": "line", "v2_animation": "block_idle", "v2_combat_lab": true})
+			_add_enemy_character_library()
 			_library_button("⌖  Depart joueur", "player_spawn", {"radius": 1.0})
 		5:
 			var trigger_hint := _label("Les declencheurs sont des volumes invisibles en jeu. Leur nom peut aussi servir de reference aux troupes.", 12, Color("9aaac1"))
@@ -897,13 +1350,116 @@ func _refresh_library() -> void:
 		7:
 			_library_button("☀  Lumiere omnidirectionnelle", "light", {"light_type": "omni", "color": "#ffb36b", "energy": 2.0, "range": 12.0, "shadows": false})
 			_library_button("⌁  Projecteur", "light", {"light_type": "spot", "color": "#fff0d0", "energy": 3.0, "range": 18.0, "angle": 42.0, "shadows": true})
+			library_items.add_child(_section("EFFETS OPTIMISÉS"))
+			_library_button("≈  NAPPE D'EAU — 12 × 12 m", "water", {"size": [12.0, 0.08, 12.0], "shallow_color": "#167e93", "deep_color": "#062b4a", "texture": "none", "texture_scale": 4.0, "texture_strength": 0.18, "opacity": 0.68, "wave_scale": 0.55, "wave_speed": 0.7, "wave_height": 0.08, "roughness": 0.18})
+			_library_button("♨  FEU — particules légères", "fire", {"amount": 48, "size": 1.0, "lifetime": 1.15, "core_color": "#ffdc52", "edge_color": "#ff3608", "light_enabled": false, "light_energy": 1.8, "light_range": 7.0})
+
+
+func _add_enemy_character_library() -> void:
+	library_items.add_child(_section("ENEMY V2 — FORMAT OPTIMISÉ"))
+	var v2_count := 0
+	for forge_archetype: StringName in HopliteV2CatalogScript.forge_archetype_ids():
+		_add_enemy_archetype_library_button(forge_archetype, &"enemy_v2")
+		v2_count += 1
+	for archetype: StringName in EnemyArchetypesScript.all_ids():
+		var route := EnemyRuntimeMigrationScript.route_for(archetype)
+		if int(route.get("generation", EnemyRuntimeMigrationScript.RuntimeGeneration.LEGACY_V1)) != EnemyRuntimeMigrationScript.RuntimeGeneration.MODULAR_V2:
+			continue
+		_add_enemy_archetype_library_button(archetype, &"enemy_v2")
+		v2_count += 1
+	if v2_count == 0:
+		var v2_hint := _label("Aucun package Enemy V2 validé pour le moment. Cette section se remplira automatiquement famille par famille.", 11, Color("8f9db2"))
+		v2_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		library_items.add_child(v2_hint)
+
+	for origin: StringName in EnemyArchetypesScript.ASSET_ORIGIN_ORDER:
+		match origin:
+			EnemyArchetypesScript.ASSET_ORIGIN_3DGEN:
+				library_items.add_child(_section("3DGEN — ROSTER DU JEU / CANDIDATS V2"))
+			EnemyArchetypesScript.ASSET_ORIGIN_MIXAMO:
+				library_items.add_child(_section("MIXAMO — ANCIENS MODÈLES DE TEST"))
+			_:
+				library_items.add_child(_section("AUTRES — CRÉATURES / IMPORTS SPÉCIAUX"))
+		for archetype: StringName in EnemyArchetypesScript.ids_for_asset_origin(origin):
+			var route := EnemyRuntimeMigrationScript.route_for(archetype)
+			if int(route.get("generation", EnemyRuntimeMigrationScript.RuntimeGeneration.LEGACY_V1)) == EnemyRuntimeMigrationScript.RuntimeGeneration.MODULAR_V2:
+				continue
+			_add_enemy_archetype_library_button(archetype, origin)
+
+
+func _add_enemy_archetype_library_button(archetype: StringName, category: StringName) -> void:
+	var source_archetype := HopliteV2CatalogScript.source_archetype_for(archetype)
+	var profile := EnemyArchetypesScript.profile(source_archetype)
+	var rank := "miniboss" if EnemyArchetypesScript.is_miniboss(archetype) or EnemyArchetypesScript.is_boss(archetype) else "normal"
+	var properties := {
+		"group_id": "groupe_%s" % String(archetype),
+		"archetype": String(archetype),
+		"count": int(profile.get("forge_default_count", 1)),
+		"rank": rank,
+		"size_multiplier": 1.0,
+		"match_perfect_hitbox": false,
+		"behavior": "normal",
+		"route_id": "",
+		"protect_target": "",
+		"spawn_condition": "start",
+		"spawn_trigger": "",
+		"spawn_dead_group": "",
+		"spawn_delay": 3.0,
+		"deployment_mode": "all",
+		"formation": String(profile.get("forge_default_formation", &"line")),
+	}
+	if HopliteV2CatalogScript.is_forge_archetype(archetype):
+		properties["v2_animation"] = "idle"
+	var icon := "◇" if category == &"enemy_v2" else "♙"
+	if EnemyArchetypesScript.is_dinosaur(archetype):
+		icon = "🦖"
+		properties["group_id"] = "dinos_%s" % String(archetype)
+		properties["match_perfect_hitbox"] = bool(profile.get("forge_default_match_perfect_hitbox", true))
+		properties["giant_traversal_mode"] = "exact"
+		properties["giant_capsule_radius_multiplier"] = 1.0
+		properties["giant_capsule_height_multiplier"] = 1.0
+		properties["giant_walkable_tops"] = true
+	elif EnemyArchetypesScript.is_giant(archetype):
+		icon = "♜"
+		properties["match_perfect_hitbox"] = bool(profile.get("forge_default_match_perfect_hitbox", true))
+		properties["giant_traversal_mode"] = "assisted"
+		properties["giant_capsule_radius_multiplier"] = 0.90
+		properties["giant_capsule_height_multiplier"] = 1.0
+		properties["giant_walkable_tops"] = true
+	elif EnemyArchetypesScript.is_wolf_boss(archetype):
+		icon = "♞"
+		properties["group_id"] = "boss_%s" % String(archetype)
+	var display_name := HopliteV2CatalogScript.forge_display_name(archetype) if HopliteV2CatalogScript.is_forge_archetype(archetype) else String(profile.get("display_name", String(archetype))).capitalize()
+	_library_button("%s  %s" % [icon, display_name], "enemy_group", properties)
+
+
+func _enemy_archetype_option_data() -> Dictionary:
+	var labels: Array[String] = []
+	var values: Array[String] = []
+	for forge_archetype: StringName in HopliteV2CatalogScript.forge_archetype_ids():
+		labels.append("ENEMY V2 LAB — %s" % HopliteV2CatalogScript.forge_display_name(forge_archetype).trim_suffix(" — ENEMY V2 (LAB)"))
+		values.append(String(forge_archetype))
+	for archetype: StringName in EnemyArchetypesScript.all_ids():
+		var route := EnemyRuntimeMigrationScript.route_for(archetype)
+		if int(route.get("generation", EnemyRuntimeMigrationScript.RuntimeGeneration.LEGACY_V1)) == EnemyRuntimeMigrationScript.RuntimeGeneration.MODULAR_V2:
+			labels.append("ENEMY V2 — %s" % String(EnemyArchetypesScript.profile(archetype).get("display_name", String(archetype))).capitalize())
+			values.append(String(archetype))
+	for origin: StringName in EnemyArchetypesScript.ASSET_ORIGIN_ORDER:
+		var origin_label := EnemyArchetypesScript.asset_origin_label(origin).to_upper()
+		for archetype: StringName in EnemyArchetypesScript.ids_for_asset_origin(origin):
+			var route := EnemyRuntimeMigrationScript.route_for(archetype)
+			if int(route.get("generation", EnemyRuntimeMigrationScript.RuntimeGeneration.LEGACY_V1)) == EnemyRuntimeMigrationScript.RuntimeGeneration.MODULAR_V2:
+				continue
+			labels.append("%s — %s" % [origin_label, String(EnemyArchetypesScript.profile(archetype).get("display_name", String(archetype))).capitalize()])
+			values.append(String(archetype))
+	return {"labels": labels, "values": values}
 
 func _configure_library_categories() -> void:
 	if library_category == null:
 		return
 	library_category.clear()
 	var categories := [
-		"⌁  TERRAIN — CRÉER & SCULPTER",
+		"⌁  TERRAIN — CRÉER & MODELER",
 		"▰  SURFACES — SOLS, MURS, BLOCS",
 		"▦  TEXTURES & MATÉRIAUX",
 		"◆  OBJETS 3D",
@@ -918,44 +1474,95 @@ func _configure_library_categories() -> void:
 	_refresh_library()
 
 func _add_automatic_asset_folders() -> void:
-	var grouped: Dictionary = {}
+	var regular_entries: Array[Dictionary] = []
+	var blender_entries: Array[Dictionary] = []
 	for entry: Dictionary in automatic_assets:
-		if StringName(entry.get("category", &"environment")) == &"characters":
+		var category := StringName(entry.get("category", &"environment"))
+		if category == &"characters" or StringName(entry.get("subcategory", &"decor")) in [&"ground_cover", &"shrubs"]:
 			continue
+		if category == &"blender":
+			blender_entries.append(entry)
+		else:
+			regular_entries.append(entry)
+	_add_asset_subcategory_folders(library_items, regular_entries, AssetLibraryRoomScript.SUBCATEGORY_ORDER, 2)
+	if blender_entries.is_empty():
+		return
+
+	var blender_folder := FoldableContainer.new()
+	blender_folder.title = "BLENDER — PRODUCTION V2  (%d)" % blender_entries.size()
+	blender_folder.folded = false
+	blender_folder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var blender_content := VBoxContainer.new()
+	blender_content.add_theme_constant_override("separation", 4)
+	blender_folder.add_child(blender_content)
+	library_items.add_child(blender_folder)
+	_add_asset_subcategory_folders(blender_content, blender_entries, AssetLibraryRoomScript.BLENDER_SUBCATEGORY_ORDER, 1)
+
+func _add_asset_subcategory_folders(parent: VBoxContainer, entries_to_group: Array[Dictionary], order: Array[StringName], open_folder_count: int) -> void:
+	var grouped: Dictionary = {}
+	for entry: Dictionary in entries_to_group:
 		var subcategory := StringName(entry.get("subcategory", &"decor"))
 		if not grouped.has(subcategory):
 			grouped[subcategory] = []
 		(grouped[subcategory] as Array).append(entry)
 	var folder_index := 0
-	for subcategory: StringName in AssetLibraryRoomScript.SUBCATEGORY_ORDER:
+	for subcategory: StringName in order:
 		var entries := grouped.get(subcategory, []) as Array
 		if entries.is_empty():
 			continue
 		var folder := FoldableContainer.new()
-		folder.title = "%s  (%d)" % [String(AssetLibraryRoomScript.SUBCATEGORY_LABELS.get(subcategory, "DÉCORS & OBJETS")), entries.size()]
-		folder.folded = folder_index > 1
+		var label := String((entries[0] as Dictionary).get("subcategory_label", "DÉCORS & OBJETS"))
+		folder.title = "%s  (%d)" % [label, entries.size()]
+		folder.folded = folder_index >= open_folder_count
 		folder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var content := VBoxContainer.new()
 		content.add_theme_constant_override("separation", 4)
 		folder.add_child(content)
-		library_items.add_child(folder)
+		parent.add_child(folder)
 		for raw: Variant in entries:
 			_add_asset_folder_button(content, raw as Dictionary)
 		folder_index += 1
 
 func _add_asset_folder_button(parent: VBoxContainer, entry: Dictionary) -> void:
 	var display_name := String(entry.get("display_name", "Objet"))
+	var row := HBoxContainer.new()
+	row.custom_minimum_size.y = 54.0
+	row.add_theme_constant_override("separation", 7)
+	parent.add_child(row)
+	var preview := TextureRect.new()
+	preview.custom_minimum_size = Vector2(54.0, 50.0)
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var preview_path := String(entry.get("preview_path", ""))
+	if not preview_path.is_empty():
+		preview.texture = load(preview_path) as Texture2D
+	row.add_child(preview)
+	var button := _button("◆  %s" % display_name, func() -> void: _select_asset_brush(entry))
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.clip_text = true
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.tooltip_text = "%s\nHauteur initiale : %.2f m • espacement : %.2f m%s" % [display_name, float(entry.get("target_height", 2.0)), float(entry.get("brush_spacing", 1.0)), "\nRamassable instantanément avec E en mode Test." if bool(entry.get("equipment_pickup", false)) else ""]
+	row.add_child(button)
+
+func _select_asset_brush(entry: Dictionary) -> void:
+	var display_name := String(entry.get("display_name", "Objet"))
 	var asset_properties := {
 		"asset_path": String(entry.get("path", "")),
 		"asset_label": display_name,
 		"target_height": float(entry.get("target_height", 2.0)),
 		"brush_spacing": float(entry.get("brush_spacing", 1.0)),
+		"ground_offset": 0.0,
+		"collision_enabled": bool(entry.get("collision_enabled", true)),
+		"collision_shape": String(entry.get("collision_shape", "box")),
+		"align_to_ground": bool(entry.get("align_to_ground", false)),
 	}
-	var button := _button("◆  %s" % display_name, func() -> void: _select_brush("◆  %s" % display_name, "prop", asset_properties))
-	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.clip_text = true
-	button.tooltip_text = "%s\nHauteur initiale : %.2f m • espacement : %.2f m" % [display_name, float(asset_properties["target_height"]), float(asset_properties["brush_spacing"])]
-	parent.add_child(button)
+	_apply_lobby_portal_asset_defaults(asset_properties)
+	_select_brush("◆  %s" % display_name, "prop", asset_properties)
+	selected_asset_entry = entry.duplicate(true)
+	right_panel_open = true
+	right_panel.visible = true
+	_rebuild_inspector()
 
 func _add_terrain_builder() -> void:
 	var panel := PanelContainer.new()
@@ -984,7 +1591,7 @@ func _add_terrain_builder() -> void:
 	content.add_child(_button("≈  COTE 64 × 64 m", func() -> void: _create_terrain_preset("coast", "Cote", "sandstone_floor", 8.0), Color("355447")))
 	if terrain.is_empty():
 		return
-	library_items.add_child(_section("SCULPTURE DIRECTE"))
+	library_items.add_child(_section("PINCEAU DE MODELAGE"))
 	var tools := GridContainer.new()
 	tools.columns = 2
 	tools.add_theme_constant_override("h_separation", 5)
@@ -1017,19 +1624,7 @@ func _add_terrain_builder() -> void:
 	var sculpt_hint := _label("Clic-glisse sur le terrain. Maj inverse Monter/Creuser. Aplanir prend la hauteur du premier clic.", 10, Color("9aaac1"))
 	sculpt_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	library_items.add_child(sculpt_hint)
-	library_items.add_child(_section("TEXTURE LOCALE"))
-	var paint_hint := _label("Texture du pinceau : %s. Choisissez-en une dans Textures & matériaux, puis peignez seulement la zone souhaitée." % active_material.replace("_", " ").capitalize(), 10, Color("aebbd0"))
-	paint_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	library_items.add_child(paint_hint)
-	var paint_row := HBoxContainer.new()
-	paint_row.add_theme_constant_override("separation", 5)
-	var paint_button := _button("▦  PEINDRE", func() -> void: _set_terrain_tool("paint"), Color("356155") if terrain_tool == "paint" and tool_mode == "terrain" else Color("293b38"))
-	paint_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	paint_row.add_child(paint_button)
-	var erase_paint_button := _button("⌫  EFFACER", func() -> void: _set_terrain_tool("erase_material"), Color("60453b") if terrain_tool == "erase_material" and tool_mode == "terrain" else Color("342d2c"))
-	erase_paint_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	paint_row.add_child(erase_paint_button)
-	library_items.add_child(paint_row)
+	_add_terrain_base_material_picker(terrain)
 	library_items.add_child(_section("VEGETATION MULTIMESH"))
 	_add_foliage_brush_picker(library_items)
 	_add_library_brush_number("Rayon végétation", terrain_brush_radius, 0.5, 48.0, 0.5, func(value: float) -> void: terrain_brush_radius = value)
@@ -1039,13 +1634,106 @@ func _add_terrain_builder() -> void:
 	var foliage_button := _button("♒  PEINDRE %s" % _foliage_display_name(active_foliage_preset).to_upper(), func() -> void: _set_terrain_tool("foliage"), Color("356155") if terrain_tool == "foliage" and tool_mode == "terrain" else Color("293b38"))
 	foliage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	foliage_row.add_child(foliage_button)
-	var erase_foliage_button := _button("⌫  RETIRER", func() -> void: _set_terrain_tool("erase_foliage"), Color("60453b") if terrain_tool == "erase_foliage" and tool_mode == "terrain" else Color("342d2c"))
+	var erase_foliage_button := _button("⌫  RETIRER %s" % _foliage_display_name(active_foliage_preset).to_upper(), func() -> void: _set_terrain_tool("erase_foliage"), Color("60453b") if terrain_tool == "erase_foliage" and tool_mode == "terrain" else Color("342d2c"))
 	erase_foliage_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	foliage_row.add_child(erase_foliage_button)
 	library_items.add_child(foliage_row)
-	var foliage_hint := _label("Chaque type peint est regroupé dans un MultiMesh : un draw call par type utilisé, sans créer un nœud par brin.", 10, Color("8ee0bd"))
+	var foliage_hint := _label("Chaque type peint est regroupé dans un MultiMesh, sans nœud par brin. L'herbe utilise un draw ; un mesh à plusieurs surfaces en utilise un par surface.", 10, Color("8ee0bd"))
 	foliage_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	library_items.add_child(foliage_hint)
+
+func _add_terrain_base_material_picker(terrain: Dictionary) -> void:
+	library_items.add_child(_section("TEXTURE DE BASE — TOUT LE TERRAIN"))
+	var hint := _label("Ce choix remplace la texture globale du terrain en un clic. Les couches peintes localement restent intactes.", 10, Color("aebbd0"))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	library_items.add_child(hint)
+	var row := HBoxContainer.new()
+	row.add_child(_small_label("Texture globale"))
+	var picker := OptionButton.new()
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var current_material := String((terrain.get("properties", {}) as Dictionary).get("material", "dirt_path"))
+	var selected_index := 0
+	for category: StringName in MaterialCatalogScript.CATEGORY_ORDER:
+		var category_label := String(MaterialCatalogScript.CATEGORY_LABELS.get(category, "MATÉRIAUX")).capitalize()
+		for material_id: String in MaterialCatalogScript.ids_for_category(category):
+			picker.add_item("%s — %s" % [category_label, MaterialCatalogScript.label(StringName(material_id))])
+			picker.set_item_metadata(picker.item_count - 1, material_id)
+			if material_id == current_material:
+				selected_index = picker.item_count - 1
+	picker.select(selected_index)
+	picker.item_selected.connect(func(index: int) -> void: _set_terrain_base_material(terrain, String(picker.get_item_metadata(index))))
+	row.add_child(picker)
+	library_items.add_child(row)
+
+func _set_terrain_base_material(terrain: Dictionary, material: String) -> void:
+	if terrain.is_empty():
+		return
+	var properties := terrain.get("properties", {}) as Dictionary
+	if String(properties.get("material", "dirt_path")) == material:
+		return
+	_push_undo()
+	properties["material"] = material
+	_mark_changed()
+	_refresh_library()
+	_set_status("Texture de base appliquée à tout le terrain : %s. Les zones peintes sont conservées." % MaterialCatalogScript.label(StringName(material)))
+
+func _add_texture_paint_workspace() -> void:
+	var terrain := _active_terrain()
+	if terrain.is_empty():
+		var no_terrain_hint := _label("Aucun terrain dans ce chapitre. Une texture choisie reste disponible pour les surfaces.", 10, Color("e2a85f"))
+		no_terrain_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		library_items.add_child(no_terrain_hint)
+		return
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _flat_style(Color("222b2a"), Color("72c7a7"), 4, 9))
+	library_items.add_child(panel)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 7)
+	panel.add_child(content)
+	content.add_child(_label("PINCEAU DE TEXTURE TERRAIN", 12, Color("8ee0bd")))
+	var active_hint := _label("Texture active : %s" % MaterialCatalogScript.label(StringName(active_material)), 10, Color("d8e4ef"))
+	active_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(active_hint)
+	var usage_hint := _label(_terrain_material_layer_usage_text(terrain), 10, Color("9aaac1"))
+	usage_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(usage_hint)
+	_add_texture_brush_number(content, "Rayon", terrain_brush_radius, 0.5, 24.0, 0.5, func(value: float) -> void: terrain_brush_radius = value)
+	_add_texture_brush_number(content, "Force / opacité", terrain_brush_strength, 0.05, 4.0, 0.05, func(value: float) -> void: terrain_brush_strength = value)
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 5)
+	var paint_button := _button("▦  PEINDRE", func() -> void: _set_terrain_tool("paint"), Color("356155") if terrain_tool == "paint" and tool_mode == "terrain" else Color("293b38"))
+	paint_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actions.add_child(paint_button)
+	var erase_button := _button("⌫  RETROUVER LA BASE", func() -> void: _set_terrain_tool("erase_material"), Color("60453b") if terrain_tool == "erase_material" and tool_mode == "terrain" else Color("342d2c"))
+	erase_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actions.add_child(erase_button)
+	content.add_child(actions)
+	var hint := _label("Choisissez une texture ci-dessous : son pinceau est activé ici, sans revenir dans Terrain. La gomme révèle progressivement la texture globale.", 10, Color("aebbd0"))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(hint)
+
+func _add_texture_brush_number(parent: VBoxContainer, title: String, value: float, minimum: float, maximum: float, step: float, callback: Callable) -> void:
+	var row := HBoxContainer.new()
+	row.add_child(_small_label(title))
+	var spin := _spin(value, minimum, maximum, step)
+	spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spin.value_changed.connect(callback)
+	row.add_child(spin)
+	parent.add_child(row)
+
+func _terrain_material_layer_usage_text(terrain: Dictionary) -> String:
+	var properties := terrain.get("properties", {}) as Dictionary
+	WorldTerrainScript.normalize(properties)
+	var palette := properties.get("material_palette", []) as Array
+	var weights := properties.get("material_weights", []) as Array
+	var used_count := 0
+	for slot in range(palette.size()):
+		var total := 0.0
+		for index in range(slot, weights.size(), palette.size()):
+			total += float(weights[index])
+		if total > 0.0001:
+			used_count += 1
+	return "%d texture(s) locale(s) utilisée(s) • tout le catalogue peut être peint • la base se règle dans Terrain" % used_count
 
 func _add_foliage_brush_picker(parent: VBoxContainer) -> void:
 	var row := HBoxContainer.new()
@@ -1103,7 +1791,7 @@ func _active_terrain() -> Dictionary:
 func _select_terrain_entity(terrain: Dictionary) -> void:
 	if terrain.is_empty():
 		return
-	selected_id = String(terrain.get("id", ""))
+	_set_single_selection(String(terrain.get("id", "")))
 	_refresh_hierarchy()
 	_rebuild_inspector()
 	_update_selection_marker()
@@ -1124,11 +1812,11 @@ func _create_terrain_preset(generator: String, label: String, material: String, 
 		position.z = snappedf(position.z, grid_value)
 		terrain = WorldDocumentScript.entity("terrain", "Terrain — %s" % label, position, properties)
 		terrain["chapter"] = active_chapter_id
-		selected_id = document.add_entity(terrain)
+		_set_single_selection(document.add_entity(terrain))
 	else:
 		terrain["name"] = "Terrain — %s" % label
 		terrain["properties"] = properties
-		selected_id = String(terrain.get("id", ""))
+		_set_single_selection(String(terrain.get("id", "")))
 	dirty = true
 	_rebuild_preview()
 	_refresh_library()
@@ -1139,7 +1827,7 @@ func _set_terrain_tool(mode: String) -> void:
 	if terrain.is_empty():
 		_set_status("Creez d'abord un terrain dans ce chapitre.", true)
 		return
-	selected_id = String(terrain.get("id", ""))
+	_set_single_selection(String(terrain.get("id", "")))
 	terrain_tool = mode if mode in WorldTerrainScript.SCULPT_MODES or mode in WorldTerrainScript.PAINT_MODES else "raise"
 	_set_tool_mode("terrain")
 	_refresh_hierarchy()
@@ -1151,14 +1839,33 @@ func _terrain_tool_label(mode: String) -> String:
 	return {
 		"raise": "Monter", "lower": "Creuser", "smooth": "Lisser", "flatten": "Aplanir",
 		"paint": "Peindre %s" % active_material.replace("_", " "), "erase_material": "Effacer texture",
-		"foliage": "Peindre %s" % _foliage_display_name(active_foliage_preset), "erase_foliage": "Effacer végétation",
+		"foliage": "Peindre %s" % _foliage_display_name(active_foliage_preset), "erase_foliage": "Retirer %s" % _foliage_display_name(active_foliage_preset),
 	}.get(mode, "Sculpter")
 
-func _add_material_card(material: String) -> void:
+func _add_categorized_material_library() -> void:
+	var hint := _label("Toutes les textures restent applicables partout. Les catégories servent uniquement à les retrouver.", 10, Color("9aaac1"))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	library_items.add_child(hint)
+	for category: StringName in MaterialCatalogScript.CATEGORY_ORDER:
+		var ids := MaterialCatalogScript.ids_for_category(category)
+		if ids.is_empty():
+			continue
+		var folder := FoldableContainer.new()
+		folder.title = "%s  (%d)" % [String(MaterialCatalogScript.CATEGORY_LABELS.get(category, "MATÉRIAUX")), ids.size()]
+		folder.folded = false
+		folder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var content := VBoxContainer.new()
+		content.add_theme_constant_override("separation", 4)
+		folder.add_child(content)
+		library_items.add_child(folder)
+		for material: String in ids:
+			_add_material_card(material, content)
+
+func _add_material_card(material: String, parent: VBoxContainer = null) -> void:
 	var material_id := material
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", _flat_style(Color("20252c"), Color("35536b") if material_id == active_material else Color("303741"), 3, 5))
-	library_items.add_child(card)
+	(parent if parent != null else library_items).add_child(card)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 7)
 	card.add_child(row)
@@ -1166,12 +1873,10 @@ func _add_material_card(material: String) -> void:
 	preview.custom_minimum_size = Vector2(58, 44)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	var preview_path := _material_preview_path(material_id)
-	if not preview_path.is_empty():
-		preview.texture = load(preview_path) as Texture2D
+	preview.texture = MaterialLibraryScript.albedo_texture(StringName(material_id))
 	row.add_child(preview)
 	var prefix := "✓ " if material_id == active_material else "▦ "
-	var button := _button(prefix + material_id.replace("_", " ").capitalize(), func() -> void: _select_material(material_id), Color("35536b") if material_id == active_material else Color("26344b"))
+	var button := _button(prefix + MaterialCatalogScript.label(StringName(material_id)), func() -> void: _select_material(material_id), Color("35536b") if material_id == active_material else Color("26344b"))
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(button)
@@ -1265,11 +1970,16 @@ func _library_button(title: String, type: String, properties: Dictionary) -> voi
 	library_items.add_child(button)
 
 func _select_brush(title: String, type: String, properties: Dictionary) -> void:
+	selected_asset_entry = {}
 	brush_title = title.replace("▰", "").replace("▥", "").replace("◼", "").replace("◆", "").replace("♟", "").strip_edges()
 	brush_type = type
 	brush_properties = properties.duplicate(true)
+	if type == "enemy_group":
+		brush_properties["performance_profile"] = EncounterBudgetScript.normalize_profile(brush_properties.get("performance_profile", "auto"))
 	if type == "chapter_portal":
 		_apply_portal_property_defaults(brush_properties)
+	if type == "prop":
+		_apply_lobby_portal_asset_defaults(brush_properties)
 	if type == "surface":
 		brush_properties["material"] = active_material
 		surface_brush_shape = String(brush_properties.get("shape", "block"))
@@ -1280,41 +1990,59 @@ func _select_brush(title: String, type: String, properties: Dictionary) -> void:
 		_refresh_library()
 
 func _select_material(material: String) -> void:
-	active_material = material
-	if brush_type == "surface":
-		brush_properties["material"] = material
 	var entity := document.find_entity(selected_id)
 	if not entity.is_empty() and String(entity.get("type", "")) == "surface":
+		active_material = material
+		if brush_type == "surface":
+			brush_properties["material"] = material
 		_set_property(entity, "material", material)
 		_rebuild_preview()
-	elif not entity.is_empty() and String(entity.get("type", "")) == "terrain":
-		_set_terrain_tool("paint")
-		_set_status("Texture locale active : %s. Peignez maintenant uniquement les zones voulues." % material.replace("_", " "))
 	else:
-		_set_status("Texture active : %s. Elle est appliquee au pinceau de surface." % material.replace("_", " "))
+		var terrain := _active_terrain()
+		if not terrain.is_empty():
+			var properties := terrain.get("properties", {}) as Dictionary
+			if not WorldTerrainScript.can_paint_material(properties, material):
+				_set_status("Cette texture n'est pas disponible dans la palette terrain.", true)
+				return
+			active_material = material
+			if brush_type == "surface":
+				brush_properties["material"] = material
+			_set_single_selection(String(terrain.get("id", "")))
+			_set_terrain_tool("paint")
+			_set_status("Pinceau texture actif : %s. Peignez directement depuis l'onglet Textures." % MaterialCatalogScript.label(StringName(material)))
+		else:
+			active_material = material
+			if brush_type == "surface":
+				brush_properties["material"] = material
+			_set_status("Texture active : %s. Elle est appliquee au pinceau de surface." % material.replace("_", " "))
 	_refresh_library()
 
 func _add_entity(type: String, properties: Dictionary) -> void:
 	_push_undo()
-	var labels := {"surface": "Nouvelle surface", "prop": "Nouveau decor", "light": "Nouvelle lumiere", "enemy_group": "Nouveau groupe", "patrol_point": "Point de patrouille", "trigger": "Nouvel evenement", "narrative": "Element narratif", "atmosphere_zone": "Zone d'atmosphere", "player_spawn": "Depart joueur", "door": "Nouvelle porte", "chapter_portal": "Passage de chapitre"}
+	var labels := {"surface": "Nouvelle surface", "prop": "Nouveau decor", "water": "Nouvelle nappe d'eau", "fire": "Nouveau feu", "light": "Nouvelle lumiere", "enemy_group": "Nouveau groupe", "patrol_point": "Point de patrouille", "trigger": "Nouvel evenement", "narrative": "Element narratif", "atmosphere_zone": "Zone d'atmosphere", "player_spawn": "Depart joueur", "door": "Nouvelle porte", "chapter_portal": "Passage de chapitre"}
 	var position := camera_target
 	position.x = snappedf(position.x, float((document.data["settings"] as Dictionary).get("grid_size", 1.0)))
 	position.z = snappedf(position.z, float((document.data["settings"] as Dictionary).get("grid_size", 1.0)))
 	var entity := WorldDocumentScript.entity(type, labels.get(type, "Element"), position, properties)
 	entity["chapter"] = active_chapter_id
-	selected_id = document.add_entity(entity)
+	_set_single_selection(document.add_entity(entity))
 	_mark_changed(); _rebuild_preview()
 	_set_status("%s ajoute." % labels.get(type, "Element"))
 
 func _refresh_hierarchy() -> void:
+	if hierarchy == null:
+		return
+	_normalize_selection()
+	syncing_hierarchy_selection = true
 	hierarchy.clear()
 	var root := hierarchy.create_item()
-	var categories := {"TERRAIN": [], "DECOR": [], "PERSONNAGES": [], "LOGIQUE": [], "LUMIERES": []}
+	var categories := {"TERRAIN": [], "DECOR": [], "EFFETS": [], "PERSONNAGES": [], "LOGIQUE": [], "LUMIERES": []}
 	for raw: Variant in _chapter_entities():
 		var entity := raw as Dictionary
 		if not hierarchy_filter.text.is_empty() and hierarchy_filter.text.to_lower() not in String(entity.get("name", "")).to_lower(): continue
 		var type := String(entity.get("type", "")); var category := "DECOR"
 		if type == "terrain": category = "TERRAIN"
+		elif type in ["water", "fire"]: category = "EFFETS"
 		elif type == "enemy_group" or type == "player_spawn": category = "PERSONNAGES"
 		elif type in ["patrol_point", "trigger", "narrative", "atmosphere_zone", "chapter_portal"]: category = "LOGIQUE"
 		elif type == "light": category = "LUMIERES"
@@ -1323,22 +2051,57 @@ func _refresh_hierarchy() -> void:
 		var category_item := hierarchy.create_item(root); category_item.set_text(0, category); category_item.set_selectable(0, false); category_item.set_custom_color(0, Color("e9b96e"))
 		for entity: Dictionary in categories[category]:
 			var item := hierarchy.create_item(category_item); item.set_text(0, String(entity.get("name", "Element"))); item.set_metadata(0, String(entity.get("id", "")))
-			if String(entity.get("id", "")) == selected_id: item.select(0)
+			if selected_ids.has(String(entity.get("id", ""))): item.select(0)
+	syncing_hierarchy_selection = false
+	_refresh_group_picker()
 
 func _on_tree_selected() -> void:
-	var item := hierarchy.get_selected()
-	if item != null:
-		selected_id = String(item.get_metadata(0))
-		_rebuild_inspector()
-		_update_selection_marker()
+	_queue_hierarchy_selection_sync()
+
+func _on_tree_multi_selected(_item: TreeItem, _column: int, _selected: bool) -> void:
+	_queue_hierarchy_selection_sync()
+
+func _queue_hierarchy_selection_sync() -> void:
+	if syncing_hierarchy_selection or hierarchy_sync_pending:
+		return
+	hierarchy_sync_pending = true
+	_sync_selection_from_hierarchy.call_deferred()
+
+func _sync_selection_from_hierarchy() -> void:
+	hierarchy_sync_pending = false
+	if syncing_hierarchy_selection or hierarchy == null:
+		return
+	var ids: Array[String] = []
+	var item := hierarchy.get_next_selected(null)
+	var primary := ""
+	while item != null:
+		var entity_id := String(item.get_metadata(0))
+		if not entity_id.is_empty():
+			ids.append(entity_id)
+			primary = entity_id
+		item = hierarchy.get_next_selected(item)
+	selected_asset_entry = {}
+	_set_selection(ids, primary)
+	_rebuild_inspector()
+	_update_selection_marker()
 
 func _rebuild_inspector() -> void:
 	rebuilding_inspector = true
 	for child in inspector_content.get_children(): child.queue_free()
+	if not selected_asset_entry.is_empty() and tool_mode == "brush" and brush_type == "prop":
+		_inspect_asset_brush(selected_asset_entry)
+		rebuilding_inspector = false
+		return
+	var selected_entities := _selected_entities()
+	if selected_entities.size() > 1:
+		_inspect_multi_selection(selected_entities)
+		rebuilding_inspector = false
+		return
 	var entity := document.find_entity(selected_id)
 	if entity.is_empty():
 		var empty := _label("Selectionnez un element dans la vue ou la hierarchie.", 15, Color("8f9db2")); empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; inspector_content.add_child(empty)
 		rebuilding_inspector = false; return
+	_add_entity_group_memberships(entity)
 	inspector_content.add_child(_label(String(entity.get("type", "")).to_upper(), 12, Color("68d9b6")))
 	_add_text_field("Nom", String(entity.get("name", "")), func(value: String) -> void: _set_entity_value(entity, "name", value))
 	_add_check_field("Actif", bool(entity.get("enabled", true)), func(value: bool) -> void: _set_entity_value(entity, "enabled", value))
@@ -1361,6 +2124,8 @@ func _rebuild_inspector() -> void:
 		"terrain": _inspect_terrain(entity, properties)
 		"surface": _inspect_surface(entity, properties)
 		"prop": _inspect_prop(entity, properties)
+		"water": _inspect_water(entity, properties)
+		"fire": _inspect_fire(entity, properties)
 		"light": _inspect_light(entity, properties)
 		"enemy_group": _inspect_enemy_group(entity, properties)
 		"patrol_point": _inspect_patrol(entity, properties)
@@ -1375,11 +2140,156 @@ func _rebuild_inspector() -> void:
 	inspector_content.add_child(_button("Supprimer  Suppr", _delete_selected, Color("8f3c3c")))
 	rebuilding_inspector = false
 
+func _add_entity_group_memberships(entity: Dictionary) -> void:
+	var memberships := document.editor_groups_for_entity(String(entity.get("id", "")))
+	if memberships.is_empty():
+		return
+	inspector_content.add_child(_section("APPARTIENT À"))
+	for group: Dictionary in memberships:
+		var is_enemy_group := String(group.get("kind", "object")) == "enemy"
+		var prefix := "⚔ GROUPE D'ENNEMIS" if is_enemy_group else "▦ GROUPE D'OBJETS"
+		var button_color := Color("70452f") if is_enemy_group else Color("205247")
+		var group_button := _button("%s  •  %s" % [prefix, String(group.get("name", "Groupe"))], _select_editor_group_by_id.bind(String(group.get("id", ""))), button_color)
+		group_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		group_button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		group_button.tooltip_text = "Cliquer pour sélectionner tous les membres de ce groupe"
+		inspector_content.add_child(group_button)
+	var membership_hint := _label("Cliquez sur un groupe pour sélectionner tous ses membres.", 10, Color("9aaac1"))
+	membership_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(membership_hint)
+
+func _inspect_multi_selection(entities: Array[Dictionary]) -> void:
+	inspector_content.add_child(_label("MULTI-SÉLECTION", 12, Color("68d9b6")))
+	inspector_content.add_child(_label("%d éléments • Ctrl+clic pour modifier la sélection" % entities.size(), 15, Color("e5e9ef")))
+	inspector_content.add_child(_section("TRANSFORMATION DU GROUPE"))
+	var pivot := _selection_center()
+	var previous_position := [pivot.x, pivot.y, pivot.z]
+	var position_box := VBoxContainer.new()
+	position_box.add_child(_small_label("Centre de la sélection"))
+	var position_row := HBoxContainer.new()
+	for axis in range(3):
+		var component := axis
+		var spin := _spin(float(previous_position[component]), -10000.0, 10000.0, 0.25)
+		spin.value_changed.connect(func(value: float) -> void:
+			if rebuilding_inspector:
+				return
+			var delta := Vector3.ZERO
+			delta[component] = value - float(previous_position[component])
+			previous_position[component] = value
+			_translate_selection(delta)
+		)
+		position_row.add_child(spin)
+	position_box.add_child(position_row)
+	inspector_content.add_child(position_box)
+	var contains_terrain := false
+	var prop_count := 0
+	var all_enabled := true
+	for entity: Dictionary in entities:
+		contains_terrain = contains_terrain or String(entity.get("type", "")) == "terrain"
+		prop_count += 1 if String(entity.get("type", "")) == "prop" else 0
+		all_enabled = all_enabled and bool(entity.get("enabled", true))
+	if contains_terrain:
+		var terrain_hint := _label("L'échelle groupée est désactivée quand un terrain est inclus afin de préserver son relief 1:1. Le déplacement reste groupé et chaque rotation conserve les positions.", 10, Color("e6bd72"))
+		terrain_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inspector_content.add_child(terrain_hint)
+	else:
+		var previous_scale := [1.0]
+		_add_number_field("Échelle relative du groupe", 1.0, 0.05, 25.0, 0.05, func(value: float) -> void:
+			if rebuilding_inspector or is_zero_approx(float(previous_scale[0])):
+				return
+			var factor := value / float(previous_scale[0])
+			previous_scale[0] = value
+			_scale_selection(factor)
+		)
+	var rotation_hint := _label("R / Maj+R tourne chaque élément sur son propre pivot sans déplacer sa position. Ctrl conserve l'aimantation à 15°.", 10, Color("9aaac1"))
+	rotation_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(rotation_hint)
+	inspector_content.add_child(_section("PROPRIÉTÉS COMMUNES"))
+	_add_check_field("Actifs", all_enabled, func(value: bool) -> void: _set_multi_entity_value("enabled", value))
+	if prop_count > 0:
+		var all_colliders := true
+		var collision_shape := "box"
+		var first_prop := true
+		for entity: Dictionary in entities:
+			if String(entity.get("type", "")) != "prop":
+				continue
+			var properties := entity.get("properties", {}) as Dictionary
+			all_colliders = all_colliders and bool(properties.get("collision_enabled", true))
+			if first_prop:
+				collision_shape = String(properties.get("collision_shape", "box"))
+				first_prop = false
+		inspector_content.add_child(_section("COLLISION • %d DÉCOR(S)" % prop_count))
+		_add_check_field("Ajouter un collider physique", all_colliders, func(value: bool) -> void: _set_multi_prop_property("collision_enabled", value))
+		_add_mapped_option_field("Forme", PROP_COLLISION_LABELS, PROP_COLLISION_VALUES, collision_shape, func(value: String) -> void: _set_multi_prop_property("collision_shape", value))
+	inspector_content.add_child(_section("ACTIONS"))
+	inspector_content.add_child(_button("Créer un groupe avec cette sélection…", _request_save_selection_as_group, Color("285143")))
+	inspector_content.add_child(_button("Dupliquer les éléments  Ctrl+D", _duplicate_selected))
+	inspector_content.add_child(_button("Supprimer les éléments  Suppr", _delete_selected, Color("8f3c3c")))
+
+func _translate_selection(delta: Vector3, push_history: bool = true, rebuild: bool = true) -> void:
+	if delta.is_zero_approx() or selected_ids.is_empty():
+		return
+	if push_history:
+		_push_undo()
+	for entity: Dictionary in _selected_entities():
+		var position := WorldDocumentScript.vector3(entity.get("position", [])) + delta
+		entity["position"] = WorldDocumentScript.array3(position)
+		var runtime_node := runtime.nodes_by_id.get(String(entity.get("id", ""))) as Node3D if runtime != null else null
+		if runtime_node != null:
+			runtime_node.position = position
+	dirty = true
+	if rebuild:
+		_mark_changed()
+	else:
+		_update_selection_marker()
+
+func _scale_selection(factor: float, push_history: bool = true, rebuild: bool = true) -> void:
+	if factor <= 0.0 or is_equal_approx(factor, 1.0) or selected_ids.is_empty():
+		return
+	for entity: Dictionary in _selected_entities():
+		if String(entity.get("type", "")) == "terrain":
+			_set_status("Échelle groupée impossible avec un terrain sélectionné.", true)
+			return
+	if push_history:
+		_push_undo()
+	for entity: Dictionary in _selected_entities():
+		var scale := WorldDocumentScript.vector3(entity.get("scale", []), Vector3.ONE) * factor
+		_set_entity_scale_preserving_position(entity, scale)
+	dirty = true
+	if rebuild:
+		_mark_changed()
+	else:
+		_rebuild_preview()
+
+func _set_entity_scale_preserving_position(entity: Dictionary, scale: Vector3) -> void:
+	entity["scale"] = WorldDocumentScript.array3(scale)
+	var runtime_node := runtime.nodes_by_id.get(String(entity.get("id", ""))) as Node3D if runtime != null else null
+	if runtime_node != null:
+		runtime_node.scale = scale
+
+func _set_multi_entity_value(key: String, value: Variant) -> void:
+	if rebuilding_inspector:
+		return
+	_push_undo()
+	for entity: Dictionary in _selected_entities():
+		entity[key] = value
+	_mark_changed()
+
+func _set_multi_prop_property(key: String, value: Variant) -> void:
+	if rebuilding_inspector:
+		return
+	_push_undo()
+	for entity: Dictionary in _selected_entities():
+		if String(entity.get("type", "")) == "prop":
+			(entity.get("properties", {}) as Dictionary)[key] = value
+	_mark_changed()
+	_rebuild_inspector()
+
 func _inspect_surface(entity: Dictionary, p: Dictionary) -> void:
-	inspector_content.add_child(_section("GEOMETRIE & TEXTURE")); _add_option_field("Forme", ["floor", "wall", "block"], String(p.get("shape", "block")), func(v: String) -> void: _set_property(entity, "shape", v)); _add_vector_property("Dimensions", entity, p, "size", 0.25); _add_option_field("Texture", MATERIALS, String(p.get("material", "pavers")), func(v: String) -> void: _set_property(entity, "material", v))
+	inspector_content.add_child(_section("GEOMETRIE & TEXTURE")); _add_option_field("Forme", ["floor", "wall", "block"], String(p.get("shape", "block")), func(v: String) -> void: _set_property(entity, "shape", v)); _add_vector_property("Dimensions", entity, p, "size", 0.25); _add_material_option_field("Texture", String(p.get("material", "pavers")), func(v: String) -> void: _set_property(entity, "material", v))
 
 func _inspect_terrain(entity: Dictionary, p: Dictionary) -> void:
-	inspector_content.add_child(_section("RELIEF PROCEDURAL"))
+	inspector_content.add_child(_section("DIMENSIONS & GÉNÉRATION"))
 	_add_option_field("Generateur", WorldTerrainScript.GENERATORS, String(p.get("generator", "rolling")), func(value: String) -> void: _set_property(entity, "generator", value))
 	_add_option_field("Resolution (points par cote)", ["17", "33", "65", "129"], str(int(p.get("resolution", 65))), func(value: String) -> void: _set_terrain_resolution(entity, value.to_int()))
 	_add_number_field("Largeur X (m)", float(p.get("width", 64.0)), WorldTerrainScript.MIN_SIZE, WorldTerrainScript.MAX_SIZE, 1.0, func(value: float) -> void: _set_terrain_dimension(entity, "width", value))
@@ -1388,47 +2298,58 @@ func _inspect_terrain(entity: Dictionary, p: Dictionary) -> void:
 	_add_number_field("Amplitude (m)", float(p.get("amplitude", 7.0)), 0.0, 48.0, 0.25, func(value: float) -> void: _set_property(entity, "amplitude", value))
 	_add_number_field("Frequence", float(p.get("frequency", 0.025)), 0.001, 0.25, 0.001, func(value: float) -> void: _set_property(entity, "frequency", value))
 	_add_number_field("Octaves", float(p.get("octaves", 4)), 1.0, 8.0, 1.0, func(value: float) -> void: _set_property(entity, "octaves", int(value)))
-	_add_option_field("Texture PBR de base", MATERIALS, String(p.get("material", "dirt_path")), func(value: String) -> void: _set_property(entity, "material", value))
+	_add_material_option_field("Texture PBR de base", String(p.get("material", "dirt_path")), func(value: String) -> void: _set_property(entity, "material", value))
 	var resolution := int(p.get("resolution", 65))
 	var terrain_info := _label("%d × %d points • %.0f × %.0f m • pas %.2f × %.2f m • collision HeightMapShape3D" % [resolution, resolution, float(p.get("width", 64.0)), float(p.get("depth", 64.0)), float(p.get("width", 64.0)) / float(resolution - 1), float(p.get("depth", 64.0)) / float(resolution - 1)], 10, Color("8ee0bd"))
 	terrain_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inspector_content.add_child(terrain_info)
 	inspector_content.add_child(_button("↻  REGENERER LE RELIEF", func() -> void: _regenerate_terrain(entity), Color("315f73")))
-	inspector_content.add_child(_section("SCULPTURE"))
-	var sculpt_row := GridContainer.new()
-	sculpt_row.columns = 2
-	for definition: Dictionary in [
-		{"mode": "raise", "label": "▲ Monter"}, {"mode": "lower", "label": "▼ Creuser"},
-		{"mode": "smooth", "label": "≈ Lisser"}, {"mode": "flatten", "label": "▬ Aplanir"},
-	]:
-		var mode := String(definition["mode"])
-		var tool_button := _button(String(definition["label"]), func() -> void: _set_terrain_tool(mode), Color("356155") if terrain_tool == mode and tool_mode == "terrain" else Color("293b38"))
-		tool_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		sculpt_row.add_child(tool_button)
-	inspector_content.add_child(sculpt_row)
-	_add_number_field("Rayon du pinceau", terrain_brush_radius, 0.5, 24.0, 0.5, func(value: float) -> void: terrain_brush_radius = value)
-	_add_number_field("Force du pinceau", terrain_brush_strength, 0.05, 4.0, 0.05, func(value: float) -> void: terrain_brush_strength = value)
+	var tools_hint := _label("Les outils de sculpture, texture et végétation sont regroupés dans Bibliothèque > Terrain. Ce panneau ne contient que les données persistantes du terrain.", 10, Color("9aaac1"))
+	tools_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(tools_hint)
 	inspector_content.add_child(_button("≈  LISSER TOUT LE TERRAIN", func() -> void: _smooth_entire_terrain(entity), Color("3a4d58")))
 	inspector_content.add_child(_button("▬  APLATIR TOUT A ZERO", func() -> void: _flatten_entire_terrain(entity), Color("6b4a32")))
-	inspector_content.add_child(_section("PEINTURE LOCALE"))
-	_add_option_field("Texture du pinceau", MATERIALS, active_material, func(value: String) -> void: _select_material(value))
-	var local_paint_row := HBoxContainer.new()
-	local_paint_row.add_child(_button("▦  PEINDRE LA TEXTURE", func() -> void: _set_terrain_tool("paint"), Color("356155")))
-	local_paint_row.add_child(_button("⌫  RETROUVER LA BASE", func() -> void: _set_terrain_tool("erase_material"), Color("5b4137")))
-	inspector_content.add_child(local_paint_row)
-	inspector_content.add_child(_section("VEGETATION MULTIMESH"))
-	var foliage_labels: Array[String] = []
-	for preset: String in WorldTerrainScript.FOLIAGE_PRESETS:
-		foliage_labels.append(_foliage_display_name(preset))
-	_add_mapped_option_field("Type du pinceau", foliage_labels, WorldTerrainScript.FOLIAGE_PRESETS, active_foliage_preset, func(value: String) -> void: _set_foliage_brush(value))
-	_add_number_field("Rayon végétation", terrain_brush_radius, 0.5, 48.0, 0.5, func(value: float) -> void: terrain_brush_radius = value)
-	_add_number_field("Force / densité", terrain_brush_strength, 0.05, 4.0, 0.05, func(value: float) -> void: terrain_brush_strength = value)
+	inspector_content.add_child(_section("RENDU VÉGÉTATION"))
 	_add_number_field("Seed végétation", float(p.get("foliage_seed", 9256)), 0.0, 999999.0, 1.0, func(value: float) -> void: _set_property(entity, "foliage_seed", int(value)))
 	_add_number_field("Quantité", float(p.get("foliage_amount", 0.65)), 0.0, 2.0, 0.05, func(value: float) -> void: _set_property(entity, "foliage_amount", value))
-	var foliage_paint_row := HBoxContainer.new()
-	foliage_paint_row.add_child(_button("♒  PEINDRE %s" % _foliage_display_name(active_foliage_preset).to_upper(), func() -> void: _set_terrain_tool("foliage"), Color("356155")))
-	foliage_paint_row.add_child(_button("⌫  RETIRER L'HERBE", func() -> void: _set_terrain_tool("erase_foliage"), Color("5b4137")))
-	inspector_content.add_child(foliage_paint_row)
+
+func _inspect_asset_brush(entry: Dictionary) -> void:
+	inspector_content.add_child(_label("ASSET ÉQUIPÉ", 12, Color("68d9b6")))
+	inspector_content.add_child(_label(String(entry.get("display_name", "Objet")), 18, Color("f0f2f5")))
+	var preview_path := String(entry.get("preview_path", ""))
+	var preview := TextureRect.new()
+	preview.custom_minimum_size = Vector2(286.0, 210.0)
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	if not preview_path.is_empty():
+		preview.texture = load(preview_path) as Texture2D
+	inspector_content.add_child(preview)
+	inspector_content.add_child(_label(String(entry.get("subcategory_label", "DÉCOR")), 11, Color("e2a85f")))
+	var path_label := _label(String(entry.get("path", "")), 9, Color("818b98"))
+	path_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(path_label)
+	inspector_content.add_child(_section("RÉGLAGES DU PINCEAU"))
+	_add_number_field("Hauteur à la pose", float(brush_properties.get("target_height", 2.0)), 0.05, 50.0, 0.05, func(value: float) -> void: brush_properties["target_height"] = value)
+	_add_number_field("Espacement du trait", float(brush_properties.get("brush_spacing", 1.0)), 0.1, 20.0, 0.1, func(value: float) -> void: brush_properties["brush_spacing"] = value)
+	_add_number_field("Décalage par rapport au sol", float(brush_properties.get("ground_offset", 0.0)), -2.0, 2.0, 0.01, func(value: float) -> void: brush_properties["ground_offset"] = value)
+	_add_check_field("Aligner automatiquement sur la pente", bool(brush_properties.get("align_to_ground", false)), func(value: bool) -> void: brush_properties["align_to_ground"] = value)
+	if bool(entry.get("equipment_pickup", false)):
+		inspector_content.add_child(_section("ÉQUIPEMENT RAMASSABLE"))
+		var pickup_hint := _label("En mode Test, approchez le personnage et appuyez une fois sur E : l'arme ou le bouclier est équipé instantanément. Aucun collider bloquant n'est ajouté.", 11, Color("68d9b6"))
+		pickup_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inspector_content.add_child(pickup_hint)
+	else:
+		inspector_content.add_child(_section("COLLISION DE GAMEPLAY"))
+		var collision_enabled := bool(brush_properties.get("collision_enabled", true))
+		_add_check_field("Ajouter un collider physique", collision_enabled, func(value: bool) -> void: _set_asset_brush_collision_enabled(value))
+		if collision_enabled:
+			_add_mapped_option_field("Forme", PROP_COLLISION_LABELS, PROP_COLLISION_VALUES, String(brush_properties.get("collision_shape", "box")), func(value: String) -> void: brush_properties["collision_shape"] = value)
+		var collision_hint := _label("Sans collider, l'objet reste visible et sélectionnable dans la Forge mais ne bloque ni le joueur ni l'IA. Optimisée précise utilise le proxy léger de l'asset pour conserver arches, portes et surfaces praticables ; les objets simples utilisent une enveloppe convexe mise en cache.", 10, Color("9aaac1"))
+		collision_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inspector_content.add_child(collision_hint)
+	var hint := _label("Le pinceau est actif. Cliquez dans la vue pour placer l'objet ; le décalage sol permet de corriger ponctuellement une pierre ou un socle atypique.", 10, Color("8ee0bd"))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(hint)
 
 func _inspect_prop(entity: Dictionary, p: Dictionary) -> void:
 	inspector_content.add_child(_section("DECOR"))
@@ -1437,16 +2358,163 @@ func _inspect_prop(entity: Dictionary, p: Dictionary) -> void:
 		var scale_hint := _label("Utilisez l'echelle globale ou la poignee doree pour agrandir l'objet sans le deformer.", 12, Color("aebbd0"))
 		scale_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inspector_content.add_child(scale_hint)
+	else:
+		var ids: Array = AssetCatalogScript.ASSETS.keys()
+		ids.sort()
+		var strings: Array[String] = []
+		for id in ids:
+			strings.append(String(id))
+		_add_option_field("Objet", strings, String(p.get("asset_id", "crates")), func(v: String) -> void: _set_property(entity, "asset_id", v))
+	var asset_path := AssetCatalogScript.migrate_asset_path(String(p.get("asset_path", "")))
+	var asset_id := StringName(p.get("asset_id", ""))
+	var equipment_item: HopliteEquipmentItemData = EquipmentCatalogScript.item_for_visual_path(asset_path)
+	if _is_lobby_portal_asset(asset_path) or p.has("portal_role"):
+		_inspect_lobby_portal(entity, p)
+	if equipment_item != null:
+		inspector_content.add_child(_section("ÉQUIPEMENT RAMASSABLE"))
+		var equipment_hint := _label("%s • En mode Test : approchez-vous et appuyez une fois sur E pour l'équiper." % equipment_item.display_name, 11, Color("68d9b6"))
+		equipment_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inspector_content.add_child(equipment_hint)
+	else:
+		var collision_enabled := bool(p.get("collision_enabled", AssetCatalogScript.default_collision_enabled_for_path(asset_path, asset_id)))
+		var collision_shape := String(p.get("collision_shape", AssetCatalogScript.default_collision_shape_for_path(asset_path, asset_id)))
+		inspector_content.add_child(_section("COLLISION DE GAMEPLAY"))
+		_add_check_field("Ajouter un collider physique", collision_enabled, func(value: bool) -> void: _set_prop_collision_enabled(entity, value))
+		if collision_enabled:
+			_add_mapped_option_field("Forme", PROP_COLLISION_LABELS, PROP_COLLISION_VALUES, collision_shape, func(value: String) -> void: _set_property(entity, "collision_shape", value))
+		var collision_hint := _label("Le collider de sélection de la Forge est indépendant : désactiver cette option ne rend pas l'objet impossible à sélectionner.", 10, Color("9aaac1"))
+		collision_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inspector_content.add_child(collision_hint)
+	_add_check_field("Aligner automatiquement sur la pente", bool(p.get("align_to_ground", false)), func(value: bool) -> void: _set_prop_align_to_ground(entity, value))
+
+func _inspect_lobby_portal(entity: Dictionary, p: Dictionary) -> void:
+	inspector_content.add_child(_section("PORTAIL DU LOBBY"))
+	var hint := _label("Le role, la destination et la zone restent dans ce monde Forge. Deplacer ou tourner ce prop modifie directement le prochain chargement du lobby.", 10, Color("8ee0bd"))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(hint)
+	var role := String(p.get("portal_role", ""))
+	_add_mapped_option_field("Role", LOBBY_PORTAL_ROLE_LABELS, LOBBY_PORTAL_ROLE_VALUES, role, func(value: String) -> void: _set_lobby_portal_role(entity, value))
+	match role:
+		"world_editor":
+			_add_text_field("Libelle", String(p.get("portal_label", "FORGE DE MONDES\nCREER & EDITER")), func(value: String) -> void: _set_property(entity, "portal_label", value))
+		"official_campaign":
+			_add_mapped_option_field("Campagne", CAMPAIGN_PORTAL_LABELS, CAMPAIGN_PORTAL_VALUES, String(p.get("campaign_id", "procedural_campaign")), func(value: String) -> void: _set_property(entity, "campaign_id", value))
+			_add_text_field("Libelle personnalise", String(p.get("portal_label", "")), func(value: String) -> void: _set_property(entity, "portal_label", value))
+		"saved_worlds_anchor":
+			_add_number_field("Portails par rangee", float(p.get("portal_columns", 9)), 1.0, 17.0, 1.0, func(value: float) -> void: _set_property(entity, "portal_columns", int(value)))
+			_add_number_field("Espacement horizontal", float(p.get("portal_column_spacing", 7.25)), 5.0, 30.0, 0.25, func(value: float) -> void: _set_property(entity, "portal_column_spacing", value))
+			_add_number_field("Espacement des rangees", float(p.get("portal_row_spacing", 8.0)), 5.0, 30.0, 0.25, func(value: float) -> void: _set_property(entity, "portal_row_spacing", value))
+			var zone_hint := _label("Ce portail est le Stand de tir. Les portails des mondes apparaissent ensuite sur son axe X local, puis sur les rangees suivantes vers son axe -Z local.", 10, Color("f1c979"))
+			zone_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			inspector_content.add_child(zone_hint)
+
+func _set_lobby_portal_role(entity: Dictionary, role: String) -> void:
+	if rebuilding_inspector:
 		return
-	var ids: Array = AssetCatalogScript.ASSETS.keys()
-	ids.sort()
-	var strings: Array[String] = []
-	for id in ids:
-		strings.append(String(id))
-	_add_option_field("Objet", strings, String(p.get("asset_id", "crates")), func(v: String) -> void: _set_property(entity, "asset_id", v))
+	var properties := entity.get("properties", {}) as Dictionary
+	if String(properties.get("portal_role", "")) == role:
+		return
+	_push_undo()
+	properties["portal_role"] = role
+	_apply_lobby_portal_role_defaults(properties)
+	_mark_changed()
+	_rebuild_inspector()
+
+func _apply_lobby_portal_asset_defaults(properties: Dictionary) -> void:
+	var asset_path := AssetCatalogScript.migrate_asset_path(String(properties.get("asset_path", "")))
+	if properties.has("portal_role"):
+		_apply_lobby_portal_role_defaults(properties)
+		return
+	match asset_path:
+		FORGE_PORTAL_ASSET:
+			properties["portal_role"] = "world_editor"
+		CAMPAIGN_PORTAL_ASSET:
+			properties["portal_role"] = "official_campaign"
+		SAVED_WORLD_PORTAL_ASSET:
+			properties["portal_role"] = "saved_worlds_anchor"
+		_:
+			return
+	_apply_lobby_portal_role_defaults(properties)
+
+func _apply_lobby_portal_role_defaults(properties: Dictionary) -> void:
+	match String(properties.get("portal_role", "")):
+		"world_editor":
+			if not properties.has("portal_label"):
+				properties["portal_label"] = "FORGE DE MONDES\nCREER & EDITER"
+		"official_campaign":
+			if not properties.has("campaign_id"):
+				properties["campaign_id"] = "procedural_campaign"
+			if not properties.has("portal_label"):
+				properties["portal_label"] = ""
+		"saved_worlds_anchor":
+			if not properties.has("portal_columns"):
+				properties["portal_columns"] = 9
+			if not properties.has("portal_column_spacing"):
+				properties["portal_column_spacing"] = 7.25
+			if not properties.has("portal_row_spacing"):
+				properties["portal_row_spacing"] = 8.0
+
+func _is_lobby_portal_asset(asset_path: String) -> bool:
+	return asset_path in [FORGE_PORTAL_ASSET, CAMPAIGN_PORTAL_ASSET, SAVED_WORLD_PORTAL_ASSET]
+
+func _set_asset_brush_collision_enabled(value: bool) -> void:
+	brush_properties["collision_enabled"] = value
+	_rebuild_inspector()
+
+func _set_prop_collision_enabled(entity: Dictionary, value: bool) -> void:
+	_set_property(entity, "collision_enabled", value)
+	_rebuild_inspector()
+
+func _set_prop_align_to_ground(entity: Dictionary, value: bool) -> void:
+	_set_property(entity, "align_to_ground", value)
+	if value:
+		var position := WorldDocumentScript.vector3(entity.get("position", []))
+		var rotation := WorldDocumentScript.vector3(entity.get("rotation", []))
+		var sample := _terrain_ground_sample(position)
+		if not sample.is_empty():
+			entity["position"] = WorldDocumentScript.array3(sample.get("position", position))
+			entity["rotation"] = WorldDocumentScript.array3(_rotation_aligned_to_normal(sample.get("normal", Vector3.UP), rotation.y))
+	_rebuild_inspector()
 
 func _inspect_light(entity: Dictionary, p: Dictionary) -> void:
-	inspector_content.add_child(_section("LUMIERE")); _add_option_field("Type", ["omni", "spot"], String(p.get("light_type", "omni")), func(v: String) -> void: _set_property(entity, "light_type", v)); _add_text_field("Couleur HTML", String(p.get("color", "#ffb36b")), func(v: String) -> void: _set_property(entity, "color", v)); _add_number_field("Intensite", float(p.get("energy", 2.0)), 0.0, 20.0, 0.1, func(v: float) -> void: _set_property(entity, "energy", v)); _add_number_field("Portee", float(p.get("range", 12.0)), 1.0, 100.0, 0.5, func(v: float) -> void: _set_property(entity, "range", v)); _add_check_field("Ombres en test", bool(p.get("shadows", false)), func(v: bool) -> void: _set_property(entity, "shadows", v))
+	inspector_content.add_child(_section("LUMIERE")); _add_option_field("Type", ["omni", "spot"], String(p.get("light_type", "omni")), func(v: String) -> void: _set_property(entity, "light_type", v)); _add_color_field("Couleur", String(p.get("color", "#ffb36b")), func(v: String) -> void: _set_property(entity, "color", v)); _add_number_field("Intensite", float(p.get("energy", 2.0)), 0.0, 20.0, 0.1, func(v: float) -> void: _set_property(entity, "energy", v)); _add_number_field("Portee", float(p.get("range", 12.0)), 1.0, 100.0, 0.5, func(v: float) -> void: _set_property(entity, "range", v)); _add_check_field("Ombres en test", bool(p.get("shadows", false)), func(v: bool) -> void: _set_property(entity, "shadows", v))
+
+func _inspect_water(entity: Dictionary, p: Dictionary) -> void:
+	inspector_content.add_child(_section("NAPPE D'EAU"))
+	var hint := _label("Plan horizontal subdivisé, sans réfraction écran ni collision : coût stable même sur une grande surface.", 10, Color("8ee0bd"))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(hint)
+	_add_vector_property("Dimensions X / épaisseur / Z", entity, p, "size", 0.25)
+	_add_color_field("Couleur peu profonde", String(p.get("shallow_color", "#167e93")), func(v: String) -> void: _set_property(entity, "shallow_color", v))
+	_add_color_field("Couleur profonde", String(p.get("deep_color", "#062b4a")), func(v: String) -> void: _set_property(entity, "deep_color", v))
+	var texture_labels: Array[String] = ["Aucune — eau pure"]
+	var texture_values: Array[String] = ["none"]
+	for material_id: String in material_ids:
+		texture_labels.append(MaterialCatalogScript.label(StringName(material_id)))
+		texture_values.append(material_id)
+	_add_mapped_option_field("Texture de surface", texture_labels, texture_values, String(p.get("texture", "none")), func(v: String) -> void: _set_property(entity, "texture", v))
+	_add_number_field("Répétition texture", float(p.get("texture_scale", 4.0)), 0.25, 32.0, 0.25, func(v: float) -> void: _set_property(entity, "texture_scale", v))
+	_add_number_field("Intensité texture", float(p.get("texture_strength", 0.18)), 0.0, 1.0, 0.01, func(v: float) -> void: _set_property(entity, "texture_strength", v))
+	_add_number_field("Opacité", float(p.get("opacity", 0.68)), 0.05, 1.0, 0.01, func(v: float) -> void: _set_property(entity, "opacity", v))
+	_add_number_field("Échelle des vagues", float(p.get("wave_scale", 0.55)), 0.05, 4.0, 0.05, func(v: float) -> void: _set_property(entity, "wave_scale", v))
+	_add_number_field("Vitesse", float(p.get("wave_speed", 0.7)), 0.0, 4.0, 0.05, func(v: float) -> void: _set_property(entity, "wave_speed", v))
+	_add_number_field("Hauteur", float(p.get("wave_height", 0.08)), 0.0, 0.5, 0.01, func(v: float) -> void: _set_property(entity, "wave_height", v))
+	_add_number_field("Rugosité", float(p.get("roughness", 0.18)), 0.02, 1.0, 0.01, func(v: float) -> void: _set_property(entity, "roughness", v))
+
+func _inspect_fire(entity: Dictionary, p: Dictionary) -> void:
+	inspector_content.add_child(_section("FEU GPU OPTIMISÉ"))
+	var hint := _label("Billboards sans ombre, simulation fixée à 30 FPS et quantité plafonnée à 128 particules.", 10, Color("e6bd72"))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(hint)
+	_add_number_field("Taille", float(p.get("size", 1.0)), 0.15, 8.0, 0.05, func(v: float) -> void: _set_property(entity, "size", v))
+	_add_number_field("Particules", float(p.get("amount", 48)), 8.0, 128.0, 1.0, func(v: float) -> void: _set_property(entity, "amount", int(v)))
+	_add_number_field("Durée de vie", float(p.get("lifetime", 1.15)), 0.35, 3.0, 0.05, func(v: float) -> void: _set_property(entity, "lifetime", v))
+	_add_color_field("Cœur", String(p.get("core_color", "#ffdc52")), func(v: String) -> void: _set_property(entity, "core_color", v))
+	_add_color_field("Bords", String(p.get("edge_color", "#ff3608")), func(v: String) -> void: _set_property(entity, "edge_color", v))
+	_add_check_field("Lumière dynamique sans ombre", bool(p.get("light_enabled", false)), func(v: bool) -> void: _set_property(entity, "light_enabled", v))
+	if bool(p.get("light_enabled", false)):
+		_add_number_field("Intensité lumière", float(p.get("light_energy", 1.8)), 0.0, 8.0, 0.1, func(v: float) -> void: _set_property(entity, "light_energy", v))
+		_add_number_field("Portée lumière", float(p.get("light_range", 7.0)), 0.5, 30.0, 0.5, func(v: float) -> void: _set_property(entity, "light_range", v))
 
 func _inspect_enemy_group(entity: Dictionary, p: Dictionary) -> void:
 	inspector_content.add_child(_section("TROUPE ENNEMIE"))
@@ -1454,27 +2522,41 @@ func _inspect_enemy_group(entity: Dictionary, p: Dictionary) -> void:
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inspector_content.add_child(help)
 	_add_text_field("ID du groupe", String(p.get("group_id", "groupe")), func(v: String) -> void: _set_property(entity, "group_id", v))
-	var ids: Array[String] = []
-	for id in EnemyArchetypesScript.all_ids():
-		ids.append(String(id))
+	var archetype_options := _enemy_archetype_option_data()
+	var archetype_labels := archetype_options.get("labels", []) as Array
+	var ids := archetype_options.get("values", []) as Array
 	var composition := p.get("composition", []) as Array
 	var deployment_mode := String(p.get("deployment_mode", "all"))
 	if composition.is_empty():
-		_add_option_field("Personnage", ids, String(p.get("archetype", "nathenian1")), func(v: String) -> void: _set_enemy_group_archetype(entity, v))
+		_add_mapped_option_field("Personnage", archetype_labels, ids, String(p.get("archetype", "nathenian1")), func(v: String) -> void: _set_enemy_group_archetype(entity, v))
 		_add_number_field("Total maximum" if deployment_mode != "all" else "Nombre", float(p.get("count", 6)), 1, 500, 1, func(v: float) -> void: _set_property(entity, "count", int(v)))
 	else:
 		inspector_content.add_child(_section("COMPOSITION MIXTE"))
 		for composition_index in range(composition.size()):
 			var entry := composition[composition_index] as Dictionary
 			inspector_content.add_child(_label("Type %d" % (composition_index + 1), 11, Color("6fe1bd")))
-			_add_option_field("Personnage", ids, String(entry.get("archetype", "ngeneral")), func(v: String) -> void: _set_composition_entry(entity, composition_index, "archetype", v))
+			_add_mapped_option_field("Personnage", archetype_labels, ids, String(entry.get("archetype", "ngeneral")), func(v: String) -> void: _set_composition_entry(entity, composition_index, "archetype", v))
 			_add_number_field("Effectif", float(entry.get("count", 1)), 1, 500, 1, func(v: float) -> void: _set_composition_entry(entity, composition_index, "count", int(v)))
 		inspector_content.add_child(_label("Total : %d soldats" % int(p.get("count", 0)), 12, Color("f1c979")))
 		inspector_content.add_child(_button("Convertir en troupe uniforme", _clear_group_composition.bind(entity), Color("3b4354")))
 	_add_option_field("Rang", ["normal", "miniboss"], String(p.get("rank", "normal")), func(v: String) -> void: _set_property(entity, "rank", v))
 	_add_number_field("Taille", float(p.get("size_multiplier", 1.0)), 0.35, 4.0, 0.05, func(v: float) -> void: _set_property(entity, "size_multiplier", v))
 	var inspected_archetype := StringName(p.get("archetype", "nathenian1"))
-	if EnemyArchetypesScript.is_giant(inspected_archetype):
+	var is_v2_lab := HopliteV2CatalogScript.is_forge_archetype(inspected_archetype)
+	var source_archetype := HopliteV2CatalogScript.source_archetype_for(inspected_archetype)
+	var inspected_route := EnemyRuntimeMigrationScript.route_for(source_archetype)
+	var origin_text := "3DGen — package V2" if is_v2_lab else EnemyArchetypesScript.asset_origin_label(EnemyArchetypesScript.asset_origin(inspected_archetype))
+	var runtime_text := "Enemy V2 laboratoire" if is_v2_lab else ("Enemy V2 optimisé" if int(inspected_route.get("generation", EnemyRuntimeMigrationScript.RuntimeGeneration.LEGACY_V1)) == EnemyRuntimeMigrationScript.RuntimeGeneration.MODULAR_V2 else "Enemy V1 actuel")
+	inspector_content.add_child(_label("Origine : %s  •  Runtime : %s" % [origin_text, runtime_text], 11, Color("6fe1bd")))
+	if is_v2_lab:
+		var v2_warning := _label("Armée V2 : fronts persistants, navigation collective et pression partagée. Archers et fantassins utilisent provisoirement le corps hoplite avec leur équipement et leur combat propres. Géants : modèle dédié, taille réglable ci-dessus.", 11, Color("e6bd72"))
+		v2_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inspector_content.add_child(v2_warning)
+		_add_checkbox_field("Commandement par fronts", bool(p.get("v2_persistent_fronts", false)), func(v: bool) -> void: _set_property(entity, "v2_persistent_fronts", v))
+		_add_number_field("Front (0–3)", float(p.get("v2_front_id", 0)), 0, 3, 1, func(v: float) -> void: _set_property(entity, "v2_front_id", int(v)))
+		_add_checkbox_field("Combat V2", bool(p.get("v2_combat_lab", false)), func(v: bool) -> void: _set_property(entity, "v2_combat_lab", v))
+		_add_mapped_option_field("Animation V2", ["Cycle de phalange", "Repos", "Marche / course", "Sprint", "Attaque lance", "Attaque lance basse", "Coup de bouclier", "Garde"], ["phalanx_cycle", "idle", "move", "sprint", "spear_thrust", "spear_thrust_low", "shield_bash", "block_idle"], String(p.get("v2_animation", "phalanx_cycle")), func(v: String) -> void: _set_property(entity, "v2_animation", v))
+	elif EnemyArchetypesScript.is_giant(inspected_archetype):
 		inspector_content.add_child(_section("TRAVERSAL GEANT"))
 		_add_checkbox_field("Activer le traversal geant", bool(p.get("match_perfect_hitbox", true)), func(v: bool) -> void: _set_property(entity, "match_perfect_hitbox", v))
 		_add_mapped_option_field("Collision de locomotion", ["Assistee — corps lisse + vraie tete (recommande)", "Exacte — volumes du modele", "Desactivee"], ["assisted", "exact", "off"], String(p.get("giant_traversal_mode", "assisted")), func(v: String) -> void: _set_giant_traversal_mode(entity, v))
@@ -1488,6 +2570,29 @@ func _inspect_enemy_group(entity: Dictionary, p: Dictionary) -> void:
 	else:
 		_add_checkbox_field("Match perfect hitbox", bool(p.get("match_perfect_hitbox", false)), func(v: bool) -> void: _set_property(entity, "match_perfect_hitbox", v))
 		inspector_content.add_child(_label("Remplace la capsule par des volumes issus du modele. A reserver aux personnages importants.", 11, Color("aebbd0")))
+	inspector_content.add_child(_section("PERFORMANCE"))
+	var performance_profile := EncounterBudgetScript.normalize_profile(p.get("performance_profile", "auto"))
+	_add_mapped_option_field("Profil", ["Automatique (recommande)", "Detaille / heros", "Foule forcee"], ["auto", "detailed", "crowd"], performance_profile, func(v: String) -> void: _set_property(entity, "performance_profile", v))
+	var encounter_budget := EncounterBudgetScript.new()
+	encounter_budget.configure(document.entities_for_chapter(active_chapter_id), document.editor_groups())
+	var planned_population := encounter_budget.planned_population_for(entity)
+	var performance_hint := "Pic simultane estime : %d soldats. " % planned_population
+	match performance_profile:
+		"detailed":
+			performance_hint += "Cette troupe conservera tous les systemes visuels detailles."
+		"crowd":
+			performance_hint += "Cette troupe sera chargee en mode foule des sa creation."
+		_:
+			var inspected_profile: Dictionary = EnemyArchetypesScript.profile(source_archetype)
+			if is_v2_lab:
+				performance_hint += "Le profil V2 de laboratoire reste explicite : les trois LOD sont actifs et le squelette partagé garde 23 os par unité."
+			elif inspected_profile.has("dinosaur_auto_crowd_threshold"):
+				performance_hint += "Le LOD de meute dinosaure s'active des %d individus; anatomie et wall-run restent exacts a proximite." % int(inspected_profile["dinosaur_auto_crowd_threshold"])
+			else:
+				performance_hint += "Le mode foule s'active a partir de %d soldats simultanes; elites et boss restent detailles." % EncounterBudgetScript.AUTO_CROWD_THRESHOLD
+	var performance_label := _label(performance_hint, 11, Color("aebbd0"))
+	performance_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(performance_label)
 	inspector_content.add_child(_section("COMPORTEMENT"))
 	_add_mapped_option_field("Comportement", ["Combat libre", "Attend le joueur", "Patrouille", "Protege une cible"], ["normal", "wait", "patrol", "protect"], String(p.get("behavior", "normal")), func(v: String) -> void: _set_property(entity, "behavior", v))
 	var behavior := String(p.get("behavior", "normal"))
@@ -1495,12 +2600,14 @@ func _inspect_enemy_group(entity: Dictionary, p: Dictionary) -> void:
 		var route_id := String(p.get("route_id", ""))
 		var point_count := _patrol_point_count(route_id)
 		inspector_content.add_child(_label("Route : %s • %d point(s)" % [route_id if not route_id.is_empty() else "non tracee", point_count], 12, Color("6fe1bd")))
+		var patrol_hint := _label("La position initiale de chaque soldat ferme automatiquement la boucle. Après une poursuite, il rejoint le point de ronde le plus proche.", 10, Color("9aaac1"))
+		patrol_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inspector_content.add_child(patrol_hint)
 		inspector_content.add_child(_button("⌖  Tracer / completer la patrouille sur la carte", _begin_patrol_mapping.bind(entity), Color("205247")))
 		if point_count > 0:
 			inspector_content.add_child(_button("Effacer les points de cette patrouille", _clear_patrol_route.bind(entity), Color("593a3d")))
 	elif behavior == "protect":
-		var target_name := _entity_reference_label(String(p.get("protect_target", "")))
-		inspector_content.add_child(_label("Cible : %s" % target_name, 12, Color("6fe1bd") if target_name != "Aucune" else Color("ef8a7e")))
+		_add_protect_reference_details(entity, p)
 		inspector_content.add_child(_button("◎  Choisir l'objet ou la troupe sur la carte", _begin_reference_capture.bind(entity, "protect"), Color("205247")))
 	elif behavior == "wait":
 		var wait_hint := _label("La troupe reste en attente jusqu'a ce que le joueur entre dans sa distance d'activation automatique.", 12, Color("aebbd0"))
@@ -1692,7 +2799,7 @@ func _inspect_narrative(entity: Dictionary, p: Dictionary) -> void:
 	inspector_content.add_child(_section("NARRATION")); _add_text_field("Intervenant", String(p.get("speaker", "Narrateur")), func(v: String) -> void: _set_property(entity, "speaker", v)); _add_multiline_field("Texte", String(p.get("text", "")), func(v: String) -> void: _set_property(entity, "text", v)); _add_number_field("Duree", float(p.get("duration", 4)), 1, 30, 0.5, func(v: float) -> void: _set_property(entity, "duration", v))
 
 func _inspect_atmosphere(entity: Dictionary, p: Dictionary) -> void:
-	inspector_content.add_child(_section("ATMOSPHERE LOCALE")); _add_vector_property("Taille de zone", entity, p, "size", 0.5); _add_option_field("Preset", ATMOSPHERE_PRESETS.keys(), String(p.get("preset", "Siege enfume")), func(v: String) -> void: _apply_zone_preset(entity, v)); _add_number_field("Soleil", float(p.get("sun_energy", 0.66)), 0, 4, 0.05, func(v: float) -> void: _set_property(entity, "sun_energy", v)); _add_number_field("Ambiance", float(p.get("ambient_energy", 0.42)), 0, 3, 0.05, func(v: float) -> void: _set_property(entity, "ambient_energy", v)); _add_number_field("Brouillard", float(p.get("fog_density", 0.027)), 0, 0.15, 0.001, func(v: float) -> void: _set_property(entity, "fog_density", v))
+	inspector_content.add_child(_section("ATMOSPHERE LOCALE")); _add_vector_property("Taille de zone", entity, p, "size", 0.5); _add_option_field("Preset", ATMOSPHERE_PRESETS.keys(), String(p.get("preset", "Siege enfume")), func(v: String) -> void: _apply_zone_preset(entity, v)); _add_number_field("Soleil", float(p.get("sun_energy", 0.66)), 0, 4, 0.05, func(v: float) -> void: _set_property(entity, "sun_energy", v)); _add_number_field("Ambiance", float(p.get("ambient_energy", 0.42)), 0, 3, 0.05, func(v: float) -> void: _set_property(entity, "ambient_energy", v)); _add_number_field("Brouillard", float(p.get("fog_density", 0.027)), 0, 0.15, 0.001, func(v: float) -> void: _set_property(entity, "fog_density", v)); _add_color_field("Ciel haut", String(p.get("sky_top", "#1d2029")), func(v: String) -> void: _set_property(entity, "sky_top", v)); _add_color_field("Horizon / brume", String(p.get("sky_horizon", "#9e6549")), func(v: String) -> void: _set_property(entity, "sky_horizon", v))
 
 func _add_vector_fields(title: String, entity: Dictionary, key: String, step: float) -> void:
 	var value := WorldDocumentScript.vector3(entity.get(key, []), Vector3.ONE if key == "scale" else Vector3.ZERO)
@@ -1733,6 +2840,67 @@ func _add_vector_property(title: String, entity: Dictionary, p: Dictionary, key:
 func _add_text_field(title: String, value: String, callback: Callable) -> void:
 	var box := VBoxContainer.new(); box.add_child(_small_label(title)); var edit := LineEdit.new(); edit.text = value; edit.text_submitted.connect(func(v: String) -> void: callback.call(v)); edit.focus_exited.connect(func() -> void: callback.call(edit.text)); box.add_child(edit); inspector_content.add_child(box)
 
+func _add_color_field(title: String, value: String, callback: Callable) -> void:
+	_add_color_to(inspector_content, title, value, callback)
+
+func _add_color_to(parent: VBoxContainer, title: String, value: String, callback: Callable) -> void:
+	var row := HBoxContainer.new()
+	row.add_child(_small_label(title))
+	var picker := ColorPickerButton.new()
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	picker.custom_minimum_size.y = 34.0
+	picker.color = Color(value) if Color.html_is_valid(value) else Color.WHITE
+	picker.edit_alpha = false
+	picker.tooltip_text = "Ouvrir la roue de couleur • %s" % picker.color.to_html(false)
+	picker.get_picker().picker_shape = ColorPicker.SHAPE_HSV_WHEEL
+	var pending_html := ["#%s" % picker.color.to_html(false)]
+	picker.color_changed.connect(func(color: Color) -> void:
+		pending_html[0] = "#%s" % color.to_html(false)
+		picker.tooltip_text = String(pending_html[0])
+	)
+	picker.popup_closed.connect(func() -> void: callback.call(String(pending_html[0])))
+	row.add_child(picker)
+	parent.add_child(row)
+
+func _add_number_to(parent: VBoxContainer, title: String, value: float, minimum: float, maximum: float, step: float, callback: Callable) -> void:
+	var row := HBoxContainer.new()
+	row.add_child(_small_label(title))
+	var spin := _spin(value, minimum, maximum, step)
+	spin.value_changed.connect(func(changed: float) -> void: callback.call(changed))
+	row.add_child(spin)
+	parent.add_child(row)
+
+func _add_option_to(parent: VBoxContainer, title: String, options: Array, value: String, callback: Callable) -> void:
+	var row := HBoxContainer.new()
+	row.add_child(_small_label(title))
+	var option := OptionButton.new()
+	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var selected := 0
+	for index in range(options.size()):
+		option.add_item(String(options[index]))
+		if String(options[index]) == value:
+			selected = index
+	option.select(selected)
+	option.item_selected.connect(func(index: int) -> void: callback.call(option.get_item_text(index)))
+	row.add_child(option)
+	parent.add_child(row)
+
+func _add_mapped_option_to(parent: VBoxContainer, title: String, labels: Array, values: Array, value: String, callback: Callable) -> void:
+	var row := HBoxContainer.new()
+	row.add_child(_small_label(title))
+	var option := OptionButton.new()
+	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var selected := 0
+	for index in range(mini(labels.size(), values.size())):
+		option.add_item(String(labels[index]))
+		option.set_item_metadata(index, String(values[index]))
+		if String(values[index]) == value:
+			selected = index
+	option.select(selected)
+	option.item_selected.connect(func(index: int) -> void: callback.call(String(option.get_item_metadata(index))))
+	row.add_child(option)
+	parent.add_child(row)
+
 func _add_multiline_field(title: String, value: String, callback: Callable) -> void:
 	var box := VBoxContainer.new(); box.add_child(_small_label(title)); var edit := TextEdit.new(); edit.text = value; edit.custom_minimum_size.y = 88; edit.focus_exited.connect(func() -> void: callback.call(edit.text)); box.add_child(edit); inspector_content.add_child(box)
 
@@ -1753,6 +2921,16 @@ func _add_option_field(title: String, options: Array, value: String, callback: C
 	option.item_selected.connect(func(index: int) -> void: callback.call(option.get_item_text(index)))
 	row.add_child(option)
 	inspector_content.add_child(row)
+
+func _add_material_option_field(title: String, value: String, callback: Callable) -> void:
+	var labels: Array[String] = []
+	var values: Array[String] = []
+	for category: StringName in MaterialCatalogScript.CATEGORY_ORDER:
+		var category_label := String(MaterialCatalogScript.CATEGORY_LABELS.get(category, "MATÉRIAUX")).capitalize()
+		for material_id: String in MaterialCatalogScript.ids_for_category(category):
+			labels.append("%s — %s" % [category_label, MaterialCatalogScript.label(StringName(material_id))])
+			values.append(material_id)
+	_add_mapped_option_field(title, labels, values, value, callback)
 
 func _add_mapped_option_field(title: String, labels: Array, values: Array, value: String, callback: Callable) -> void:
 	var row := HBoxContainer.new()
@@ -1822,12 +3000,13 @@ func _set_terrain_dimension(entity: Dictionary, key: String, value: float) -> vo
 	if is_equal_approx(float(properties.get(key, 64.0)), safe_value):
 		return
 	_push_undo()
-	properties[key] = safe_value
-	WorldTerrainScript.normalize(properties)
+	var new_width := safe_value if key == "width" else float(properties.get("width", 64.0))
+	var new_depth := safe_value if key == "depth" else float(properties.get("depth", 64.0))
+	WorldTerrainScript.resize_dimensions(properties, new_width, new_depth)
 	dirty = true
 	_rebuild_preview()
 	_refresh_library()
-	_set_status("Dimensions du terrain mises à jour : %.0f × %.0f m." % [float(properties["width"]), float(properties["depth"])])
+	_set_status("Terrain prolongé/recadré sans étirement : %.0f × %.0f m, résolution %d." % [float(properties["width"]), float(properties["depth"]), int(properties["resolution"])])
 
 func _regenerate_terrain(entity: Dictionary) -> void:
 	if entity.is_empty():
@@ -1870,9 +3049,12 @@ func _set_enemy_group_archetype(entity: Dictionary, value: String) -> void:
 		return
 	_push_undo()
 	properties["archetype"] = value
+	if HopliteV2CatalogScript.is_forge_archetype(StringName(value)):
+		properties["v2_animation"] = String(properties.get("v2_animation", "idle"))
 	if EnemyArchetypesScript.is_giant(StringName(value)):
-		properties["match_perfect_hitbox"] = true
-		properties["giant_traversal_mode"] = "assisted"
+		var profile := EnemyArchetypesScript.profile(StringName(value))
+		properties["match_perfect_hitbox"] = bool(profile.get("forge_default_match_perfect_hitbox", true))
+		properties["giant_traversal_mode"] = String(profile.get("giant_traversal_mode", &"assisted"))
 		properties["giant_capsule_radius_multiplier"] = 0.90
 		properties["giant_capsule_height_multiplier"] = 1.0
 		properties["giant_walkable_tops"] = true
@@ -1920,7 +3102,8 @@ func _music_track_paths() -> Array[String]:
 	return result
 
 func _enemy_derived_values(properties: Dictionary) -> Dictionary:
-	var profile := EnemyArchetypesScript.profile(StringName(properties.get("archetype", "nathenian1")))
+	var archetype := StringName(properties.get("archetype", "nathenian1"))
+	var profile := EnemyArchetypesScript.profile(HopliteV2CatalogScript.source_archetype_for(archetype))
 	var profile_spacing := float(profile.get("formation_spacing", 0.0))
 	var scale_value := float(profile.get("scale", 1.0)) * float(properties.get("size_multiplier", 1.0))
 	var role := StringName(profile.get("role", &"infantry"))
@@ -1948,14 +3131,24 @@ func _patrol_point_count(route_id: String) -> int:
 func _entity_reference_label(key: String) -> String:
 	if key.is_empty():
 		return "Aucune"
+	var editor_group := document.find_editor_group_reference(key)
+	if not editor_group.is_empty():
+		return "%s • %s" % ["Groupe d'ennemis" if String(editor_group.get("kind", "object")) == "enemy" else "Groupe d'objets", String(editor_group.get("name", key))]
 	var entity := document.find_entity(key)
 	if entity.is_empty():
 		entity = document.find_by_name(key)
+	if entity.is_empty():
+		var enemies := document.enemy_entities_for_reference(key, active_chapter_id)
+		if not enemies.is_empty():
+			return String(enemies[0].get("name", key))
 	return String(entity.get("name", key)) if not entity.is_empty() else "%s (introuvable)" % key
 
 func _group_reference_label(key: String) -> String:
 	if key.is_empty():
 		return "Aucune"
+	var editor_group := document.find_editor_group_reference(key)
+	if not editor_group.is_empty() and String(editor_group.get("kind", "object")) == "enemy":
+		return "Groupe d'ennemis • %s" % String(editor_group.get("name", key))
 	for raw: Variant in _chapter_entities():
 		var candidate := raw as Dictionary
 		if String(candidate.get("type", "")) != "enemy_group":
@@ -1970,6 +3163,25 @@ func _add_group_reference_details(entity: Dictionary, properties: Dictionary, ke
 	var labels: Array[String] = ["Aucune"]
 	var values: Array[String] = [""]
 	var quick_value := reference
+	for raw_group: Variant in document.editor_groups():
+		var editor_group := raw_group as Dictionary
+		if String(editor_group.get("kind", "object")) != "enemy":
+			continue
+		var member_ids := editor_group.get("entity_ids", []) as Array
+		if not allow_self and String(entity.get("id", "")) in member_ids:
+			continue
+		var visible_members := 0
+		for raw_member_id: Variant in member_ids:
+			var member := document.find_entity(String(raw_member_id))
+			if not member.is_empty() and String(member.get("chapter", document.start_chapter())) == active_chapter_id:
+				visible_members += 1
+		if visible_members == 0:
+			continue
+		var editor_group_id := String(editor_group.get("id", ""))
+		labels.append("⚔ GROUPE • %s  —  %d troupes" % [String(editor_group.get("name", "Groupe")), visible_members])
+		values.append(editor_group_id)
+		if reference in [editor_group_id, String(editor_group.get("name", ""))]:
+			quick_value = editor_group_id
 	for raw: Variant in _chapter_entities():
 		var candidate := raw as Dictionary
 		if String(candidate.get("type", "")) != "enemy_group" or (not allow_self and String(candidate.get("id", "")) == String(entity.get("id", ""))):
@@ -1984,6 +3196,50 @@ func _add_group_reference_details(entity: Dictionary, properties: Dictionary, ke
 	_add_text_field("%s — nom ou ID" % title, reference, func(value: String) -> void: _set_property(entity, key, value.strip_edges()))
 	var resolved_name := _group_reference_label(reference)
 	var details := _label("Selection actuelle : %s\nReference enregistree : %s" % [resolved_name, reference if not reference.is_empty() else "aucune"], 11, Color("6fe1bd") if not reference.is_empty() and not resolved_name.contains("introuvable") else Color("ef8a7e"))
+	details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inspector_content.add_child(details)
+
+func _add_protect_reference_details(entity: Dictionary, properties: Dictionary) -> void:
+	var reference := String(properties.get("protect_target", ""))
+	var labels: Array[String] = ["Aucune"]
+	var values: Array[String] = [""]
+	var quick_value := reference
+	for raw_group: Variant in document.editor_groups():
+		var editor_group := raw_group as Dictionary
+		if String(editor_group.get("kind", "object")) != "enemy":
+			continue
+		var members := editor_group.get("entity_ids", []) as Array
+		if String(entity.get("id", "")) in members:
+			continue
+		var visible_members := 0
+		for raw_member_id: Variant in members:
+			var member := document.find_entity(String(raw_member_id))
+			if not member.is_empty() and String(member.get("chapter", document.start_chapter())) == active_chapter_id:
+				visible_members += 1
+		if visible_members == 0:
+			continue
+		var editor_group_id := String(editor_group.get("id", ""))
+		labels.append("⚔ GROUPE • %s  —  %d troupes" % [String(editor_group.get("name", "Groupe")), visible_members])
+		values.append(editor_group_id)
+		if reference in [editor_group_id, String(editor_group.get("name", ""))]:
+			quick_value = editor_group_id
+	for raw: Variant in _chapter_entities():
+		var candidate := raw as Dictionary
+		var candidate_type := String(candidate.get("type", ""))
+		if candidate_type not in ["prop", "surface", "enemy_group"] or String(candidate.get("id", "")) == String(entity.get("id", "")):
+			continue
+		var candidate_value := String(candidate.get("id", ""))
+		var kind_label := "TROUPE" if candidate_type == "enemy_group" else "OBJET"
+		if candidate_type == "enemy_group":
+			candidate_value = String((candidate.get("properties", {}) as Dictionary).get("group_id", candidate_value))
+		labels.append("%s • %s" % [kind_label, String(candidate.get("name", "Cible"))])
+		values.append(candidate_value)
+		if reference in [candidate_value, String(candidate.get("id", "")), String(candidate.get("name", ""))]:
+			quick_value = candidate_value
+	_add_mapped_option_field("Cible rapide", labels, values, quick_value, func(value: String) -> void: _set_property(entity, "protect_target", value))
+	_add_text_field("Cible protégée — nom ou ID", reference, func(value: String) -> void: _set_property(entity, "protect_target", value.strip_edges()))
+	var target_name := _entity_reference_label(reference)
+	var details := _label("Cible actuelle : %s" % target_name, 11, Color("6fe1bd") if reference.is_empty() or not target_name.contains("introuvable") else Color("ef8a7e"))
 	details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inspector_content.add_child(details)
 
@@ -2074,21 +3330,29 @@ func _on_viewport_pressed(screen_position: Vector2) -> void:
 	if tool_mode == "terrain":
 		_begin_terrain_stroke(screen_position)
 		return
-	var move_modifier := "vertical" if Input.is_key_pressed(KEY_SHIFT) else ("horizontal" if Input.is_key_pressed(KEY_CTRL) else "")
-	if tool_mode == "select" and not move_modifier.is_empty():
-		var move_id := selected_id if collider != null and (collider.has_meta("gizmo_axis") or collider.has_meta("gizmo_uniform")) else _entity_id_from_hit(hit)
-		var move_entity := document.find_entity(move_id)
-		if not move_entity.is_empty() and _entity_matches_mode(move_entity):
-			selected_id = move_id
-			_refresh_hierarchy()
-			_rebuild_inspector()
-			_update_selection_marker()
-			_begin_move(move_entity, screen_position, move_modifier)
-			return
 	if tool_mode == "select" and not hit.is_empty():
 		if collider != null and (collider.has_meta("gizmo_axis") or collider.has_meta("gizmo_uniform")):
 			_begin_resize(collider, screen_position)
 			return
+		var clicked_id := _entity_id_from_hit(hit)
+		var clicked_entity := document.find_entity(clicked_id)
+		if clicked_entity.is_empty() or not _entity_matches_mode(clicked_entity):
+			return
+		selected_asset_entry = {}
+		if Input.is_key_pressed(KEY_CTRL):
+			_toggle_entity_selection(clicked_id)
+			_refresh_selection_ui()
+			_set_status("Multi-sélection : %d élément(s). Ctrl+clic retire aussi un élément." % selected_ids.size())
+			return
+		if not selected_ids.has(clicked_id):
+			_set_single_selection(clicked_id)
+		else:
+			selected_id = clicked_id
+		_refresh_selection_ui()
+		var move_mode_requested := "vertical" if Input.is_key_pressed(KEY_SHIFT) else ("horizontal" if Input.is_key_pressed(KEY_ALT) else "")
+		if not move_mode_requested.is_empty():
+			_begin_move(clicked_entity, screen_position, move_mode_requested)
+		return
 	if tool_mode == "brush":
 		var placement := _placement_position(screen_position)
 		if not brush_position_valid:
@@ -2100,19 +3364,15 @@ func _on_viewport_pressed(screen_position: Vector2) -> void:
 	var entity := document.find_entity(entity_id)
 	if entity.is_empty() or not _entity_matches_mode(entity):
 		if tool_mode == "select":
-			selected_id = ""
-			_refresh_hierarchy()
-			_rebuild_inspector()
-			_update_selection_marker()
+			_set_single_selection("")
+			_refresh_selection_ui()
 		return
 	if tool_mode == "eraser":
-		selected_id = entity_id
+		_set_single_selection(entity_id)
 		_delete_selected()
 		return
-	selected_id = entity_id
-	_refresh_hierarchy()
-	_rebuild_inspector()
-	_update_selection_marker()
+	_set_single_selection(entity_id)
+	_refresh_selection_ui()
 
 func _ray_hit(screen_position: Vector2, mask: int) -> Dictionary:
 	var origin := editor_camera.project_ray_origin(screen_position)
@@ -2151,6 +3411,10 @@ func _placement_position(screen_position: Vector2) -> Vector3:
 	var grid_value := float((document.data.get("settings", {}) as Dictionary).get("grid_size", 1.0))
 	point.x = snappedf(point.x, grid_value)
 	point.z = snappedf(point.z, grid_value)
+	if brush_type == "prop":
+		var terrain_sample := _terrain_ground_sample(point)
+		if not terrain_sample.is_empty():
+			point.y = (terrain_sample.get("position", point) as Vector3).y
 	if brush_type == "surface":
 		var size := WorldDocumentScript.vector3(brush_properties.get("size", [1, 1, 1]), Vector3.ONE)
 		point.y = snappedf(point.y, grid_value * 0.25) + size.y * 0.5
@@ -2300,6 +3564,11 @@ func _assign_captured_reference(target: Dictionary) -> bool:
 				_set_status("La cible a proteger doit etre un objet, une surface ou une troupe.", true)
 				return false
 			property_key = "protect_target"
+			if target_type == "enemy_group":
+				var protect_reference := _enemy_reference_for_capture(target)
+				if protect_reference.is_empty():
+					return false
+				property_value = String(protect_reference.get("value", target_id))
 		"spawn_trigger":
 			if target_type != "trigger":
 				_set_status("Choisissez une hitbox de type Declencheur.", true)
@@ -2310,19 +3579,28 @@ func _assign_captured_reference(target: Dictionary) -> bool:
 				_set_status("Choisissez une troupe ennemie.", true)
 				return false
 			property_key = "spawn_dead_group"
-			property_value = String(target_properties.get("group_id", target_id))
+			var spawn_dead_reference := _enemy_reference_for_capture(target)
+			if spawn_dead_reference.is_empty():
+				return false
+			property_value = String(spawn_dead_reference.get("value", target_id))
 		"trigger_condition_dead":
 			if target_type != "enemy_group":
 				_set_status("Choisissez une troupe ennemie.", true)
 				return false
 			property_key = "condition_group"
-			property_value = String(target_properties.get("group_id", target_id))
+			var trigger_dead_reference := _enemy_reference_for_capture(target)
+			if trigger_dead_reference.is_empty():
+				return false
+			property_value = String(trigger_dead_reference.get("value", target_id))
 		"action_group":
 			if target_type != "enemy_group":
 				_set_status("Choisissez une troupe ennemie.", true)
 				return false
 			property_key = "action_target"
-			property_value = String(target_properties.get("group_id", target_id))
+			var action_group_reference := _enemy_reference_for_capture(target)
+			if action_group_reference.is_empty():
+				return false
+			property_value = String(action_group_reference.get("value", target_id))
 		"action_door":
 			if target_type != "door":
 				_set_status("Choisissez une porte animee.", true)
@@ -2343,17 +3621,37 @@ func _assign_captured_reference(target: Dictionary) -> bool:
 				_set_status("Choisissez une troupe ennemie.", true)
 				return false
 			property_key = "deployment_stop_group"
-			property_value = String(target_properties.get("group_id", target_id))
+			var deployment_reference := _enemy_reference_for_capture(target, true)
+			if deployment_reference.is_empty():
+				return false
+			property_value = String(deployment_reference.get("value", target_id))
 		_:
 			return false
 	_push_undo()
 	source_properties[property_key] = property_value
 	dirty = true
 	preview_rebuild_pending = false
-	var label := String(target.get("name", property_value))
+	var label := _group_reference_label(property_value) if target_type == "enemy_group" else String(target.get("name", property_value))
 	_finish_capture_mode()
 	_set_status("Cible liee : %s." % label)
 	return true
+
+func _enemy_reference_for_capture(target: Dictionary, allow_source_group: bool = false) -> Dictionary:
+	var target_id := String(target.get("id", ""))
+	var memberships := document.editor_groups_for_entity(target_id, "enemy")
+	var eligible: Array[Dictionary] = []
+	for group: Dictionary in memberships:
+		if not allow_source_group and capture_source_id in (group.get("entity_ids", []) as Array):
+			continue
+		eligible.append(group)
+	if eligible.size() > 1:
+		_set_status("Cette troupe appartient à plusieurs groupes d'ennemis. Utilisez le choix rapide pour préciser lequel.", true)
+		return {}
+	if eligible.size() == 1:
+		var editor_group := eligible[0]
+		return {"value": String(editor_group.get("id", "")), "label": String(editor_group.get("name", "Groupe"))}
+	var properties := target.get("properties", {}) as Dictionary
+	return {"value": String(properties.get("group_id", target_id)), "label": String(target.get("name", target_id))}
 
 func _begin_brush_stroke(position: Vector3) -> void:
 	_push_undo()
@@ -2427,7 +3725,7 @@ func _begin_terrain_stroke(screen_position: Vector2) -> void:
 	if entity.is_empty() or String(entity.get("type", "")) != "terrain":
 		_set_status("Le pinceau terrain doit commencer sur un terrain.", true)
 		return
-	selected_id = String(entity.get("id", ""))
+	_set_single_selection(String(entity.get("id", "")))
 	_push_undo()
 	terrain_painting = true
 	terrain_stroke_last = Vector3(INF, INF, INF)
@@ -2464,34 +3762,63 @@ func _apply_terrain_stamp(entity: Dictionary, local_position: Vector3) -> void:
 		"paint": changed = WorldTerrainScript.paint_material(properties, local_position, active_material, terrain_brush_radius, terrain_brush_strength)
 		"erase_material": changed = WorldTerrainScript.paint_material(properties, local_position, active_material, terrain_brush_radius, terrain_brush_strength, true)
 		"foliage": changed = WorldTerrainScript.paint_foliage(properties, local_position, terrain_brush_radius, terrain_brush_strength, false, active_foliage_preset)
-		"erase_foliage": changed = WorldTerrainScript.paint_foliage(properties, local_position, terrain_brush_radius, terrain_brush_strength, true)
+		"erase_foliage": changed = WorldTerrainScript.paint_foliage(properties, local_position, terrain_brush_radius, terrain_brush_strength, true, active_foliage_preset)
 		_: changed = WorldTerrainScript.sculpt(properties, local_position, mode, terrain_brush_radius, terrain_brush_strength, terrain_flatten_height)
 	if not changed:
 		return
 	terrain_stroke_last = local_position
 	dirty = true
 	world_name.text = String(document.data.get("name", "Monde")) + " *"
-	_rebuild_terrain_live(entity)
+	var update_kind := "material" if mode in ["paint", "erase_material"] else ("foliage" if mode in ["foliage", "erase_foliage"] else "sculpt")
+	_queue_terrain_live_update(entity, update_kind)
 	_update_selection_marker()
 
-func _rebuild_terrain_live(entity: Dictionary) -> void:
+func _queue_terrain_live_update(entity: Dictionary, update_kind: String) -> void:
+	var was_pending := terrain_live_update_pending
+	terrain_live_update_pending = true
+	terrain_live_update_entity_id = String(entity.get("id", ""))
+	terrain_live_update_kind = update_kind
+	if not was_pending:
+		var refresh_hz := clampf(float(ProjectSettings.get_setting("hoplite/performance/terrain_live_update_hz", 20.0)), 5.0, 60.0)
+		terrain_live_update_deadline_msec = Time.get_ticks_msec() + maxi(1, roundi(1000.0 / refresh_hz))
+
+func _flush_terrain_live_update() -> void:
+	if not terrain_live_update_pending:
+		return
+	terrain_live_update_pending = false
+	var entity := document.find_entity(terrain_live_update_entity_id)
+	if entity.is_empty():
+		return
 	var body := runtime.nodes_by_id.get(String(entity.get("id", ""))) as StaticBody3D
 	if body == null:
 		return
 	var properties := entity.get("properties", {}) as Dictionary
-	WorldTerrainScript.rebuild_body(body, properties, MaterialLibraryScript.terrain_material(properties))
+	match terrain_live_update_kind:
+		"material": WorldTerrainScript.update_body_material(body, properties)
+		"sculpt": WorldTerrainScript.rebuild_visual(body, properties)
+		_:
+			pass
 
 func _finish_terrain_stroke() -> void:
 	if not terrain_painting:
 		return
 	terrain_painting = false
 	terrain_stroke_last = Vector3(INF, INF, INF)
+	_flush_terrain_live_update()
 	# Keep placed props alive and rebuild only the expensive vegetation batch.
 	# Rebuilding the whole preview here caused imported meshes to flicker or vanish.
 	var terrain := document.find_entity(selected_id)
 	var body := runtime.nodes_by_id.get(selected_id) as StaticBody3D
 	if not terrain.is_empty() and body != null:
-		WorldTerrainFoliageScript.rebuild(body, terrain.get("properties", {}) as Dictionary, true)
+		var properties := terrain.get("properties", {}) as Dictionary
+		if terrain_live_update_kind == "sculpt":
+			WorldTerrainScript.rebuild_collision(body, properties)
+		elif terrain_live_update_kind == "material":
+			WorldTerrainScript.update_body_material(body, properties)
+		if terrain_live_update_kind == "foliage":
+			WorldTerrainFoliageScript.rebuild(body, properties, true)
+	terrain_live_update_entity_id = ""
+	terrain_live_update_kind = ""
 	_update_selection_marker()
 	_refresh_library()
 	_set_status("Trait terrain terminé. Ctrl+Z annule tout le dernier passage.")
@@ -2512,6 +3839,11 @@ func _place_brush_at(position: Vector3, record_undo: bool = true, rotation_degre
 	if record_undo:
 		_push_undo()
 	var properties := brush_properties.duplicate(true)
+	if brush_type == "prop" and bool(properties.get("align_to_ground", false)):
+		var terrain_sample := _terrain_ground_sample(position)
+		if not terrain_sample.is_empty():
+			position = terrain_sample.get("position", position) as Vector3
+			rotation_degrees = _rotation_aligned_to_normal(terrain_sample.get("normal", Vector3.UP), rotation_degrees.y)
 	if brush_type == "surface":
 		properties["material"] = active_material
 	if brush_type == "enemy_group":
@@ -2522,11 +3854,43 @@ func _place_brush_at(position: Vector3, record_undo: bool = true, rotation_degre
 	var entity := WorldDocumentScript.entity(brush_type, brush_title, position, properties)
 	entity["chapter"] = active_chapter_id
 	entity["rotation"] = WorldDocumentScript.array3(rotation_degrees)
-	selected_id = document.add_entity(entity)
+	_set_single_selection(document.add_entity(entity))
+	selected_asset_entry = {}
 	dirty = true
 	preview_rebuild_pending = false
 	_rebuild_preview()
 	_set_status("%s pose. Gardez le clic enfonce pour continuer ; Maj force une ligne droite." % brush_title)
+
+func _terrain_ground_sample(world_position: Vector3) -> Dictionary:
+	for raw: Variant in _chapter_entities():
+		var terrain := raw as Dictionary
+		if String(terrain.get("type", "")) != "terrain" or not bool(terrain.get("enabled", true)):
+			continue
+		var terrain_node := runtime.nodes_by_id.get(String(terrain.get("id", ""))) as Node3D if runtime != null else null
+		if terrain_node == null:
+			continue
+		var local_position := terrain_node.to_local(world_position)
+		var properties := terrain.get("properties", {}) as Dictionary
+		if not WorldTerrainScript.contains_local_point(properties, local_position.x, local_position.z):
+			continue
+		local_position.y = WorldTerrainScript.height_at(properties, local_position.x, local_position.z)
+		var local_normal := WorldTerrainScript.normal_at(properties, local_position.x, local_position.z)
+		return {
+			"position": terrain_node.to_global(local_position),
+			"normal": (terrain_node.global_basis * local_normal).normalized(),
+		}
+	return {}
+
+func _rotation_aligned_to_normal(normal: Vector3, yaw_degrees: float) -> Vector3:
+	var safe_normal := normal.normalized() if normal.length_squared() > 0.0001 else Vector3.UP
+	var yaw_forward := -Basis(Vector3.UP, deg_to_rad(yaw_degrees)).z
+	var forward := (yaw_forward - safe_normal * yaw_forward.dot(safe_normal)).normalized()
+	if forward.length_squared() < 0.0001:
+		forward = safe_normal.cross(Vector3.RIGHT).normalized()
+	var right := forward.cross(safe_normal).normalized()
+	var aligned_basis := Basis(right, safe_normal, -forward).orthonormalized()
+	var euler := aligned_basis.get_euler()
+	return Vector3(rad_to_deg(euler.x), rad_to_deg(euler.y), rad_to_deg(euler.z))
 
 func _update_hover_and_cursor(screen_position: Vector2) -> void:
 	if editor_camera == null or _mouse_over_editor_ui() or orbiting or panning or resizing or moving_entity or rotating_entity:
@@ -2597,9 +3961,14 @@ func _set_hovered_gizmo_handle(handle: StaticBody3D) -> void:
 		var active_mesh := hovered_gizmo_handle.get_child(0) as MeshInstance3D
 		if active_mesh != null:
 			active_mesh.scale = Vector3.ONE * 1.55
-		brush_label.text = "ECHELLE GLOBALE • cliquez-glissez\nLes proportions sont conservees" if hovered_gizmo_handle.has_meta("gizmo_uniform") else "POIGNEE SURVOLEE • cliquez-glissez\nRouge X  •  Vert hauteur  •  Bleu Z"
+		if hovered_gizmo_handle.has_meta("gizmo_uniform"):
+			brush_label.text = "ECHELLE GLOBALE • cliquez-glissez\nLes proportions sont conservees"
+		elif bool(hovered_gizmo_handle.get_meta("gizmo_terrain_edge", false)):
+			brush_label.text = "BORD DU TERRAIN • cliquez-glissez\nRouge : largeur X  •  Bleu : profondeur Z"
+		else:
+			brush_label.text = "POIGNEE SURVOLEE • cliquez-glissez\nRouge X  •  Vert hauteur  •  Bleu Z"
 	elif tool_mode == "select" and brush_label != null:
-		brush_label.text = "SÉLECTION  •  clic : choisir\nCtrl + glisser : plan  •  Maj + glisser : hauteur\nR : tourner  •  Maj+R : incliner"
+		brush_label.text = "SÉLECTION  •  Ctrl+clic : ajouter/retirer\nAlt+glisser : plan  •  Maj+glisser : hauteur\nR : tourner  •  Maj+R : incliner"
 
 func _build_editor_visuals() -> void:
 	selection_marker = _transparent_box(Color(0.37, 0.94, 0.75, 0.20))
@@ -2655,7 +4024,7 @@ func _transparent_box(color: Color) -> MeshInstance3D:
 	return instance
 
 func _update_brush_cursor_shape() -> void:
-	if brush_type in ["surface", "door", "chapter_portal"]:
+	if brush_type in ["surface", "water", "door", "chapter_portal"]:
 		brush_cursor.scale = WorldDocumentScript.vector3(brush_properties.get("size", [1, 1, 1]), Vector3.ONE) * 1.01
 	else:
 		brush_cursor.scale = Vector3(1.0, 0.08, 1.0)
@@ -2673,6 +4042,9 @@ func _entity_visual_size(entity: Dictionary) -> Vector3:
 	match String(entity.get("type", "")):
 		"enemy_group": return Vector3(5.0, 2.4, 4.0) * entity_scale
 		"prop": return Vector3(1.6, 2.2, 1.6) * entity_scale
+		"fire":
+			var fire_size := float(properties.get("size", 1.0))
+			return Vector3(fire_size * 1.4, fire_size * 2.4, fire_size * 1.4) * entity_scale
 		"light": return Vector3.ONE * entity_scale
 		_: return Vector3(1.4, 2.0, 1.4) * entity_scale
 
@@ -2689,16 +4061,21 @@ func _update_selection_marker() -> void:
 	if entity.is_empty():
 		_clear_gizmo()
 		return
-	selection_marker.position = _entity_visual_center(entity)
-	selection_marker.rotation_degrees = WorldDocumentScript.vector3(entity.get("rotation", []))
-	var size := _entity_visual_size(entity)
+	var multi_selection := selected_ids.size() > 1
+	selection_marker.position = _selection_center() if multi_selection else _entity_visual_center(entity)
+	selection_marker.rotation_degrees = Vector3.ZERO if multi_selection else WorldDocumentScript.vector3(entity.get("rotation", []))
+	var size := _selection_size() if multi_selection else _entity_visual_size(entity)
 	selection_marker.scale = size * 1.03
 	_refresh_gizmo(entity, size)
 
 func _refresh_gizmo(entity: Dictionary, size: Vector3) -> void:
 	var entity_type := String(entity.get("type", ""))
-	var wants_gizmo := tool_mode == "select" and entity_type in ["surface", "prop"] and not test_mode and not rotating_entity
-	var signature := "%s|%s|%s|%s|%s" % [selected_id, str(size), str(entity.get("position", [])), str(entity.get("rotation", [])), str(entity.get("scale", []))]
+	var multi_selection := selected_ids.size() > 1
+	var contains_terrain := false
+	for selected_entity: Dictionary in _selected_entities():
+		contains_terrain = contains_terrain or String(selected_entity.get("type", "")) == "terrain"
+	var wants_gizmo := tool_mode == "select" and (multi_selection or entity_type in ["terrain", "surface", "prop", "water"]) and not test_mode and not rotating_entity
+	var signature := "%s|%s|%s|%s|%s" % [str(selected_ids), str(size), str(_selection_center()), str(entity.get("rotation", [])), str(entity.get("scale", []))]
 	if not wants_gizmo:
 		_clear_gizmo()
 		return
@@ -2707,14 +4084,19 @@ func _refresh_gizmo(entity: Dictionary, size: Vector3) -> void:
 	_clear_gizmo()
 	gizmo_root.set_meta("signature", signature)
 	gizmo_root.visible = true
-	gizmo_root.position = _entity_visual_center(entity)
-	gizmo_root.rotation_degrees = WorldDocumentScript.vector3(entity.get("rotation", []))
+	gizmo_root.position = _selection_center() if multi_selection else _entity_visual_center(entity)
+	gizmo_root.rotation_degrees = Vector3.ZERO if multi_selection else WorldDocumentScript.vector3(entity.get("rotation", []))
+	if multi_selection:
+		if not contains_terrain:
+			_add_uniform_scale_handle(size)
+		return
 	if entity_type == "prop":
 		_add_uniform_scale_handle(size)
 		return
 	var axes := [Vector3.RIGHT, Vector3.UP, Vector3.BACK]
 	var colors := [Color("ef5555"), Color("65df7d"), Color("5794ff")]
-	for axis_index in range(3):
+	var axis_indices := [0, 2] if entity_type == "terrain" else [0, 1, 2]
+	for axis_index: int in axis_indices:
 		for sign_value in [-1.0, 1.0]:
 			var handle := StaticBody3D.new()
 			handle.collision_layer = 32
@@ -2722,6 +4104,7 @@ func _refresh_gizmo(entity: Dictionary, size: Vector3) -> void:
 			handle.position = axes[axis_index] * size[axis_index] * 0.5 * sign_value
 			handle.set_meta("gizmo_axis", axis_index)
 			handle.set_meta("gizmo_sign", sign_value)
+			handle.set_meta("gizmo_terrain_edge", entity_type == "terrain")
 			var mesh_instance := MeshInstance3D.new()
 			var mesh := BoxMesh.new()
 			mesh.size = Vector3.ONE * maxf(0.32, camera_distance * 0.014)
@@ -2791,7 +4174,7 @@ func _begin_rotation(axis: int) -> void:
 	rotating_entity = true
 	rotation_axis = axis
 	rotation_start_mouse = last_mouse_position
-	rotation_original = WorldDocumentScript.vector3(entity.get("rotation", []))
+	_capture_transform_originals()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_clear_gizmo()
 	if rotation_overlay != null:
@@ -2808,13 +4191,18 @@ func _update_rotation(screen_position: Vector2) -> void:
 	var mouse_delta := screen_position.x - rotation_start_mouse.x if rotation_axis == 1 else -(screen_position.y - rotation_start_mouse.y)
 	var angle := mouse_delta * 0.45
 	angle = snappedf(angle, 15.0) if Input.is_key_pressed(KEY_CTRL) else snappedf(angle, 0.5)
-	var rotation := rotation_original
-	rotation[rotation_axis] = rotation_original[rotation_axis] + angle
-	entity["rotation"] = WorldDocumentScript.array3(rotation)
 	dirty = true
-	var runtime_node := runtime.nodes_by_id.get(selected_id) as Node3D
-	if runtime_node != null:
-		runtime_node.rotation_degrees = rotation
+	for entity_id: String in selected_ids:
+		var selected_entity := document.find_entity(entity_id)
+		var original := transform_originals.get(entity_id, {}) as Dictionary
+		if selected_entity.is_empty() or original.is_empty():
+			continue
+		var rotated_euler := original.get("rotation", Vector3.ZERO) as Vector3
+		rotated_euler[rotation_axis] += angle
+		selected_entity["rotation"] = WorldDocumentScript.array3(rotated_euler)
+		var runtime_node := runtime.nodes_by_id.get(entity_id) as Node3D
+		if runtime_node != null:
+			runtime_node.rotation_degrees = rotated_euler
 	_update_selection_marker()
 	_update_rotation_indicator(entity)
 	_update_rotation_label(angle)
@@ -2822,10 +4210,16 @@ func _update_rotation(screen_position: Vector2) -> void:
 func _finish_rotation(commit: bool) -> void:
 	if not rotating_entity:
 		return
-	var entity := document.find_entity(selected_id)
-	if not commit and not entity.is_empty():
-		entity["rotation"] = WorldDocumentScript.array3(rotation_original)
+	if not commit:
+		for entity_id: String in selected_ids:
+			var selected_entity := document.find_entity(entity_id)
+			var original := transform_originals.get(entity_id, {}) as Dictionary
+			if selected_entity.is_empty() or original.is_empty():
+				continue
+			selected_entity["position"] = WorldDocumentScript.array3(original.get("position", Vector3.ZERO) as Vector3)
+			selected_entity["rotation"] = WorldDocumentScript.array3(original.get("rotation", Vector3.ZERO) as Vector3)
 	rotating_entity = false
+	transform_originals.clear()
 	if rotation_indicator != null:
 		rotation_indicator.visible = false
 	if rotation_overlay != null:
@@ -2842,7 +4236,7 @@ func _update_rotation_label(angle: float) -> void:
 func _update_rotation_indicator(entity: Dictionary) -> void:
 	if rotation_indicator == null:
 		return
-	var size := _entity_visual_size(entity)
+	var size := _selection_size() if selected_ids.size() > 1 else _entity_visual_size(entity)
 	var radius := maxf(0.8, (maxf(size.x, size.z) if rotation_axis == 1 else maxf(size.y, size.z)) * 0.62 + 0.35)
 	var color := Color("f1c979") if rotation_axis == 1 else Color("ff6f68")
 	var material := StandardMaterial3D.new()
@@ -2861,7 +4255,7 @@ func _update_rotation_indicator(entity: Dictionary) -> void:
 		immediate.surface_end()
 	rotation_indicator.mesh = immediate
 	rotation_indicator.visible = true
-	rotation_indicator.position = _entity_visual_center(entity)
+	rotation_indicator.position = _selection_center() if selected_ids.size() > 1 else _entity_visual_center(entity)
 	var entity_rotation := WorldDocumentScript.vector3(entity.get("rotation", []))
 	rotation_indicator.rotation_degrees = Vector3.ZERO if rotation_axis == 1 else Vector3(0.0, entity_rotation.y, 90.0)
 
@@ -2869,11 +4263,12 @@ func _begin_move(entity: Dictionary, screen_position: Vector2, mode: String) -> 
 	_push_undo()
 	moving_entity = true
 	move_mode = mode
+	_capture_transform_originals()
 	move_original_position = WorldDocumentScript.vector3(entity.get("position", []))
 	move_bottom_offset = _entity_bottom_offset(entity)
 	if move_mode == "horizontal":
 		move_drag_start_world = _screen_plane_point(screen_position, move_original_position.y)
-		_set_status("DEPLACEMENT HORIZONTAL — gardez Ctrl et glissez sur le plan. Relachez pour valider.")
+		_set_status("DEPLACEMENT HORIZONTAL — glissez sur le plan. %d élément(s) seront déplacés." % selected_ids.size())
 	else:
 		move_axis_origin = _entity_visual_center(entity)
 		move_drag_start_screen = screen_position
@@ -2912,11 +4307,18 @@ func _update_move(screen_position: Vector2) -> void:
 				_update_ground_snap_marker({})
 		else:
 			_update_ground_snap_marker({})
-	entity["position"] = WorldDocumentScript.array3(new_position)
+	var selection_delta := new_position - move_original_position
 	dirty = true
-	var runtime_node := runtime.nodes_by_id.get(selected_id) as Node3D
-	if runtime_node != null:
-		runtime_node.position = new_position
+	for entity_id: String in selected_ids:
+		var selected_entity := document.find_entity(entity_id)
+		var original := transform_originals.get(entity_id, {}) as Dictionary
+		if selected_entity.is_empty() or original.is_empty():
+			continue
+		var selected_position := original.get("position", Vector3.ZERO) as Vector3 + selection_delta
+		selected_entity["position"] = WorldDocumentScript.array3(selected_position)
+		var runtime_node := runtime.nodes_by_id.get(entity_id) as Node3D
+		if runtime_node != null:
+			runtime_node.position = selected_position
 	_update_selection_marker()
 
 func _finish_move() -> void:
@@ -2925,10 +4327,21 @@ func _finish_move() -> void:
 	var finished_mode := move_mode
 	moving_entity = false
 	move_mode = ""
+	transform_originals.clear()
 	_update_ground_snap_marker({})
 	preview_rebuild_pending = false
 	_rebuild_preview()
 	_set_status("Position verticale validee." if finished_mode == "vertical" else "Position horizontale validee.")
+
+func _capture_transform_originals() -> void:
+	transform_originals.clear()
+	for entity: Dictionary in _selected_entities():
+		var entity_id := String(entity.get("id", ""))
+		transform_originals[entity_id] = {
+			"position": WorldDocumentScript.vector3(entity.get("position", [])),
+			"rotation": WorldDocumentScript.vector3(entity.get("rotation", [])),
+			"scale": WorldDocumentScript.vector3(entity.get("scale", []), Vector3.ONE),
+		}
 
 func _screen_plane_point(screen_position: Vector2, plane_height: float) -> Vector3:
 	var origin := editor_camera.project_ray_origin(screen_position)
@@ -2940,6 +4353,8 @@ func _entity_bottom_offset(entity: Dictionary) -> float:
 	var entity_scale := WorldDocumentScript.vector3(entity.get("scale", []), Vector3.ONE)
 	if String(entity.get("type", "")) == "prop":
 		var runtime_node := runtime.nodes_by_id.get(String(entity.get("id", ""))) as Node3D
+		if runtime_node != null and runtime_node.has_meta("editor_ground_anchor_offset"):
+			return float(runtime_node.get_meta("editor_ground_anchor_offset", 0.0)) * entity_scale.y
 		if runtime_node != null and runtime_node.has_meta("editor_local_bounds"):
 			var bounds := runtime_node.get_meta("editor_local_bounds") as AABB
 			return bounds.position.y * entity_scale.y
@@ -3013,16 +4428,26 @@ func _begin_resize(handle: Node, screen_position: Vector2) -> void:
 	if entity.is_empty():
 		return
 	_push_undo()
+	_capture_transform_originals()
 	resizing = true
 	resize_uniform = bool(handle.get_meta("gizmo_uniform", false))
+	resize_terrain = bool(handle.get_meta("gizmo_terrain_edge", false))
 	resize_axis = int(handle.get_meta("gizmo_axis", 0))
 	resize_sign = float(handle.get_meta("gizmo_sign", 1.0))
 	resize_original_position = WorldDocumentScript.vector3(entity.get("position", []))
 	resize_original_size = _entity_visual_size(entity)
 	resize_original_uniform_scale = WorldDocumentScript.vector3(entity.get("scale", []), Vector3.ONE).x
+	resize_original_visual_center = _entity_visual_center(entity)
+	if resize_terrain:
+		resize_original_terrain_properties = (entity.get("properties", {}) as Dictionary).duplicate(true)
+		resize_pending_terrain_size = Vector2(float(resize_original_terrain_properties.get("width", resize_original_size.x)), float(resize_original_terrain_properties.get("depth", resize_original_size.z)))
+		resize_pending_terrain_position = resize_original_position
 	resize_axis_world = (handle.global_position - gizmo_root.global_position).normalized() if resize_uniform else (gizmo_root.global_basis * [Vector3.RIGHT, Vector3.UP, Vector3.BACK][resize_axis]).normalized()
 	resize_start_scalar = _ray_axis_scalar(screen_position, gizmo_root.global_position, resize_axis_world)
-	_set_status("ECHELLE GLOBALE — tirez la poignee doree ; les proportions et l'ancrage au sol sont conserves." if resize_uniform else "REDIMENSIONNEMENT — tirez la poignee, relachez pour valider. La taille reste aimantee a la grille.")
+	if resize_terrain:
+		_set_status("EXTENSION DU TERRAIN — tirez le côté ; le relief existant et le bord opposé resteront en place.")
+	else:
+		_set_status("ECHELLE INDIVIDUELLE — chaque élément grandit sur son propre pivot sans changer de position." if resize_uniform else "REDIMENSIONNEMENT — tirez la poignee, relachez pour valider. La taille reste aimantee a la grille.")
 
 func _update_resize(screen_position: Vector2) -> void:
 	var entity := document.find_entity(selected_id)
@@ -3033,19 +4458,37 @@ func _update_resize(screen_position: Vector2) -> void:
 		var uniform_delta := current_scalar - resize_start_scalar
 		var reference_size := maxf(0.1, resize_original_size.length())
 		var uniform_scale := snappedf(maxf(0.05, resize_original_uniform_scale * (1.0 + uniform_delta / reference_size)), 0.05)
-		entity["scale"] = [uniform_scale, uniform_scale, uniform_scale]
+		var scale_factor := uniform_scale / maxf(0.0001, resize_original_uniform_scale)
 		dirty = true
-		var runtime_node := runtime.nodes_by_id.get(String(entity.get("id", ""))) as Node3D
-		if runtime_node != null:
-			runtime_node.scale = Vector3.ONE * uniform_scale
+		for entity_id: String in selected_ids:
+			var selected_entity := document.find_entity(entity_id)
+			var original := transform_originals.get(entity_id, {}) as Dictionary
+			if selected_entity.is_empty() or original.is_empty():
+				continue
+			var original_scale := original.get("scale", Vector3.ONE) as Vector3
+			var selected_scale := original_scale * scale_factor
+			_set_entity_scale_preserving_position(selected_entity, selected_scale)
 		_update_selection_marker()
 		return
 	var grid_value := float((document.data.get("settings", {}) as Dictionary).get("grid_size", 1.0))
 	var delta := snappedf((current_scalar - resize_start_scalar) * resize_sign, grid_value)
 	var new_size := resize_original_size
-	new_size[resize_axis] = maxf(grid_value * 0.25, resize_original_size[resize_axis] + delta)
+	var minimum_size := WorldTerrainScript.MIN_SIZE if resize_terrain else grid_value * 0.25
+	new_size[resize_axis] = maxf(minimum_size, resize_original_size[resize_axis] + delta)
 	var actual_delta := new_size[resize_axis] - resize_original_size[resize_axis]
 	var new_position := resize_original_position + resize_axis_world * resize_sign * actual_delta * 0.5
+	if resize_terrain:
+		resize_pending_terrain_size = Vector2(new_size.x, new_size.z)
+		resize_pending_terrain_position = new_position
+		var preview_offset := resize_axis_world * resize_sign * actual_delta * 0.5
+		selection_marker.position = resize_original_visual_center + preview_offset
+		selection_marker.scale = new_size * 1.03
+		gizmo_root.position = resize_original_visual_center + preview_offset
+		for handle: Node in gizmo_root.get_children():
+			var handle_axis := int(handle.get_meta("gizmo_axis", 0))
+			var handle_sign := float(handle.get_meta("gizmo_sign", 1.0))
+			handle.position = [Vector3.RIGHT, Vector3.UP, Vector3.BACK][handle_axis] * new_size[handle_axis] * 0.5 * handle_sign
+		return
 	entity["position"] = WorldDocumentScript.array3(new_position)
 	var properties := entity.get("properties", {}) as Dictionary
 	properties["size"] = WorldDocumentScript.array3(new_size)
@@ -3055,11 +4498,34 @@ func _update_resize(screen_position: Vector2) -> void:
 
 func _finish_resize() -> void:
 	var was_uniform := resize_uniform
+	var was_terrain := resize_terrain
+	if was_terrain:
+		var entity := document.find_entity(selected_id)
+		if not entity.is_empty():
+			var properties := entity.get("properties", {}) as Dictionary
+			properties.clear()
+			properties.merge(resize_original_terrain_properties, true)
+			var width_delta := resize_pending_terrain_size.x - float(resize_original_terrain_properties.get("width", resize_original_size.x))
+			var depth_delta := resize_pending_terrain_size.y - float(resize_original_terrain_properties.get("depth", resize_original_size.z))
+			var old_center_offset := Vector2.ZERO
+			if resize_axis == 0:
+				old_center_offset.x = -resize_sign * width_delta * 0.5
+			else:
+				old_center_offset.y = -resize_sign * depth_delta * 0.5
+			WorldTerrainScript.resize_dimensions(properties, resize_pending_terrain_size.x, resize_pending_terrain_size.y, old_center_offset)
+			entity["position"] = WorldDocumentScript.array3(resize_pending_terrain_position)
+			dirty = true
 	resizing = false
 	resize_uniform = false
+	resize_terrain = false
+	resize_original_terrain_properties = {}
+	transform_originals.clear()
 	preview_rebuild_pending = false
 	_rebuild_preview()
-	_set_status("Objet redimensionne proportionnellement et toujours ancre au sol." if was_uniform else "Surface redimensionnee. Choisissez TEXTURES pour changer son materiau en un clic.")
+	if was_terrain:
+		_set_status("Terrain prolongé/recadré depuis le côté sélectionné, sans déplacer l'ancien relief.")
+	else:
+		_set_status("Objet redimensionne proportionnellement et toujours ancre au sol." if was_uniform else "Surface redimensionnee. Choisissez TEXTURES pour changer son materiau en un clic.")
 
 func _ray_axis_scalar(screen_position: Vector2, line_origin: Vector3, line_direction: Vector3) -> float:
 	var ray_origin := editor_camera.project_ray_origin(screen_position)
@@ -3088,8 +4554,8 @@ func _focus_selected() -> void:
 	var entity := document.find_entity(selected_id)
 	if entity.is_empty():
 		return
-	var center := _entity_visual_center(entity)
-	var focus_distance := clampf(_entity_visual_size(entity).length() * 2.4, 5.0, 45.0)
+	var center := _selection_center()
+	var focus_distance := clampf(_selection_size().length() * 2.4, 5.0, 45.0)
 	camera_distance = focus_distance
 	if ghost_mode:
 		camera_target = center + editor_camera.global_basis.z * focus_distance
@@ -3101,12 +4567,24 @@ func _focus_selected() -> void:
 		editor_camera.position.z = camera_distance
 
 func _duplicate_selected() -> void:
-	if selected_id.is_empty(): return
-	_push_undo(); selected_id = document.duplicate_entity(selected_id); _mark_changed(); _rebuild_preview(); _set_status("Element duplique.")
+	if selected_ids.is_empty(): return
+	_push_undo()
+	var duplicated_ids: Array[String] = []
+	for entity_id: String in selected_ids:
+		var duplicated_id := document.duplicate_entity(entity_id)
+		if not duplicated_id.is_empty():
+			duplicated_ids.append(duplicated_id)
+	_set_selection(duplicated_ids)
+	_mark_changed(); _rebuild_preview(); _set_status("%d élément(s) dupliqué(s)." % duplicated_ids.size())
 
 func _delete_selected() -> void:
-	if selected_id.is_empty(): return
-	_push_undo(); document.remove_entity(selected_id); selected_id = ""; _mark_changed(); _rebuild_preview(); _set_status("Element supprime. Annulation possible avec Ctrl+Z.")
+	if selected_ids.is_empty(): return
+	_push_undo()
+	var removed_count := 0
+	for entity_id: String in selected_ids.duplicate():
+		removed_count += 1 if document.remove_entity(entity_id) else 0
+	_set_single_selection("")
+	_mark_changed(); _rebuild_preview(); _set_status("%d élément(s) supprimé(s). Annulation possible avec Ctrl+Z." % removed_count)
 
 func _push_undo() -> void:
 	undo_stack.append(document.to_json())
@@ -3122,10 +4600,11 @@ func _undo() -> void:
 		document = restored
 		if not _chapter_exists(active_chapter_id):
 			active_chapter_id = document.start_chapter()
-		selected_id = ""
+		_set_single_selection("")
 		dirty = true
 		_refresh_chapter_picker()
 		_rebuild_preview()
+		_refresh_atmosphere_workspace()
 		_set_status("Modification annulee.")
 
 func _redo() -> void:
@@ -3136,14 +4615,15 @@ func _redo() -> void:
 		document = restored
 		if not _chapter_exists(active_chapter_id):
 			active_chapter_id = document.start_chapter()
-		selected_id = ""
+		_set_single_selection("")
 		dirty = true
 		_refresh_chapter_picker()
 		_rebuild_preview()
+		_refresh_atmosphere_workspace()
 		_set_status("Modification retablie.")
 
 func _new_world() -> void:
-	_push_undo(); document = WorldDocumentScript.new(); active_chapter_id = document.start_chapter(); selected_id = ""; dirty = true; world_name.text = String(document.data.name); _refresh_chapter_picker(); _rebuild_preview(); _set_status("Nouveau monde vide.")
+	_push_undo(); document = WorldDocumentScript.new(); active_chapter_id = document.start_chapter(); _set_single_selection(""); current_save_filename = ""; dirty = true; world_name.text = String(document.data.name); _refresh_chapter_picker(); _rebuild_preview(); _refresh_atmosphere_workspace(); _set_status("Nouveau monde vide.")
 
 func _rename_world() -> void:
 	var value := world_name.text.trim_suffix(" *").strip_edges(); if value.is_empty(): return
@@ -3178,9 +4658,10 @@ func _save_world() -> void:
 		_set_status("Sauvegarde interrompue (%s). L'ancienne version a ete conservee." % error_string(rename_error), true)
 		return
 	dirty = false
+	current_save_filename = filename
 	world_name.text = String(document.data.name)
 	_refresh_save_picker()
-	_set_status("Monde sauvegarde avec copie de secours. Son portail est disponible dans le laboratoire.")
+	_set_status("Monde sauvegarde avec copie de secours. Son portail sera actualise dans le lobby.")
 
 func _return_to_lab() -> void:
 	Engine.time_scale = 1.0
@@ -3198,7 +4679,52 @@ func _load_selected_world() -> void:
 	if loaded == null:
 		_set_status("Fichier de monde invalide.", true)
 		return
-	_push_undo(); document = loaded; active_chapter_id = document.start_chapter(); selected_id = ""; dirty = false; world_name.text = String(document.data.name); _refresh_chapter_picker(); grid.set_half_extent(float((document.data.get("settings", {}) as Dictionary).get("map_half_extent", 60.0))); _rebuild_preview(); _set_status("Monde charge : %s" % path)
+	_push_undo(); document = loaded; active_chapter_id = document.start_chapter(); _set_single_selection(""); current_save_filename = String(save_picker.get_item_metadata(save_picker.selected)); dirty = false; world_name.text = String(document.data.name); _refresh_chapter_picker(); grid.set_half_extent(float((document.data.get("settings", {}) as Dictionary).get("map_half_extent", 60.0))); _rebuild_preview(); _refresh_atmosphere_workspace(); _set_status("Monde charge : %s" % path)
+
+func _request_delete_selected_world() -> void:
+	if save_picker == null or save_picker.item_count == 0 or save_picker.selected < 0:
+		_set_status("Aucun monde sauvegardé à supprimer.", true)
+		return
+	var filename := String(save_picker.get_item_metadata(save_picker.selected))
+	if not _is_safe_world_filename(filename):
+		_set_status("Nom de sauvegarde invalide : suppression refusée.", true)
+		return
+	delete_save_dialog.dialog_text = "Supprimer définitivement '%s' ?\n\nLe fichier, sa copie de secours et le portail associé seront retirés. Le monde ouvert reste en mémoire jusqu'à ce que vous quittiez la Forge." % save_picker.get_item_text(save_picker.selected)
+	delete_save_dialog.popup_centered(Vector2i(520, 230))
+
+func _delete_selected_world_save() -> void:
+	if save_picker == null or save_picker.item_count == 0 or save_picker.selected < 0:
+		return
+	var filename := String(save_picker.get_item_metadata(save_picker.selected))
+	if not _is_safe_world_filename(filename):
+		_set_status("Nom de sauvegarde invalide : suppression refusée.", true)
+		return
+	var path := SAVE_DIR.path_join(filename)
+	if not FileAccess.file_exists(path):
+		_refresh_save_picker()
+		_set_status("La sauvegarde n'existe déjà plus; la liste des portails a été actualisée.")
+		return
+	var remove_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	if remove_error != OK:
+		_set_status("Suppression impossible (%s). Aucun portail n'a été modifié." % error_string(remove_error), true)
+		return
+	var cleanup_failed := false
+	for suffix: String in [".bak", ".tmp"]:
+		var auxiliary_path := path + suffix
+		if FileAccess.file_exists(auxiliary_path):
+			cleanup_failed = DirAccess.remove_absolute(ProjectSettings.globalize_path(auxiliary_path)) != OK or cleanup_failed
+	if current_save_filename == filename:
+		current_save_filename = ""
+		dirty = true
+		world_name.text = String(document.data.get("name", "Monde")) + " *"
+	_refresh_save_picker()
+	if cleanup_failed:
+		_set_status("Monde supprimé et portail retiré; un fichier auxiliaire n'a pas pu être nettoyé.", true)
+	else:
+		_set_status("Monde supprimé proprement. Son portail ne sera plus présent dans le lobby.")
+
+func _is_safe_world_filename(filename: String) -> bool:
+	return filename.ends_with(".hoplite.json") and filename.get_file() == filename and not filename.contains("/") and not filename.contains("\\")
 
 func _refresh_save_picker() -> void:
 	if save_picker == null: return
@@ -3234,7 +4760,8 @@ func _start_test() -> void:
 	# F6 is an authoritative gameplay test: selection and editor camera must never
 	# decide which encounters, triggers or props exist in the simulated chapter.
 	runtime.build(document, false, Vector3.ZERO, INF, test_chapter_id)
-	runtime.chapter_transition_requested.connect(_on_test_chapter_transition_requested)
+	if not runtime.chapter_transition_requested.is_connected(_on_test_chapter_transition_requested):
+		runtime.chapter_transition_requested.connect(_on_test_chapter_transition_requested)
 	event_runtime = EventRuntimeScript.new() as HopliteWorldEventRuntime
 	add_child(event_runtime)
 	event_runtime.configure(document, runtime)
@@ -3449,3 +4976,14 @@ func _apply_theme(_root: Node) -> void:
 	theme.set_stylebox("separator", "VSeparator", separator)
 	for control: Control in [top_bar, tool_rail, viewport_hud, left_panel, right_panel, bottom_bar, test_overlay, narrative_panel, rotation_overlay]:
 		control.theme = theme
+
+
+func _combined_arms_preset(archetype: String, role: String, count: int) -> Dictionary:
+	return {"group_id": "%s_v2" % role, "archetype": archetype, "count": count,
+		"composition": [{"archetype": archetype, "count": count}], "rank": "normal",
+		"size_multiplier": 3.0 if role == "giant" else 1.0,
+		"behavior": "normal", "spawn_condition": "start", "spawn_delay": 0.0,
+		"deployment_mode": "all", "formation": "line", "formation_columns": 1 if role == "giant" else 4,
+		"formation_spacing": 1.6 if role == "archer" else 1.25, "formation_rank_spacing": 1.4,
+		"v2_combat_lab": true, "v2_animation": "idle", "v2_troop_mode": role,
+		"v2_unit_role": role, "v2_persistent_fronts": true}

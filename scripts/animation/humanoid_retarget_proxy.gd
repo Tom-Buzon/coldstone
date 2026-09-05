@@ -34,7 +34,8 @@ static func build(source_skeleton: Skeleton3D, source_player: AnimationPlayer, t
 	modifier.set_scale_enabled(false)
 	source_skeleton.add_child(modifier)
 	modifier.add_child(proxy)
-	print("[HUMANOID RETARGET] profile_bones=", profile.bone_size, " source_bones=", renamed_bones, " tracks=", renamed_tracks, " proxy_bones=", proxy.get_bone_count())
+	if bool(ProjectSettings.get_setting("debug/hoplite/verbose_animation", false)):
+		print("[HUMANOID RETARGET] profile_bones=", profile.bone_size, " source_bones=", renamed_bones, " tracks=", renamed_tracks, " proxy_bones=", proxy.get_bone_count())
 	return {"modifier": modifier, "proxy": proxy, "source_map": source_map, "target_map": target_map}
 
 static func _rename_animation_tracks(player: AnimationPlayer, bone_map: BoneMap, skeleton: Skeleton3D) -> int:
@@ -98,6 +99,13 @@ static func _build_target_proxy(target: Skeleton3D, bone_map: BoneMap, profile: 
 		var profile_name := profile.get_bone_name(index)
 		var target_name := bone_map.get_skeleton_bone_name(profile_name)
 		var target_index := target.find_bone(target_name)
+		# glTF guarantees unique node names and may suffix the armature root
+		# (for example `root_2`) when a mesh/object already owns `root`. The
+		# humanoid map still calls that profile bone `Root`; resolve the unique
+		# parentless target bone so the proxy keeps the correct hips parent space.
+		# Omitting it makes full-body Mixamo poses rotate the whole target sideways.
+		if target_index < 0 and profile.get_bone_parent(index) == StringName():
+			target_index = _unique_root_bone(target)
 		if target_name == StringName() or target_index < 0:
 			continue
 		var proxy_index := proxy.get_bone_count()
@@ -125,3 +133,13 @@ static func _build_target_proxy(target: Skeleton3D, bone_map: BoneMap, profile: 
 		proxy.set_bone_rest(proxy_index, proxy_rest)
 	proxy.reset_bone_poses()
 	return proxy
+
+static func _unique_root_bone(skeleton: Skeleton3D) -> int:
+	var result := -1
+	for bone_index: int in range(skeleton.get_bone_count()):
+		if skeleton.get_bone_parent(bone_index) >= 0:
+			continue
+		if result >= 0:
+			return -1
+		result = bone_index
+	return result

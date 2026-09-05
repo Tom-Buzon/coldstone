@@ -1,0 +1,59 @@
+{
+  "captured_at": "2026-08-26",
+  "engine": "4.7.stable.official.5b4e0cb0f",
+  "mass_battle_threshold_preserved": 28,
+  "benchmark_contexts": {
+    "structural_scenarios": {"renderer":"gl_compatibility","display_server":"headless","seed":13371,"warmup_frames":120,"sample_frames":120},
+    "callback_region_56": {"renderer":"gl_compatibility","display_server":"headless","warmup_frames":120,"sample_frames":240},
+    "rendered_snapshots": {"renderer":"gl_compatibility","display_server":"windows","settle_frames":24},
+    "reload_stability": {"renderer":"gl_compatibility","display_server":"headless","cycles":5,"active_enemies_per_cycle":36}
+  },
+  "measurement_logs": {
+    "swordsman": ".tmp_tools/enemy_refactor/final_postreview_performance_swordsman_1_5_15_28_36.log",
+    "ngeneral": ".tmp_tools/enemy_refactor/final_postreview_performance_ngeneral_15_28_36.log",
+    "action_steady": ".tmp_tools/enemy_refactor/logs/final_closure_action_steady_clean_56.log",
+    "action_realistic": ".tmp_tools/enemy_refactor/logs/final_closure_action_realistic_active_56.log",
+    "action_mixed": ".tmp_tools/enemy_refactor/logs/final_closure_action_mixed_roles_56.log",
+    "render_lab": ".tmp_tools/enemy_refactor/final_postreview_render_lab.log",
+    "render_forge": ".tmp_tools/enemy_refactor/final_postreview_render_forge.log",
+    "reload_stability": ".tmp_tools/enemy_refactor/final_reload_stability_5x36.log"
+  },
+  "diagnostic_note": "Measurement metadata is scoped per benchmark_context because structural, callback, rendered and reload probes use different display/sample settings. TIME_PROCESS/TIME_PHYSICS_PROCESS and paced tick values are slow-refresh diagnostic snapshots. Callback-region elapsed time is non-paced wall time; it still includes OS preemption and is not thread CPU time.",
+  "scenarios": [
+    {"archetype":"swordsman","mode":"idle","count":1,"spawn_ms":270.392,"process_ms_snapshot":0.235,"physics_ms_snapshot":0.428,"nodes":37,"objects":1636,"resources":57,"memory_static_bytes":86274773,"tick_p95_ms":20.693,"cleanup":true},
+    {"archetype":"swordsman","mode":"idle","count":5,"spawn_ms":345.893,"process_ms_snapshot":0.872,"physics_ms_snapshot":1.128,"nodes":161,"objects":1844,"resources":57,"memory_static_bytes":88008565,"tick_p95_ms":20.701,"cleanup":true},
+    {"archetype":"swordsman","mode":"idle","count":15,"spawn_ms":472.164,"process_ms_snapshot":1.406,"physics_ms_snapshot":1.820,"nodes":471,"objects":2364,"resources":57,"memory_static_bytes":92361583,"tick_p95_ms":20.716,"cleanup":true},
+    {"archetype":"swordsman","mode":"idle","count":28,"spawn_ms":594.026,"process_ms_snapshot":2.497,"physics_ms_snapshot":2.460,"nodes":874,"objects":3040,"resources":57,"memory_static_bytes":98039754,"tick_p95_ms":20.699,"cleanup":true},
+    {"archetype":"swordsman","mode":"idle","count":36,"spawn_ms":726.863,"process_ms_snapshot":3.273,"physics_ms_snapshot":2.216,"nodes":1122,"objects":3456,"resources":57,"memory_static_bytes":101523242,"tick_p95_ms":20.704,"cleanup":true},
+    {"archetype":"swordsman","mode":"active","count":1,"spawn_ms":278.319,"process_ms_snapshot":0.336,"physics_ms_snapshot":0.848,"nodes":37,"objects":1639,"resources":57,"memory_static_bytes":86795909,"tick_p95_ms":20.707,"cleanup":true},
+    {"archetype":"swordsman","mode":"active","count":5,"spawn_ms":335.335,"process_ms_snapshot":0.975,"physics_ms_snapshot":2.574,"nodes":161,"objects":1855,"resources":57,"memory_static_bytes":88540897,"tick_p95_ms":20.711,"cleanup":true},
+    {"archetype":"swordsman","mode":"active","count":15,"spawn_ms":468.526,"process_ms_snapshot":2.243,"physics_ms_snapshot":4.615,"nodes":471,"objects":2395,"resources":57,"memory_static_bytes":92893431,"tick_p95_ms":20.708,"cleanup":true},
+    {"archetype":"swordsman","mode":"active","count":28,"spawn_ms":592.552,"process_ms_snapshot":4.969,"physics_ms_snapshot":10.755,"nodes":874,"objects":3097,"resources":57,"memory_static_bytes":98554858,"tick_p95_ms":20.711,"cleanup":true},
+    {"archetype":"swordsman","mode":"active","count":36,"spawn_ms":743.102,"process_ms_snapshot":5.514,"physics_ms_snapshot":9.999,"nodes":1122,"objects":3529,"resources":57,"memory_static_bytes":102048358,"tick_p95_ms":20.719,"cleanup":true},
+    {"archetype":"ngeneral","mode":"idle","count":15,"spawn_ms":238.594,"process_ms_snapshot":1.224,"physics_ms_snapshot":3.330,"nodes":1071,"objects":3099,"resources":98,"memory_static_bytes":58251003,"tick_p95_ms":20.729,"cleanup":true},
+    {"archetype":"ngeneral","mode":"idle","count":28,"spawn_ms":306.989,"process_ms_snapshot":1.857,"physics_ms_snapshot":4.603,"nodes":1994,"objects":4386,"resources":98,"memory_static_bytes":64198080,"tick_p95_ms":20.711,"cleanup":true},
+    {"archetype":"ngeneral","mode":"idle","count":36,"spawn_ms":384.306,"process_ms_snapshot":2.533,"physics_ms_snapshot":5.426,"nodes":2562,"objects":5178,"resources":98,"memory_static_bytes":67798668,"tick_p95_ms":20.706,"cleanup":true},
+    {"archetype":"ngeneral","mode":"active","count":15,"spawn_ms":151.965,"process_ms_snapshot":1.332,"physics_ms_snapshot":6.217,"nodes":1071,"objects":3130,"resources":98,"memory_static_bytes":59085935,"tick_p95_ms":20.698,"cleanup":true},
+    {"archetype":"ngeneral","mode":"active","count":28,"spawn_ms":278.682,"process_ms_snapshot":2.404,"physics_ms_snapshot":11.817,"nodes":1994,"objects":4443,"resources":98,"memory_static_bytes":64861308,"tick_p95_ms":20.708,"cleanup":true},
+    {"archetype":"ngeneral","mode":"active","count":36,"spawn_ms":381.639,"process_ms_snapshot":3.345,"physics_ms_snapshot":13.463,"nodes":2562,"objects":5251,"resources":98,"memory_static_bytes":68434080,"tick_p95_ms":20.715,"cleanup":true}
+  ],
+  "callback_region_56": [
+    {"scenario":"steady_clean","p50_us":2720,"p95_us":4702,"objects_stable":true,"cleanup":true},
+    {"scenario":"realistic_active","p50_us":10435,"p95_us":14254,"objects_stable":true,"cleanup":true},
+    {"scenario":"mixed_roles","p50_us":11029,"p95_us":14694,"objects_stable":true,"cleanup":true}
+  ],
+  "reload_stability": {
+    "cycles": 5,
+    "active_enemies_per_cycle": 36,
+    "post_warm_object_counts": [1596,1596,1596,1596],
+    "post_warm_object_span": 0,
+    "post_warm_memory_span_bytes": 2436,
+    "live_enemy_refs_after_each_cycle": 0,
+    "combatants_after_each_cycle": 0,
+    "status": "PASS"
+  },
+  "rendered_22_unit_snapshots": [
+    {"context":"forge","draw_calls":377,"objects_in_frame":378,"primitives_in_frame":672430,"video_memory_bytes":637740090,"texture_memory_bytes":514318670,"buffer_memory_bytes":123421420},
+    {"context":"lab","draw_calls":1171,"objects_in_frame":764,"primitives_in_frame":1021459,"video_memory_bytes":1564909673,"texture_memory_bytes":1172347511,"buffer_memory_bytes":392562162}
+  ]
+}

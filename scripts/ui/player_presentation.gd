@@ -7,11 +7,13 @@ class_name HoplitePlayerPresentation
 const CombatAudioScript = preload("res://scripts/audio/combat_audio.gd")
 const GoreHUDScript = preload("res://scripts/ui/gore_hud.gd")
 const AudioSettingsScript = preload("res://scripts/ui/audio_settings.gd")
+const FaunaManagerScript = preload("res://scripts/fauna/fauna_manager.gd")
 
 var player: HopliteUALNativePlayer
 var combat_audio: HopliteCombatAudio
 var gore_hud: HopliteGoreHUD
 var audio_settings: HopliteAudioSettings
+var fauna_manager: HopliteFaunaManager
 var owns_presentation_stack := false
 var initialized := false
 
@@ -30,6 +32,7 @@ func _initialize() -> void:
 		return
 	initialized = true
 	_find_existing_stack()
+	_ensure_fauna_manager()
 	if combat_audio != null and gore_hud != null and audio_settings != null:
 		return
 
@@ -68,6 +71,20 @@ func _find_existing_stack() -> void:
 			gore_hud = node as HopliteGoreHUD
 		elif audio_settings == null and node is HopliteAudioSettings:
 			audio_settings = node as HopliteAudioSettings
+		elif fauna_manager == null and node is HopliteFaunaManager:
+			fauna_manager = node as HopliteFaunaManager
+
+
+func _ensure_fauna_manager() -> void:
+	if fauna_manager != null and is_instance_valid(fauna_manager):
+		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	fauna_manager = FaunaManagerScript.new() as HopliteFaunaManager
+	fauna_manager.name = "RuntimeFauna"
+	scene.add_child(fauna_manager)
+	fauna_manager.configure(player)
 
 
 func _wire_player() -> void:

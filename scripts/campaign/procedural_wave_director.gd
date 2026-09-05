@@ -2,6 +2,7 @@ extends Node
 class_name HopliteProceduralWaveDirector
 
 const EnemyFactoryScript = preload("res://scripts/enemy/enemy_factory.gd")
+const EnemySpawnRequest = preload("res://scripts/enemy/enemy_spawn_request.gd")
 const ArchetypesScript = preload("res://scripts/enemy/enemy_archetypes.gd")
 
 signal wave_started(index: int, total: int, title: String, total_enemies: int)
@@ -89,7 +90,7 @@ func activate_prepared_force() -> void:
 		if value is HopliteAthenianEnemy and is_instance_valid(value):
 			var enemy := value as HopliteAthenianEnemy
 			if not enemy.dead:
-				enemy.ai_enabled = true
+				enemy.set_ai_participation(true)
 	running = true
 	spawn_timer = SPAWN_INTERVAL
 
@@ -310,12 +311,16 @@ func _spawn_spec(spec: Dictionary) -> void:
 		position_value += Vector3(rng.randf_range(-0.65, 0.65), 0.0, rng.randf_range(-0.65, 0.65))
 	if bool(spec.get("entry_surge", false)):
 		position_value = _find_safe_spawn_floor(position_value, Vector3.RIGHT, Vector3.FORWARD)
-	var enemy := EnemyFactoryScript.spawn(enemy_parent, archetype, position_value, player, {
-		"ai_enabled": true,
-		"mass_battle_mode": bool(spec.get("mass", true)),
-		"guard_index": int(spec.get("guard_index", 0)),
-		"name": "%s_W%02d_%04d" % [String(archetype).to_pascal_case(), current_wave + 1, rng.randi_range(0, 9999)]
-	}) as HopliteAthenianEnemy
+	var request: EnemySpawnRequest = EnemySpawnRequest.new()
+	request.archetype = archetype
+	request.position = position_value
+	request.target = player
+	request.ai_enabled = true
+	request.mass_battle_mode = bool(spec.get("mass", true))
+	request.guard_index = int(spec.get("guard_index", 0))
+	request.has_name_override = true
+	request.name_override = "%s_W%02d_%04d" % [String(archetype).to_pascal_case(), current_wave + 1, rng.randi_range(0, 9999)]
+	var enemy := EnemyFactoryScript.spawn_request(enemy_parent, request)
 	if enemy == null:
 		return
 	if spec.has("legion_id"):
@@ -328,7 +333,7 @@ func _spawn_spec(spec: Dictionary) -> void:
 		enemy.add_to_group("campaign_dungeon_entry_surge")
 		enemy.set_meta("campaign_entry_surge", true)
 	if deployment_locked:
-		enemy.ai_enabled = false
+		enemy.set_ai_participation(false)
 	active_enemies[enemy.get_instance_id()] = enemy
 	enemy.died.connect(_on_enemy_died)
 	enemy.tree_exited.connect(_on_enemy_tree_exited.bind(enemy.get_instance_id()), CONNECT_ONE_SHOT)
@@ -369,7 +374,7 @@ func _complete_encounter_after_elite() -> void:
 	for value: Variant in active_enemies.values():
 		if value is HopliteAthenianEnemy and is_instance_valid(value):
 			var survivor := value as HopliteAthenianEnemy
-			survivor.ai_enabled = false
+			survivor.set_ai_participation(false)
 			survivor.queue_free()
 	active_enemies.clear()
 	zone_completed.emit()
@@ -523,7 +528,7 @@ func _play_elite_entrance(enemy: HopliteAthenianEnemy, is_boss: bool) -> void:
 		return
 	var landing_position := enemy.global_position
 	var final_scale := enemy.scale
-	enemy.ai_enabled = false
+	enemy.set_ai_participation(false)
 	enemy.velocity = Vector3.ZERO
 	enemy.set_physics_process(false)
 	enemy.global_position = landing_position + Vector3.UP * (5.5 if is_boss else 3.8)
@@ -551,13 +556,13 @@ func _play_elite_entrance(enemy: HopliteAthenianEnemy, is_boss: bool) -> void:
 	entrance.tween_callback(_finish_elite_entrance.bind(enemy))
 	var sigil := create_tween().set_parallel(true)
 	sigil.tween_property(ring, "scale", Vector3(5.2, 1.0, 5.2), 0.92).set_trans(Tween.TRANS_QUAD)
-	sigil.tween_property(ring, "modulate:a", 0.0, 0.92)
+	sigil.tween_property(ring_material, "albedo_color:a", 0.0, 0.92)
 	sigil.chain().tween_callback(ring.queue_free)
 
 func _finish_elite_entrance(enemy: HopliteAthenianEnemy) -> void:
 	if enemy == null or not is_instance_valid(enemy) or enemy.dead:
 		return
-	enemy.ai_enabled = true
+	enemy.set_ai_participation(true)
 	enemy.set_physics_process(true)
 	enemy.alert_ai(10.0)
 

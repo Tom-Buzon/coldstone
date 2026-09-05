@@ -1,0 +1,16 @@
+{
+	"errors": [],
+	"generated_at_utc": "2026-08-31 17:15:09",
+	"pending_bake": [],
+	"published": [],
+	"schema_version": 1,
+	"summary": {
+		"errors": 0,
+		"pending_bake": 0,
+		"published": 0,
+		"superseded": 0,
+		"warnings": 0
+	},
+	"superseded": [],
+	"warnings": []
+}

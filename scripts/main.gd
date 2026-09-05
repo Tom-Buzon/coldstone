@@ -6,6 +6,8 @@ const AudioSettingsScript = preload("res://scripts/ui/audio_settings.gd")
 const GoreHUDScript = preload("res://scripts/ui/gore_hud.gd")
 const AtmospherePanelScript = preload("res://scripts/campaign/atmosphere_control_panel.gd")
 const EnemyFactoryScript = preload("res://scripts/enemy/enemy_factory.gd")
+const EnemySpawnRequest = preload("res://scripts/enemy/enemy_spawn_request.gd")
+const CombatantRegistryScript = preload("res://scripts/enemy/combatant_registry.gd")
 const CrowdDirectorScript = preload("res://scripts/ai/battle_crowd_director.gd")
 const MaterialLibraryScript = preload("res://scripts/environment/procedural_material_library.gd")
 const RuntimeGLTFCacheScript = preload("res://scripts/environment/runtime_gltf_cache.gd")
@@ -19,12 +21,14 @@ const TEMPLE_COLLISION: String = "res://assets/environment/temple1/temple1_colli
 const ATHENA_STATUE_VISUAL: String = "res://assets/environment/status_athena/status_athena.glb"
 const ATHENA_STATUE_COLLISION: String = "res://assets/environment/status_athena/status_athena_collision.glb"
 const RAW_ENVIRONMENT_ROOT: String = "res://_source/environment_props_raw"
+const OFFICIAL_CAMPAIGN_PORTAL_VISUAL: String = "res://assets/blenderAseet/07_portes/portal_official_campaign/portal_official_campaign_LOD0.glb"
 
 var player: HopliteUALNativePlayer
 var combat_audio: HopliteCombatAudio
 var audio_settings: HopliteAudioSettings
 var gore_hud: HopliteGoreHUD
 var atmosphere_panel: HopliteAtmosphereControlPanel
+var combatant_registry: CombatantRegistryScript
 var training_world_environment: WorldEnvironment
 var training_sun: DirectionalLight3D
 var debug_label: Label
@@ -62,8 +66,12 @@ func _ready() -> void:
 	var crowd_director_runtime = CrowdDirectorScript.new()
 	crowd_director_runtime.name = "TrainingCrowdDirector"
 	add_child(crowd_director_runtime)
+	combatant_registry = CombatantRegistryScript.new()
+	combatant_registry.name = "TrainingCombatantRegistry"
+	add_child(combatant_registry)
 	_build_training_ground()
 	var world_portals := WorldPortalHubScript.new() as HopliteWorldPortalHub
+	world_portals.configure_lab_return()
 	add_child(world_portals)
 
 func _wire_player_audio() -> void:
@@ -618,23 +626,33 @@ func _spawn_enemy_group(
 	enemies.resize(members.size())
 	var commander: Node3D = null
 	if commander_index >= 0 and commander_index < members.size():
-		commander = EnemyFactoryScript.spawn(self, members[commander_index], positions[commander_index], player, {
-			"ai_enabled": ai_enabled,
-			"mass_battle_mode": mass_battle_mode,
-			"guard_index": commander_index,
-			"name": "%s_Commander" % String(group_id)
-		})
+		var commander_request: EnemySpawnRequest = EnemySpawnRequest.new()
+		commander_request.archetype = members[commander_index]
+		commander_request.position = positions[commander_index]
+		commander_request.target = player
+		commander_request.ai_enabled = ai_enabled
+		commander_request.mass_battle_mode = mass_battle_mode
+		commander_request.guard_index = commander_index
+		commander_request.has_name_override = true
+		commander_request.name_override = "%s_Commander" % String(group_id)
+		commander_request.combatant_registry = combatant_registry
+		commander = EnemyFactoryScript.spawn_request(self, commander_request)
 		enemies[commander_index] = commander
 	for i: int in range(members.size()):
 		if i == commander_index:
 			continue
-		var enemy := EnemyFactoryScript.spawn(self, members[i], positions[i], player, {
-			"ai_enabled": ai_enabled,
-			"mass_battle_mode": mass_battle_mode,
-			"guard_index": i,
-			"commander": commander,
-			"name": "%s_%02d_%s" % [String(group_id), i, String(members[i])]
-		}) as Node3D
+		var member_request: EnemySpawnRequest = EnemySpawnRequest.new()
+		member_request.archetype = members[i]
+		member_request.position = positions[i]
+		member_request.target = player
+		member_request.ai_enabled = ai_enabled
+		member_request.mass_battle_mode = mass_battle_mode
+		member_request.guard_index = i
+		member_request.commander = commander
+		member_request.has_name_override = true
+		member_request.name_override = "%s_%02d_%s" % [String(group_id), i, String(members[i])]
+		member_request.combatant_registry = combatant_registry
+		var enemy := EnemyFactoryScript.spawn_request(self, member_request) as Node3D
 		enemies[i] = enemy
 	for enemy: Node3D in enemies:
 		if enemy != null:
@@ -741,22 +759,63 @@ func _add_column(position: Vector3) -> void:
 	root.add_child(top)
 
 func _add_athenian(position: Vector3, ai_enabled: bool = false, _miniboss: bool = false, boss_ref: Node3D = null, guard_index: int = 0, archetype: StringName = &"nsbire1", character_package_path: String = ""):
-	var enemy := EnemyFactoryScript.spawn(self, archetype, position, player, {
-		"ai_enabled": ai_enabled,
-		"commander": boss_ref,
-		"guard_index": guard_index,
-		"package_path": character_package_path
-	}) as Node3D
+	var request: EnemySpawnRequest = EnemySpawnRequest.new()
+	request.archetype = archetype
+	request.position = position
+	request.target = player
+	request.ai_enabled = ai_enabled
+	request.commander = boss_ref
+	request.guard_index = guard_index
+	request.package_path = character_package_path
+	request.combatant_registry = combatant_registry
+	var enemy := EnemyFactoryScript.spawn_request(self, request) as Node3D
 	if enemy != null:
 		_wire_enemy_feedback(enemy)
 	return enemy
 
 func _add_battle_portal(position_value: Vector3, portal_title: String, target_scene: String, portal_color: Color) -> void:
 	var root := Node3D.new()
-	root.name = "Battle01Portal"
+	root.name = "OfficialCampaignPortal"
 	root.position = position_value
 	add_child(root)
 
+	if not _add_official_campaign_portal_visual(root):
+		_add_battle_portal_fallback(root, portal_color)
+
+	var label := Label3D.new()
+	label.text = portal_title
+	label.position = Vector3(0.0, 6.62, 0.0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 38
+	label.modulate = portal_color.lightened(0.34)
+	root.add_child(label)
+
+	var area := Area3D.new()
+	area.collision_layer = 0
+	area.collision_mask = 2
+	root.add_child(area)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(3.4, 3.0, 1.7)
+	collision.shape = shape
+	collision.position.y = 1.5
+	area.add_child(collision)
+	area.body_entered.connect(_on_battle_portal_entered.bind(target_scene))
+
+func _add_official_campaign_portal_visual(root: Node3D) -> bool:
+	var packed := RuntimeGLTFCacheScript.scene(OFFICIAL_CAMPAIGN_PORTAL_VISUAL)
+	if packed == null:
+		push_warning("[CAMPAIGN PORTAL] Missing authored visual: %s" % OFFICIAL_CAMPAIGN_PORTAL_VISUAL)
+		return false
+	var visual := packed.instantiate() as Node3D
+	if visual == null:
+		push_warning("[CAMPAIGN PORTAL] Invalid authored visual: %s" % OFFICIAL_CAMPAIGN_PORTAL_VISUAL)
+		return false
+	visual.name = "AuthoredCampaignPortalFrame"
+	root.add_child(visual)
+	return true
+
+func _add_battle_portal_fallback(root: Node3D, portal_color: Color) -> void:
 	var stone := StandardMaterial3D.new()
 	stone.albedo_color = Color(0.19, 0.16, 0.14)
 	stone.roughness = 0.72
@@ -790,26 +849,6 @@ func _add_battle_portal(position_value: Vector3, portal_title: String, target_sc
 	portal.position = Vector3(0.0, 1.5, 0.0)
 	portal.material_override = glow
 	root.add_child(portal)
-
-	var label := Label3D.new()
-	label.text = portal_title
-	label.position = Vector3(0.0, 4.08, 0.0)
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.font_size = 38
-	label.modulate = portal_color.lightened(0.34)
-	root.add_child(label)
-
-	var area := Area3D.new()
-	area.collision_layer = 0
-	area.collision_mask = 2
-	root.add_child(area)
-	var collision := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = Vector3(3.4, 3.0, 1.7)
-	collision.shape = shape
-	collision.position.y = 1.5
-	area.add_child(collision)
-	area.body_entered.connect(_on_battle_portal_entered.bind(target_scene))
 
 func _on_battle_portal_entered(body: Node3D, target_scene: String) -> void:
 	if body != player:

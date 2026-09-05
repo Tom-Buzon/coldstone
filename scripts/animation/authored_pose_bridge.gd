@@ -83,6 +83,12 @@ func configure(source: Skeleton3D, include_fingers: bool = false) -> bool:
                         semantic_count += 1
         if t_idx >= 0:
             var role: String = _bone_role(s_name)
+            # Imported glTF scenes may rename the canonical `root` bone to a
+            # unique suffix such as `root_2`. Hierarchy is authoritative here:
+            # parentless bones own package axis conversion and must receive the
+            # same root-rotation guard as a literally named root bone.
+            if source_skeleton.get_bone_parent(s_idx) < 0 or target.get_bone_parent(t_idx) < 0:
+                role = "root"
             bone_pairs.append(Vector2i(t_idx, s_idx))
             pair_roles.append(role)
             used_target_bones[t_idx] = true
@@ -92,14 +98,17 @@ func configure(source: Skeleton3D, include_fingers: bool = false) -> bool:
     configured = not bone_pairs.is_empty()
     active = configured
     influence = 1.0
-    print("[UAL BRIDGE] mapped bones=", bone_pairs.size(), " exact=", exact_count, " normalized=", normalized_count, " semantic=", semantic_count)
+    if bool(ProjectSettings.get_setting("debug/hoplite/verbose_animation", false)):
+        print("[UAL BRIDGE] mapped bones=", bone_pairs.size(), " exact=", exact_count, " normalized=", normalized_count, " semantic=", semantic_count)
     if bone_pairs.size() < 12:
-        print("[UAL BRIDGE] WARNING: low mapping count. SOURCE BONES:")
-        for i: int in range(source_skeleton.get_bone_count()):
-            print("  SRC ", i, " ", source_skeleton.get_bone_name(i))
-        print("[UAL BRIDGE] TARGET BONES:")
-        for i: int in range(target.get_bone_count()):
-            print("  DST ", i, " ", target.get_bone_name(i))
+        push_warning("[UAL BRIDGE] low mapping count: %d" % bone_pairs.size())
+        if bool(ProjectSettings.get_setting("debug/hoplite/verbose_animation", false)):
+            print("[UAL BRIDGE] SOURCE BONES:")
+            for i: int in range(source_skeleton.get_bone_count()):
+                print("  SRC ", i, " ", source_skeleton.get_bone_name(i))
+            print("[UAL BRIDGE] TARGET BONES:")
+            for i: int in range(target.get_bone_count()):
+                print("  DST ", i, " ", target.get_bone_name(i))
     return configured
 
 func set_attack_weight(value: float, use_full_body: bool = false, hips_weight: float = 0.0) -> void:

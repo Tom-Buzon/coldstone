@@ -13,11 +13,13 @@ func _run() -> void:
 	var player := PlayerScript.new() as HopliteUALNativePlayer
 	scene.add_child(player)
 	await process_frame
+	assert(player.set_player_skin(HopliteUALNativePlayer.PLAYER_SKIN_BASE), "Could not activate the base player visual")
 	_assert_xiphos_equipped(player, "base")
-	assert(player.toggle_player_visual(), "Could not activate the 3DGen player visual")
-	await process_frame
-	_assert_xiphos_equipped(player, "3DGen")
-	print("[PLAYER XIPHOS PROBE] PASS — imported xiphos equipped on base and 3DGen rigs")
+	for skin_id: StringName in [HopliteUALNativePlayer.PLAYER_SKIN_NOON, HopliteUALNativePlayer.PLAYER_SKIN_SAMUS]:
+		assert(player.set_player_skin(skin_id), "Could not activate player skin: %s" % String(skin_id))
+		await process_frame
+		_assert_xiphos_equipped(player, String(skin_id))
+	print("[PLAYER XIPHOS PROBE] PASS — imported xiphos equipped on all three player skins")
 	quit(0)
 
 func _assert_xiphos_equipped(player: HopliteUALNativePlayer, rig_label: String) -> void:

@@ -3,6 +3,7 @@ class_name HopliteExternalAnimationBank
 
 const BridgeScript = preload("res://scripts/animation/authored_pose_bridge.gd")
 const HumanoidRetargetScript = preload("res://scripts/animation/humanoid_retarget_proxy.gd")
+const WorkbenchBindingsScript = preload("res://scripts/animation/animation_workbench_bindings.gd")
 const ROOT := "res://assets/runtime/mixamo/animations/"
 const PACK := ROOT + "sword_and_shield_pack/"
 const CREATURE_PACK := ROOT + "creature_pack/"
@@ -82,10 +83,17 @@ const DEFAULT_PLAYER_KEYS: Array[StringName] = [
 
 var target_skeleton: Skeleton3D
 var donors: Dictionary = {}
+var donors_by_path: Dictionary = {}
 var active_key: StringName = StringName()
+var archetype_id: StringName = StringName()
 
-func configure(target: Skeleton3D, requested_keys: Array = []) -> bool:
+static func default_donor_paths() -> Dictionary:
+	return DONOR_PATHS.duplicate(true)
+
+
+func configure(target: Skeleton3D, requested_keys: Array = [], profile_id: StringName = StringName()) -> bool:
 	target_skeleton = target
+	archetype_id = profile_id
 	if target_skeleton == null:
 		return false
 	var keys: Array = requested_keys.duplicate()
@@ -97,9 +105,11 @@ func configure(target: Skeleton3D, requested_keys: Array = []) -> bool:
 		if not DONOR_PATHS.has(key):
 			push_warning("[EXTERNAL ANIMATION BANK] unknown selective key: " + String(key))
 			continue
-		if _load_donor(key, String(DONOR_PATHS[key])):
+		var binding: Dictionary = WorkbenchBindingsScript.binding_for(archetype_id, key, String(DONOR_PATHS[key]))
+		if _load_donor(key, String(binding.get("source_path", DONOR_PATHS[key])), StringName(binding.get("source_clip", StringName()))):
 			loaded += 1
-	print("[EXTERNAL ANIMATION BANK] loaded=", loaded, "/", keys.size())
+	if bool(ProjectSettings.get_setting("debug/hoplite/verbose_animation", false)):
+		print("[EXTERNAL ANIMATION BANK] loaded=", loaded, "/", keys.size())
 	return loaded > 0
 
 func has_clip(key: StringName) -> bool:
@@ -246,7 +256,13 @@ func stop() -> void:
 			bridge.set_attack_weight(0.0, false, 0.0)
 	active_key = StringName()
 
-func _load_donor(key: StringName, path: String) -> bool:
+func _load_donor(key: StringName, path: String, preferred_clip: StringName = StringName()) -> bool:
+	# Several semantic actions intentionally point at the same imported FBX.
+	# One donor scene/retarget bridge is enough; only the lookup key differs.
+	var donor_cache_key := "%s::%s" % [path, String(preferred_clip)]
+	if donors_by_path.has(donor_cache_key):
+		donors[key] = donors_by_path[donor_cache_key]
+		return true
 	if not ResourceLoader.exists(path):
 		push_warning("[EXTERNAL ANIMATION BANK] missing: " + path)
 		return false
@@ -264,7 +280,7 @@ func _load_donor(key: StringName, path: String) -> bool:
 	if skeleton == null or player == null:
 		scene.queue_free()
 		return false
-	var clip: StringName = _first_animation(player)
+	var clip: StringName = _first_animation(player, preferred_clip)
 	if clip == StringName():
 		scene.queue_free()
 		return false
@@ -286,10 +302,14 @@ func _load_donor(key: StringName, path: String) -> bool:
 	bridge.set_rest_space_retarget(false)
 	bridge.set_mixamo_runtime_guards(true, true)
 	bridge.set_attack_weight(0.0, false, 0.0)
-	donors[key] = {"scene": scene, "skeleton": skeleton, "proxy": proxy, "retarget": retarget.get("modifier"), "player": player, "bridge": bridge, "clip": clip, "path": path}
+	var donor := {"scene": scene, "skeleton": skeleton, "proxy": proxy, "retarget": retarget.get("modifier"), "player": player, "bridge": bridge, "clip": clip, "path": path}
+	donors[key] = donor
+	donors_by_path[donor_cache_key] = donor
 	return true
 
-func _first_animation(player: AnimationPlayer) -> StringName:
+func _first_animation(player: AnimationPlayer, preferred_clip: StringName = StringName()) -> StringName:
+	if preferred_clip != StringName() and player.has_animation(preferred_clip):
+		return preferred_clip
 	for clip: StringName in player.get_animation_list():
 		if clip != &"RESET" and player.get_animation(clip) != null and player.get_animation(clip).length > 0.02:
 			return clip

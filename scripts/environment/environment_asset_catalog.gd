@@ -3,6 +3,8 @@ class_name HopliteEnvironmentAssetCatalog
 
 const RAW_ROOT := "res://_source/environment_props_raw"
 const STYLIZED_NATURE_ROOT := "res://assets/environment/stylized_nature"
+const STYLIZED_NATURE_THUMBNAIL_ROOT := STYLIZED_NATURE_ROOT + "/thumbnails"
+const CATALOG_THUMBNAIL_ROOT := "res://docs/environment_asset_catalog/images"
 
 # Canonical, gameplay-oriented registry. Raw meshes are normalized close to one
 # metre, so target_height and collision proxy values deliberately define their
@@ -126,6 +128,91 @@ static func target_height_for_path(path: String, fallback: float = 2.0) -> float
 		if String(value.get("hero", "")).get_file().to_lower() == filename or String(value.get("repeat", "")).get_file().to_lower() == filename:
 			return float(value.get("target_height", fallback))
 	return fallback
+
+static func preview_path_for_path(path: String) -> String:
+	if path.begins_with(STYLIZED_NATURE_ROOT + "/"):
+		var nature_preview := STYLIZED_NATURE_THUMBNAIL_ROOT.path_join(path.get_file().get_basename() + ".png")
+		return nature_preview if FileAccess.file_exists(nature_preview) else ""
+	for asset_id: Variant in ASSETS.keys():
+		var value := ASSETS[asset_id] as Dictionary
+		if path in [String(value.get("hero", "")), String(value.get("repeat", ""))]:
+			var catalog_preview := CATALOG_THUMBNAIL_ROOT.path_join(String(asset_id) + ".png")
+			return catalog_preview if FileAccess.file_exists(catalog_preview) else ""
+	return ""
+
+static func default_collision_enabled_for_path(path: String, asset_id: StringName = &"") -> bool:
+	if path.replace("\\", "/").to_lower().contains("/assets/fauna/"):
+		return false
+	var policy := stylized_nature_collision_policy(path)
+	if policy == &"non_blocking":
+		return false
+	if policy == &"blocking":
+		return true
+	var definition_data := definition(asset_id) if not asset_id.is_empty() else _definition_for_path(path)
+	if not definition_data.is_empty():
+		return String(definition_data.get("collision", "none")) != "none"
+	var normalized := path.replace("\\", "/").to_lower()
+	if normalized.contains("/stylized_nature/shrubs/") or normalized.contains("/stylized_nature/ground_cover/"):
+		return false
+	return true
+
+static func stylized_nature_collision_policy(path: String) -> StringName:
+	var normalized := path.replace("\\", "/").to_lower()
+	if normalized.contains("/stylized_nature/stone_paths/"):
+		return &"non_blocking"
+	if normalized.contains("/stylized_nature/rocks/") and normalized.get_file().begins_with("pebble_"):
+		return &"blocking"
+	return &""
+
+static func default_collision_shape_for_path(path: String, asset_id: StringName = &"") -> String:
+	if path.replace("\\", "/").to_lower().contains("/assets/fauna/"):
+		return "capsule"
+	var definition_data := definition(asset_id) if not asset_id.is_empty() else _definition_for_path(path)
+	var registered_shape := String(definition_data.get("collision", ""))
+	if registered_shape in ["box", "cylinder", "capsule", "sphere", "convex"]:
+		return registered_shape
+	if not authored_collision_path_for_visual(path).is_empty():
+		return "convex"
+	var normalized := path.replace("\\", "/").to_lower()
+	if normalized.contains("/stylized_nature/trees/"):
+		return "cylinder"
+	if normalized.contains("/stylized_nature/rocks/") and path.get_file().to_lower().begins_with("rock_medium_"):
+		return "convex"
+	return "box"
+
+static func is_tree_asset(path: String, asset_id: StringName = &"") -> bool:
+	if asset_id == &"cypress_tree":
+		return true
+	var normalized := path.replace("\\", "/").to_lower()
+	return normalized.contains("/stylized_nature/trees/") or normalized.get_file().begins_with("cypresstree_")
+
+static func definition_for_path(path: String, asset_id: StringName = &"") -> Dictionary:
+	if not asset_id.is_empty():
+		var registered := definition(asset_id)
+		if not registered.is_empty():
+			return registered
+	return _definition_for_path(path).duplicate(true)
+
+static func authored_collision_path_for_visual(path: String) -> String:
+	if path.is_empty():
+		return ""
+	var base_name := path.get_file().get_basename()
+	for suffix: String in ["_LOD0", "_lod0", "-LOD0", "-lod0", "_LOD1", "_lod1", "-LOD1", "-lod1"]:
+		base_name = base_name.trim_suffix(suffix)
+	var directory := path.get_base_dir()
+	for suffix: String in ["_collision.glb", "_collider.glb", "_proxy.glb"]:
+		var candidate := directory.path_join(base_name + suffix)
+		if ResourceLoader.exists(candidate) or FileAccess.file_exists(candidate):
+			return candidate
+	return ""
+
+static func _definition_for_path(path: String) -> Dictionary:
+	var filename := path.get_file().to_lower()
+	for raw: Variant in ASSETS.values():
+		var value := raw as Dictionary
+		if String(value.get("hero", "")).get_file().to_lower() == filename or String(value.get("repeat", "")).get_file().to_lower() == filename:
+			return value
+	return {}
 
 static func registered_folders() -> PackedStringArray:
 	var folders := PackedStringArray()
