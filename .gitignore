@@ -95,3 +95,16 @@ Desktop.ini
 
 # Do NOT ignore *.uid
 # Do NOT globally ignore *.import
+
+# Local scratch directory (in addition to /.tmp_* above)
+/.tmp/
+
+# Local environment and export credentials; keep shareable templates
+.env
+.env.*
+!.env.example
+!.env.template
+export_credentials.cfg
+
+# macOS filesystem metadata
+.DS_Store
