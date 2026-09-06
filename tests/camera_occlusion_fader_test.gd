@@ -2,6 +2,13 @@ extends SceneTree
 
 const FaderScript = preload("res://scripts/camera/camera_occlusion_fader.gd")
 
+class CountingFader extends FaderScript:
+	var material_updates := 0
+
+	func _set_fade_material_factor(state: Dictionary, factor: float) -> void:
+		material_updates += 1
+		super._set_fade_material_factor(state, factor)
+
 var failures: Array[String] = []
 
 
@@ -23,7 +30,7 @@ func _run() -> void:
 	camera.position = Vector3(0.0, 4.0, 4.0)
 	world.add_child(camera)
 
-	var fader := FaderScript.new() as HopliteCameraOcclusionFader
+	var fader := CountingFader.new()
 	world.add_child(fader)
 	fader.configure(camera, target, arm)
 	fader.apply_settings(true, 0.12, 0.30)
@@ -75,6 +82,40 @@ func _run() -> void:
 	_require(is_equal_approx(_surface_alpha(player_visual), 1.0), "player-owned geometry must never be faded")
 	_require(fader.get_registered_visual_count() >= 138, "automatically added render nodes were not registered")
 	_require(fader.get_last_visual_candidate_count() < 16, "the spatial query visited distant visuals instead of only the camera corridor")
+	camera.h_offset = 12.0
+	fader._scan_occluders()
+	fader._process(0.50)
+	_require(blocker.get_surface_override_material(0) == null, "camera offset was ignored when testing the visible corridor")
+	camera.h_offset = 0.0
+	fader._scan_occluders()
+	fader._process(0.50)
+	fader.material_updates = 0
+	fader._process(0.016)
+	_require(fader.material_updates == 0, "settled fades still write material properties each frame")
+	var held_material := blocker.get_active_material(0)
+	var held_state: Dictionary = fader._fade_states[blocker.get_instance_id()]
+	held_state[&"occluded"] = false
+	fader._process(0.05)
+	_require(_surface_alpha(blocker) < 0.20, "one missed scan immediately reversed the fade")
+	fader._mark_occluded(blocker)
+	_require(blocker.get_active_material(0) == held_material, "reacquiring a blocker recreated its fade material")
+	held_state[&"occluded"] = false
+	fader._process(0.50)
+	_require(blocker.get_surface_override_material(0) == null, "a genuinely clear view did not restore the material after the delay")
+	fader._mark_occluded(blocker)
+	fader._process(0.50)
+	# A private outline copy must not clear cached world collider ownership.
+	var registered_before_mask := fader.get_registered_visual_count()
+	fader._collider_visual_cache[-1] = []
+	var mask_copy := _box(Vector3.ZERO)
+	fader.outline.add_child(mask_copy)
+	await process_frame
+	_require(fader.get_registered_visual_count() == registered_before_mask, "an outline copy entered the world spatial index")
+	_require(fader._collider_visual_cache.has(-1), "an outline copy invalidated the collider cache")
+	mask_copy.queue_free()
+	await process_frame
+	_require(fader._collider_visual_cache.has(-1), "removing an outline copy invalidated the collider cache")
+	fader._collider_visual_cache.erase(-1)
 
 	var registered_before_late_add := fader.get_registered_visual_count()
 	var late_blocker := _box(Vector3(-0.28, 2.56, 2.0))

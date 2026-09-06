@@ -11,6 +11,7 @@ var sever_damage: float = 0.0
 var guard_damage: float = 0.0
 var guard_broken: bool = false
 var guard_bypassed: bool = false
+var destroy_shield: bool = false
 var blade_speed: float = 0.0
 var attack_slot: StringName = StringName()
 var attack_context: StringName = &"idle"
@@ -36,6 +37,7 @@ func clone() -> HopliteHitEvent:
 	copy.guard_damage = guard_damage
 	copy.guard_broken = guard_broken
 	copy.guard_bypassed = guard_bypassed
+	copy.destroy_shield = destroy_shield
 	copy.blade_speed = blade_speed
 	copy.attack_slot = attack_slot
 	copy.attack_context = attack_context

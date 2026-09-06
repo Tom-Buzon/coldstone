@@ -385,7 +385,7 @@ func _sync_hud() -> void:
 	var pickup_name := String(player.call("equipment_pickup_prompt")) if player.has_method("equipment_pickup_prompt") else ""
 	interaction_panel.visible = not pickup_name.is_empty()
 	if interaction_panel.visible:
-		interaction_label.text = "RAMASSER  %s" % pickup_name.to_upper()
+		interaction_label.text = "MAINTENIR · RAMASSER  %s" % pickup_name.to_upper()
 
 func _set_bubble(card: Dictionary, ratio: float, ready: bool, charge_text: String) -> void:
 	if card.is_empty():

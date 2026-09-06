@@ -246,7 +246,7 @@ func set_phalanx_intent(
 	phalanx_target_position = target_position
 	phalanx_facing = facing_direction.normalized() if facing_direction.length_squared() > 0.0001 else phalanx_facing
 	phalanx_moving = moving_to_slot
-	if simulation_lod_level >= 3:
+	if simulation_lod_level >= 3 and preload("res://scripts/abilities/flame_wall.gd").walls.is_empty():
 		global_position = phalanx_target_position
 	if combat != null:
 		combat.formation_decision_tick(decision_delta, attack_authorized, moving_to_slot)
@@ -340,6 +340,7 @@ func _advance_formation(delta: float, use_physics: bool) -> void:
 			planar_velocity = offset.normalized() * speed
 	velocity.x = planar_velocity.x
 	velocity.z = planar_velocity.z
+	velocity = preload("res://scripts/abilities/flame_wall.gd").avoid(self, velocity, delta)
 	var desired_facing := phalanx_facing
 	if combat != null:
 		desired_facing = combat.formation_facing_direction(desired_facing)
@@ -361,7 +362,7 @@ func _advance_formation(delta: float, use_physics: bool) -> void:
 	else:
 		velocity.y = 0.0
 		var next_position := global_position
-		if planar_velocity.length_squared() > 0.000001:
+		if velocity.length_squared() > 0.000001:
 			next_position += Vector3(velocity.x, 0.0, velocity.z) * delta
 		if not is_equal_approx(next_position.y, phalanx_target_position.y):
 			next_position.y = move_toward(next_position.y, phalanx_target_position.y, maxf(1.0, effective_move_speed()) * delta)
@@ -434,6 +435,13 @@ func _on_guard_broken(
 func is_dead_for_combat() -> bool:
 	return dead
 
+func destroy_skill_shield() -> void:
+	if equipment != null and not equipment.shield_dropped:
+		set_meta(&"skill_shield_destroyed", true)
+		equipment.drop_shield()
+		if combat != null and combat.has_method("on_equipment_lost"):
+			combat.on_equipment_lost(&"shield")
+
 
 func can_receive_hit_from(source: Node) -> bool:
 	return not dead and (source == null or preload("res://scripts/enemy_v2/enemy_v2_factions.gd").hostile(source, self))
@@ -442,6 +450,8 @@ func can_receive_hit_from(source: Node) -> bool:
 func receive_anatomy_hit(hit: Variant, zone: StringName) -> void:
 	if health_component == null or (hit != null and not can_receive_hit_from(hit.source)):
 		return
+	set_meta(&"last_skill_source", hit.source.get_instance_id() if hit != null and is_instance_valid(hit.source) else 0)
+	if hit != null and is_instance_valid(hit.source) and hit.source.has_method("observe_skill_target"): hit.source.observe_skill_target(self)
 	hit = combat_modifiers.incoming(hit)
 	var previous_health := runtime_state.health
 	health_component.receive_hit(hit, zone)

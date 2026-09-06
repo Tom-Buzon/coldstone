@@ -239,4 +239,5 @@ func _physics_process(delta: float) -> void:
 	actor.velocity.x = direction.x * actor.effective_move_speed() * actor.locomotion_factor if moving else 0.0
 	actor.velocity.z = direction.z * actor.effective_move_speed() * actor.locomotion_factor if moving else 0.0
 	actor.velocity.y = -0.5 if actor.is_on_floor() else actor.velocity.y - 9.8 * delta
+	actor.velocity = preload("res://scripts/abilities/flame_wall.gd").avoid(actor, actor.velocity, delta)
 	actor.move_and_slide()

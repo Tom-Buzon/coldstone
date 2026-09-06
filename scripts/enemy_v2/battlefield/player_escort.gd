@@ -61,7 +61,13 @@ func _process(delta: float) -> void:
 	if census_elapsed < 0.2: return
 	census_elapsed = 0.0
 	var previous := members.size()
-	members = members.filter(func(a: Node3D) -> bool: return is_instance_valid(a) and not a.dead)
+	# The escort registry has the same lifetime gap as battlefield targeting.
+	# A typed filter argument rejects a freed Object before is_instance_valid()
+	# can run, so validate each cached entry as Variant first.
+	for index: int in range(members.size() - 1, -1, -1):
+		var candidate: Variant = members[index]
+		if typeof(candidate) != TYPE_OBJECT or not is_instance_valid(candidate) or not candidate is Node3D or candidate.dead:
+			members.remove_at(index)
 	if mode == &"attack":
 		var moving := false
 		for id: StringName in group_ids:

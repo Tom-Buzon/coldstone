@@ -26,6 +26,9 @@ var perfect_response_consumed: bool = false
 var perfect_response_elapsed: float = 0.0
 var perfect_response_duration: float = 0.92
 var perfect_response_side: float = 1.0
+var skill_time_scale := 1.0
+var skill_fov := 0.0
+var skill_rotation := Vector3.ZERO
 var time_effect_owned: bool = false
 var previous_ticks_usec: int = 0
 var transient_nodes: Array[Dictionary] = []
@@ -330,7 +333,8 @@ func _tick_feedback(real_delta: float) -> void:
 		var epic_time_scale: float = shield_time_scale if epic_run_kind == &"phalanx_shields" else giant_time_scale
 		desired_time_scale = minf(desired_time_scale, lerpf(1.0, epic_time_scale, epic_visual_envelope))
 
-	time_effect_owned = perfect_response_active or cinematic_active or epic_run_kind != StringName()
+	desired_time_scale = minf(desired_time_scale, skill_time_scale if not get_tree().paused else 1.0)
+	time_effect_owned = perfect_response_active or cinematic_active or epic_run_kind != StringName() or desired_time_scale < 0.999
 	if time_effect_owned:
 		Engine.time_scale = desired_time_scale
 	elif owned_before:
@@ -375,8 +379,8 @@ func _tick_feedback(real_delta: float) -> void:
 		var perfect_rotation := Vector3(deg_to_rad(-0.35), 0.0, deg_to_rad(-0.55 * perfect_response_side)) * perfect_envelope
 		feedback_camera.h_offset = camera_rest_h_offset + traversal_h_offset + epic_h_offset + 0.42 * cinematic_side * cinematic_envelope + 0.07 * perfect_response_side * perfect_envelope
 		feedback_camera.v_offset = camera_rest_v_offset + traversal_v_offset + epic_v_offset + 0.075 * cinematic_envelope + 0.025 * perfect_envelope
-		feedback_camera.rotation = camera_kick + traversal_rotation + epic_rotation + cinematic_rotation + perfect_rotation
-		feedback_camera.fov = BASE_FOV + fov_offset + traversal_fov + epic_fov - 4.6 * cinematic_envelope - 2.8 * perfect_envelope
+		feedback_camera.rotation = camera_kick + traversal_rotation + epic_rotation + cinematic_rotation + perfect_rotation + skill_rotation
+		feedback_camera.fov = BASE_FOV + skill_fov + fov_offset + traversal_fov + epic_fov - 4.6 * cinematic_envelope - 2.8 * perfect_envelope
 
 	_update_epic_run_hud()
 

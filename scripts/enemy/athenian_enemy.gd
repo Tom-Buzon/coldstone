@@ -1369,6 +1369,7 @@ func _ranged_current_ground_sample() -> Dictionary:
 	return ranged_ground_cache_result
 
 func _move_and_slide_with_ranged_height_guard() -> void:
+	velocity = preload("res://scripts/abilities/flame_wall.gd").avoid(self, velocity, get_physics_process_delta_time())
 	_constrain_ranged_velocity_to_height()
 	move_and_slide()
 
@@ -3693,6 +3694,9 @@ func _is_frontal_shield_threat(source_node: Node3D) -> bool:
 func receive_anatomy_hit(hit: Variant, zone: StringName) -> void:
 	if dead or not anatomy_defs.has(zone) or not zone_state.has(zone):
 		return
+	set_meta(&"last_skill_source", hit.source.get_instance_id() if is_instance_valid(hit.source) else 0)
+	if is_instance_valid(hit.source) and hit.source.has_method("observe_skill_target"): hit.source.observe_skill_target(self)
+	if hit is HopliteHitEvent and hit.destroy_shield: _drop_shield()
 
 	var definition: Dictionary = anatomy_defs[zone]
 	var state: Dictionary = zone_state[zone]
@@ -4712,6 +4716,10 @@ func _drop_weapon() -> void:
 	var lifecycle = DebrisLifecycleScript.new()
 	body.add_child(lifecycle)
 	lifecycle.setup(body, collision, 12.0, 4.0)
+
+func destroy_skill_shield() -> void:
+	set_meta(&"skill_shield_destroyed", true)
+	_drop_shield()
 
 func _drop_shield() -> void:
 	if shield_dropped or shield_root == null or get_tree().current_scene == null:

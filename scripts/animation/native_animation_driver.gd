@@ -1004,6 +1004,10 @@ func _start_attack_clip(slot: StringName, context: StringName, clip: StringName,
 		if _verbose_diagnostics():
 			print("[UAL NATIVE] missing attack clip ", slot, " / ", context, " -> ", clip)
 		return false
+	# A finite attack replaces any held anticipation; otherwise tick never drains it.
+	charge_active = false
+	charge_clip = StringName()
+	charge_ratio = 0.0
 	_emit_current_action_finished(replacement_reason)
 	if external_bank != null:
 		external_bank.stop()
@@ -1045,6 +1049,10 @@ func _start_external_attack(key: StringName, slot: StringName, context: StringNa
 	var duration: float = external_bank.play(key, blend_value, speed_value, full_body_value, hips_value, start_fraction)
 	if duration <= 0.0:
 		return false
+	# A finite attack replaces any held anticipation; otherwise tick never drains it.
+	charge_active = false
+	charge_clip = StringName()
+	charge_ratio = 0.0
 	_emit_current_action_finished(replacement_reason)
 	attack_uses_external_donor = true
 	current_attack_slot = slot

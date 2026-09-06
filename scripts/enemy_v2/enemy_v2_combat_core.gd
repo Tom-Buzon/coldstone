@@ -221,6 +221,7 @@ func _stop_horizontal_motion() -> void:
 
 
 func _apply_gravity_and_move(delta: float) -> void:
+	actor.velocity = preload("res://scripts/abilities/flame_wall.gd").avoid(actor, actor.velocity, delta)
 	if actor.is_on_floor():
 		actor.velocity.y = -0.5
 	else:

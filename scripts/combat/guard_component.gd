@@ -29,7 +29,7 @@ func configure(combatant_value: Node3D, profile_value: CombatGuardProfile) -> bo
 
 
 func can_guard() -> bool:
-	return combatant != null and is_instance_valid(combatant) and not broken
+	return combatant != null and is_instance_valid(combatant) and not broken and not bool(combatant.get_meta(&"skill_shield_destroyed", false))
 
 
 ## Returns true when the raised guard intercepted the contact. A broken guard
@@ -38,6 +38,12 @@ func can_guard() -> bool:
 func resolve_guard(hit: Variant, roll_override: float = -1.0) -> bool:
 	if hit == null or not can_guard():
 		return false
+	if hit is HopliteHitEvent and hit.destroy_shield:
+		if combatant.has_method("destroy_skill_shield"):
+			combatant.destroy_skill_shield()
+		hit.guard_bypassed = true
+		hit.guard_broken = true
+		return true
 	var attack_kind := classify_attack(hit)
 	var guaranteed := attack_kind == &"heavy_fully_charged"
 	var chance := 1.0 if guaranteed else _break_chance(attack_kind) / maxf(profile.break_resistance, 0.1)

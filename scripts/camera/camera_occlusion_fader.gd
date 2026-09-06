@@ -24,6 +24,7 @@ const DEFAULT_RADIUS := 0.10
 const REFRESH_INTERVAL := 1.0 / 20.0
 const FADE_OUT_SPEED := 5.8
 const FADE_IN_SPEED := 4.2
+const RESTORE_DELAY := 0.12
 const PLAYER_FOCUS_HEIGHT := 1.12
 const PLAYER_DEPTH_LIMIT := 0.985
 const PHYSICS_TARGET_CLEARANCE := 0.24
@@ -61,6 +62,7 @@ var _last_spatial_cell_count := 0
 var _visited_visuals: Dictionary = {}
 var _stale_visual_ids: Array[int] = []
 var _fade_states: Dictionary = {}
+var _completed_fades: Array[int] = []
 var _ignore_cache: Dictionary = {}
 var _collider_visual_cache: Dictionary = {}
 var _camera_overlap_shape := SphereShape3D.new()
@@ -134,7 +136,7 @@ func get_active_occluder_count() -> int:
 	var count := 0
 	for raw_state: Variant in _fade_states.values():
 		var state := raw_state as Dictionary
-		if bool(state.get(&"occluded", false)):
+		if bool(state.get(&"occluded", false)) or float(state.get(&"restore_delay", 0.0)) > 0.0:
 			count += 1
 	return count
 
@@ -167,33 +169,43 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	if _fade_states.is_empty():
 		return
-	var completed: Array[int] = []
-	for raw_id: Variant in _fade_states.keys():
+	_completed_fades.clear()
+	for raw_id: Variant in _fade_states:
 		var instance_id := int(raw_id)
 		var state := _fade_states[raw_id] as Dictionary
 		var visual := _state_visual(state)
 		if visual == null:
-			completed.append(instance_id)
+			_completed_fades.append(instance_id)
 			continue
 		var is_occluded := enabled and bool(state.get(&"occluded", false))
+		var fade_delta := delta
+		if enabled and not is_occluded:
+			# A short clear sample at an obstacle edge must not reverse the fade.
+			var delay := float(state.get(&"restore_delay", 0.0))
+			state[&"restore_delay"] = maxf(0.0, delay - delta)
+			fade_delta = maxf(0.0, delta - delay)
 		var current_factor := float(state.get(&"fade_factor", 1.0))
 		var desired_factor := occluder_opacity if is_occluded else 1.0
 		var speed := FADE_OUT_SPEED if is_occluded else FADE_IN_SPEED
-		current_factor = move_toward(current_factor, desired_factor, speed * delta)
+		var next_factor := move_toward(current_factor, desired_factor, speed * fade_delta)
+		# Settled fades need no RenderingServer/material writes.
+		if next_factor == current_factor and current_factor != 1.0:
+			continue
+		current_factor = next_factor
 		state[&"fade_factor"] = current_factor
 		_set_fade_material_factor(state, current_factor)
 		# A visual may leave the tree while its fade materials are being restored.
 		# Resolve the instance ID again instead of retaining a freed Object handle.
 		visual = _state_visual(state)
 		if visual == null:
-			completed.append(instance_id)
+			_completed_fades.append(instance_id)
 			continue
 		if is_occluded:
 			visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		elif is_equal_approx(current_factor, 1.0):
 			_restore_visual_state(state)
-			completed.append(instance_id)
-	for instance_id: int in completed:
+			_completed_fades.append(instance_id)
+	for instance_id: int in _completed_fades:
 		_fade_states.erase(instance_id)
 	if _fade_states.is_empty():
 		set_process(false)
@@ -203,7 +215,8 @@ func _scan_occluders() -> void:
 	for raw_state: Variant in _fade_states.values():
 		(raw_state as Dictionary)[&"occluded"] = false
 
-	var from := camera.global_position
+	# Match the rendered viewpoint, including CombatFeedback's camera offsets.
+	var from := camera.get_camera_transform().origin
 	var to := target.global_position + Vector3.UP * PLAYER_FOCUS_HEIGHT
 	if from.distance_squared_to(to) < 0.16:
 		return
@@ -512,6 +525,7 @@ func _mark_occluded(visual: GeometryInstance3D) -> void:
 		_fade_states[instance_id] = state
 	else:
 		(_fade_states[instance_id] as Dictionary)[&"occluded"] = true
+	(_fade_states[instance_id] as Dictionary)[&"restore_delay"] = RESTORE_DELAY
 
 
 func _install_fade_materials(state: Dictionary) -> void:
@@ -653,6 +667,7 @@ func _mark_all_for_restore() -> void:
 	for raw_state: Variant in _fade_states.values():
 		var state := raw_state as Dictionary
 		state[&"occluded"] = false
+		state[&"restore_delay"] = 0.0
 
 
 func _cache_existing_visuals() -> void:
@@ -670,6 +685,8 @@ func _register_visuals_recursive(node: Node) -> void:
 
 
 func _register_visual(visual: GeometryInstance3D) -> void:
+	if is_ancestor_of(visual):
+		return
 	var instance_id := visual.get_instance_id()
 	if _visuals.has(instance_id):
 		return
@@ -775,6 +792,9 @@ func _flush_pending_visual_registrations() -> void:
 
 
 func _on_tree_node_added(node: Node) -> void:
+	# Outline mask copies are private render helpers, never world blockers.
+	if is_ancestor_of(node):
+		return
 	if node is GeometryInstance3D:
 		# A newly added mesh may belong below a collider already resolved by a prior
 		# ray. Invalidate only for render-tree changes; transient non-visual gameplay
@@ -784,6 +804,8 @@ func _on_tree_node_added(node: Node) -> void:
 
 
 func _on_tree_node_removed(node: Node) -> void:
+	if is_ancestor_of(node):
+		return
 	var instance_id := node.get_instance_id()
 	_ignore_cache.erase(instance_id)
 	if not node is GeometryInstance3D:

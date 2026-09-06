@@ -8,6 +8,8 @@ const DevelopmentMonitorScript = preload("res://scripts/ui/development_monitor.g
 const FaunaSettingsScript = preload("res://scripts/fauna/fauna_settings.gd")
 const EquipmentCatalogScript = preload("res://scripts/equipment/equipment_catalog.gd")
 const WeaponTuningScript = preload("res://scripts/equipment/weapon_tuning.gd")
+const SkillTreePanelScript = preload("res://scripts/ui/skill_tree_panel.gd")
+var skill_tree_panel: VBoxContainer
 const GLOBAL_SETTINGS_PATH := "user://hoplite_global_settings_v1.cfg"
 const DEVICE_AUTO := 0
 const DEVICE_MNK := 1
@@ -54,6 +56,11 @@ const FAUNA_GLOBAL_SLIDERS: Array[Dictionary] = [
 ]
 
 const ACTIONS := [
+	{"id": &"skill_weapon_swap", "label": "ARME / MAINTENIR : RAMASSER", "mnk": "E", "pad": "Y"},
+	{"id": &"skill_edge", "label": "LAME HORIZONTALE (MAINTENIR)", "mnk": "F", "pad": "Stick G clic"},
+	{"id": &"skill_plunge", "label": "FRAPPE TELLURIQUE", "mnk": "X", "pad": "Bas"},
+	{"id": &"skill_ultimate", "label": "ULTIME / MAINTENIR : ROUE", "mnk": "A", "pad": "Haut"},
+	{"id": &"skill_ultimate_next", "label": "CHOISIR L'ULTIME", "mnk": "T", "pad": "Droite"},
 	{"id": &"move_forward", "label": "AVANCER", "mnk": "Z", "pad": "Stick G haut"},
 	{"id": &"move_back", "label": "RECULER", "mnk": "S", "pad": "Stick G bas"},
 	{"id": &"move_left", "label": "ALLER A GAUCHE", "mnk": "Q", "pad": "Stick G gauche"},
@@ -182,6 +189,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_gameplay_actions(not _has_saved_bindings())
 	_load_global_settings()
+	_migrate_skill_bindings()
 	_build_development_monitor()
 	_build_ui()
 	_build_weapon_tuning_save_timer()
@@ -214,6 +222,9 @@ func set_open(value: bool) -> void:
 	opened = value
 	_apply_visible(opened)
 	if opened:
+		if is_instance_valid(player) and player.skills != null:
+			player.skills.controls.cancel()
+			player.skills.activation_buffer = 0.0
 		previous_mouse_mode = Input.mouse_mode
 		previous_tree_paused = get_tree().paused
 		toggle_block_until_ms = Time.get_ticks_msec() + 140
@@ -224,6 +235,10 @@ func set_open(value: bool) -> void:
 			tabs.grab_focus()
 	else:
 		_cancel_capture()
+		if skill_tree_panel != null:
+			var skill_save: Error = skill_tree_panel.flush()
+			if skill_save != OK:
+				push_warning("Skill settings save failed: " + error_string(skill_save))
 		_flush_weapon_tuning_saves()
 		if detail_overlay != null:
 			detail_overlay.visible = false
@@ -290,6 +305,12 @@ func _build_ui() -> void:
 	tabs.add_theme_font_size_override("font_size", 17)
 	outer.add_child(tabs)
 	_build_camera_tab()
+	if is_instance_valid(player) and player.skills != null:
+		var skill_tab := _new_tab("Compétences")
+		skill_tree_panel = SkillTreePanelScript.new()
+		skill_tree_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		skill_tab.add_child(skill_tree_panel)
+		skill_tree_panel.configure(player.skills)
 	_build_audio_tab()
 	_build_display_tab()
 	_build_weapons_tab()
@@ -1398,8 +1419,21 @@ func _ensure_gameplay_actions(force_defaults: bool = false) -> void:
 				InputMap.action_add_event(action, pad)
 	_sync_contextual_counter_bindings()
 
+func _migrate_skill_bindings() -> void:
+	# Migrate only the previous shipped defaults, preserving deliberate remaps.
+	for action: StringName in [&"skill_weapon_swap", &"skill_ultimate"]:
+		var old_key := KEY_V if action == &"skill_weapon_swap" else KEY_R
+		var current := _first_event_for_device(action, "mnk")
+		if current is InputEventKey and (current.physical_keycode == old_key or current.keycode == old_key):
+			_replace_device_event(action, "mnk", _default_mnk_event(action))
+
 func _default_mnk_event(action: StringName) -> InputEvent:
 	match action:
+		&"skill_weapon_swap": return _key_event(KEY_E)
+		&"skill_edge": return _key_event(KEY_F)
+		&"skill_plunge": return _key_event(KEY_X)
+		&"skill_ultimate": return _key_event(KEY_Q)
+		&"skill_ultimate_next": return _key_event(KEY_T)
 		&"move_forward": return _key_event(KEY_W)
 		&"move_back": return _key_event(KEY_S)
 		&"move_left": return _key_event(KEY_A)
@@ -1416,6 +1450,11 @@ func _default_mnk_event(action: StringName) -> InputEvent:
 
 func _default_gamepad_event(action: StringName) -> InputEvent:
 	match action:
+		&"skill_weapon_swap": return _joy_button(JOY_BUTTON_Y)
+		&"skill_edge": return _joy_button(JOY_BUTTON_LEFT_STICK)
+		&"skill_plunge": return _joy_button(JOY_BUTTON_DPAD_DOWN)
+		&"skill_ultimate": return _joy_button(JOY_BUTTON_DPAD_UP)
+		&"skill_ultimate_next": return _joy_button(JOY_BUTTON_DPAD_RIGHT)
 		&"move_forward": return _joy_motion(JOY_AXIS_LEFT_Y, -1.0)
 		&"move_back": return _joy_motion(JOY_AXIS_LEFT_Y, 1.0)
 		&"move_left": return _joy_motion(JOY_AXIS_LEFT_X, -1.0)
@@ -1528,6 +1567,7 @@ func _event_text(event: InputEvent, fallback: String) -> String:
 		match key.physical_keycode:
 			KEY_W: return "Z"
 			KEY_A: return "Q"
+			KEY_Q: return "A"
 			KEY_SPACE: return "Espace"
 			KEY_SHIFT: return "Maj"
 			KEY_CTRL: return "Ctrl"

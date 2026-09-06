@@ -79,7 +79,18 @@ func _process(delta: float) -> void:
 	var count := 0
 	while not target_actors.is_empty() and count < mini(24,target_actors.size()) and Time.get_ticks_usec()-started < 2000:
 		target_cursor %= target_actors.size()
-		_update_target(target_actors[target_cursor])
+		# An actor can be freed between the 0.2 s snapshot refreshes (notably when
+		# the last battlefield group is removed). Keep the array value as Variant
+		# until it has been validated: passing a freed Object to the typed
+		# _update_target() parameter fails before that function's guard can run.
+		var candidate: Variant = target_actors[target_cursor]
+		if typeof(candidate) != TYPE_OBJECT or not is_instance_valid(candidate) or not candidate is Node3D:
+			target_actors.remove_at(target_cursor)
+			if target_actors.is_empty():
+				set_process(false)
+				break
+			continue
+		_update_target(candidate as Node3D)
 		target_cursor += 1
 		count += 1
 	last_update_usec = Time.get_ticks_usec()-started
@@ -161,7 +172,9 @@ func _update_target(actor: Node3D) -> void:
 			_assign_target(actor,nearby_target)
 			return
 	var versus_player: bool = commander != null and commander.settings.get("mode","armies") == "player"
-	var current: Node3D = actor.combat_target
+	# A committed attack may retain its target until after that opponent's corpse
+	# has been freed. Validate the property before recovering its Node3D type.
+	var current: Variant = actor.combat_target
 	if is_instance_valid(current) and current is HopliteEnemyActorV2 and not current.dead and actor.definition.unit_role != &"archer" and actor.global_position.distance_squared_to(current.global_position)<16.0:
 		return # A live close duel doesn't require a new wide-area search.
 	var candidates: Array[Node3D] = []
@@ -187,16 +200,16 @@ func _update_target(actor: Node3D) -> void:
 	_assign_target(actor,selected)
 
 func _assign_target(actor: Node3D, target: Node3D) -> void:
-	var old: Node3D = actor.combat_target
+	var old: Variant = actor.combat_target
 	if old == target: return
 	actor.set_combat_target(target)
-	var actual: Node3D = actor.combat_target
+	var actual: Variant = actor.combat_target
 	if actual == old: return # An attack already committed keeps its target.
 	if is_instance_valid(old):
-		var id := old.get_instance_id()
+		var id: int = old.get_instance_id()
 		target_loads[id] = maxi(0,int(target_loads.get(id,0))-1)
 	if is_instance_valid(actual):
-		var id := actual.get_instance_id()
+		var id: int = actual.get_instance_id()
 		target_loads[id] = int(target_loads.get(id,0))+1
 
 func _commander_for(actor: Node) -> RefCounted:
@@ -216,8 +229,10 @@ func _update_local_groups() -> void:
 		if order == "patrol": goal += Vector3(sin(clock*0.18)*6.0,0,cos(clock*0.18)*6.0)
 		elif order == "escort": goal = world.player.global_position + Vector3(5,0,5)
 		elif order == "pursue" and not state.members.is_empty():
-			var target: Node3D = state.members[0].combat_target
-			if is_instance_valid(target): goal = home + (target.global_position-home).limit_length(18.0)
+			var first_member: Variant = state.members[0]
+			if typeof(first_member) == TYPE_OBJECT and is_instance_valid(first_member):
+				var target: Variant = first_member.combat_target
+				if is_instance_valid(target): goal = home + (target.global_position-home).limit_length(18.0)
 		record.command_assignment = {"position":goal,"facing":record.forward,"role":state.capabilities.role,"mission":StringName(order),"engage":true,"ring":0,"slot":id,"angle":0.0,"radius":0.0,"disorganized":false}
 func nearby(position: Vector3, radius: float, limit: int = 48, hostile_to: Node = null) -> Array[Node3D]:
 	var result: Array[Node3D] = []
@@ -228,8 +243,13 @@ func nearby(position: Vector3, radius: float, limit: int = 48, hostile_to: Node 
 		for x in range(-ring,ring+1):
 			for z in range(-ring,ring+1):
 				if maxi(absi(x),absi(z)) != ring: continue
-				for actor: Node3D in buckets.get(center+Vector2i(x,z),[]):
-					if is_instance_valid(actor) and not actor.dead and (hostile_to == null or Factions.hostile(hostile_to,actor)) and actor.global_position.distance_squared_to(position) <= radius*radius:
+				for raw_actor: Variant in buckets.get(center+Vector2i(x,z),[]):
+					# Buckets share the snapshot lifetime with target_actors and can retain
+					# a freed corpse until the next refresh.
+					if typeof(raw_actor) != TYPE_OBJECT or not is_instance_valid(raw_actor) or not raw_actor is Node3D:
+						continue
+					var actor := raw_actor as Node3D
+					if not actor.dead and (hostile_to == null or Factions.hostile(hostile_to,actor)) and actor.global_position.distance_squared_to(position) <= radius*radius:
 						result.append(actor)
 						if result.size() >= limit: return result
 	return result

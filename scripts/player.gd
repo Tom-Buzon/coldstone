@@ -23,6 +23,8 @@ const PlayerPresentationScript = preload("res://scripts/ui/player_presentation.g
 const CameraOcclusionFaderScript = preload("res://scripts/camera/camera_occlusion_fader.gd")
 const PlayerSkinCatalogScript = preload("res://scripts/player/player_skin_catalog.gd")
 const WeaponTuningScript = preload("res://scripts/equipment/weapon_tuning.gd")
+const SkillRuntimeScript = preload("res://scripts/abilities/skill_runtime.gd")
+var skills: Node
 const UAL1_PATH := "res://assets/runtime/ual1/UAL1_Standard.glb"
 const PLAYER_SKIN_BASE: StringName = &"base"
 const PLAYER_SKIN_NOON: StringName = &"noon_t1"
@@ -305,6 +307,7 @@ var spin_rotation_total: float = 0.0
 var spin_vertical_direction: int = 0
 var spin_input_cooldown_timer: float = 0.0
 var spin_up_air_used: bool = false
+var combat_refusal_log_msec: int = -2000
 var spiral_active_request_id: int = 0
 var next_combat_action_request_id: int = 1
 var spiral_down_air_impact_pending: bool = false
@@ -394,6 +397,10 @@ func _ready() -> void:
 	add_child(combat_feedback)
 	combat_feedback.configure(camera, self)
 	combat_feedback.configure_epic_wall_run_settings(epic_wall_run_camera_settings)
+	skills = SkillRuntimeScript.new()
+	skills.name = "Skills"
+	add_child(skills)
+	skills.configure(self)
 	player_combat_hud = PlayerCombatHUDScript.new() as CanvasLayer
 	player_combat_hud.name = "PlayerCombatHUD"
 	add_child(player_combat_hud)
@@ -670,6 +677,9 @@ func _player_skin_parts_section(skin_id: StringName) -> String:
 	return "player_skin_parts:%s" % String(skin_id)
 
 func _clear_visual_setup() -> void:
+	if skills != null:
+		skills.cancel_plunge()
+		skills.cancel_preparation()
 	# Visual replacement can happen during an aerial Spiral Down. It is also an
 	# action interruption and must restore the temporary collision policy before
 	# the old animation driver (and its signals) is freed.
@@ -718,7 +728,13 @@ func _missing_marker() -> void:
 	label.position = Vector3(0, 1.5, 0)
 	visual_root.add_child(label)
 
+func observe_skill_target(target: Node) -> void:
+	# Connect before damage: newly spawned enemies may die on their first hit.
+	if skills != null: skills.observe_enemy(target)
+
 func _physics_process(delta: float) -> void:
+	if skills != null:
+		skills.tick(delta)
 	dash_cooldown_timer = maxf(0.0, dash_cooldown_timer - delta)
 	dash_variant_grace = maxf(0.0, dash_variant_grace - delta)
 	wall_run_attach_cooldown = maxf(0.0, wall_run_attach_cooldown - delta)
@@ -773,17 +789,17 @@ func _physics_process(delta: float) -> void:
 
 	# CTRL on the ground starts the slide immediately. In the air it arms the
 	# slide; the slide begins on the exact landing frame, with no landing recovery.
-	if Input.is_action_just_pressed("slide"):
+	if Input.is_action_just_pressed("slide") and (skills == null or not skills.controls.wheel.visible):
 		_request_slide()
 
-	if Input.is_action_just_pressed("jump"):
+	if Input.is_action_just_pressed("jump") and (skills == null or (skills.active(&"jump") and not skills.controls.wheel.visible)):
 		if _try_start_parkour():
 			return
 		if jumps_used < max_jumps:
 			_stop_slide(true, false)
 			# Heavy charge is intentionally preserved through jumps.
 			var is_second_jump: bool = jumps_used == 1
-			velocity.y = jump_velocity if not is_second_jump else jump_velocity * 0.92
+			velocity.y = skills.jump_speed(jumps_used) if skills != null else (jump_velocity if not is_second_jump else jump_velocity * 0.92)
 			jumps_used += 1
 			movement_sfx_requested.emit(&"jump")
 			if animation_driver != null:
@@ -805,7 +821,7 @@ func _physics_process(delta: float) -> void:
 				animation_driver.set_locomotion(0.0)
 			return
 
-	if Input.is_action_just_pressed("dash"):
+	if Input.is_action_just_pressed("dash") and (skills == null or not skills.controls.wheel.visible):
 		if _perfect_response_available() and _do_perfect_counter_dash():
 			pass
 		elif dash_cooldown_timer <= 0.0 and dash_charges > 0:
@@ -815,9 +831,15 @@ func _physics_process(delta: float) -> void:
 	move_dir = _filter_wall_run_release_input(move_dir)
 	var move_multiplier: float = shield_move_multiplier if shield_blocking else (0.55 if heavy_charging else 1.0)
 
-	if slide_time > 0.0:
+	if skills != null and skills.owns_aura_movement() and skills.aura_velocity.length_squared() > 0.01:
+		velocity.x = skills.aura_velocity.x
+		velocity.z = skills.aura_velocity.z
+		slide_time = maxf(0.0, slide_time - delta)
+	elif slide_time > 0.0:
 		_update_slide_motion(move_dir, delta)
 	elif dash_time > 0.0:
+		if skills != null:
+			skills.steer_dash(delta)
 		dash_time = maxf(0.0, dash_time - delta)
 		var active_dash_duration: float = perfect_counter_dash_duration if perfect_counter_dash_active else dash_duration
 		var dash_ratio: float = clampf(dash_time / maxf(active_dash_duration, 0.001), 0.0, 1.0)
@@ -869,6 +891,11 @@ func _physics_process(delta: float) -> void:
 		# disabled. Reassert the plunge after the generic floor branch zeroed Y.
 		velocity.y = minf(velocity.y, -10.0)
 	var position_before_move: Vector3 = global_position
+	if skills != null and skills.plunge_active:
+		velocity.y = minf(velocity.y, -24.0)
+	if skills != null and skills.owns_aura_movement() and is_instance_valid(skills.aura_target):
+		velocity.x = skills.aura_velocity.x
+		velocity.z = skills.aura_velocity.z
 	_move_with_traversal_platform_policy()
 	if spiral_down_air_impact_pending and velocity.y > 0.0:
 		# Godot can convert cached overlap recovery into a huge upward velocity on the
@@ -878,6 +905,8 @@ func _physics_process(delta: float) -> void:
 		velocity.y = -10.0
 
 	if not was_on_floor and is_on_floor():
+		if skills != null:
+			skills.on_landed()
 		_reset_wall_run_after_landing()
 		if spiral_down_air_impact_pending:
 			_trigger_spiral_down_impact()
@@ -903,6 +932,7 @@ func _physics_process(delta: float) -> void:
 		animation_driver.set_locomotion(clampf(horizontal_speed / max_speed, 0.0, 1.0))
 
 func _process(delta: float) -> void:
+	reconcile_combat_holds()
 	_update_slide_visual_height(delta)
 	_update_gamepad_camera(delta)
 	_update_camera(delta)
@@ -910,7 +940,7 @@ func _process(delta: float) -> void:
 	# Gameplay attacks are polled directly instead of relying on _unhandled_input.
 	# LMB is resolved here as tap=light / hold=heavy, while J and K remain direct
 	# keyboard fallbacks for isolated combat testing.
-	if not parkour_active:
+	if not parkour_active and (skills == null or not skills.controls.wheel.visible):
 		var close_counter_triggered := false
 		if not wall_run_active and InputMap.has_action(&"counter_close") and Input.is_action_just_pressed(&"counter_close") and _perfect_response_available():
 			close_counter_triggered = _do_perfect_counter_light()
@@ -940,7 +970,8 @@ func _process(delta: float) -> void:
 		combo_light_count = 0
 
 	if heavy_charging:
-		heavy_charge = minf(heavy_charge_max, heavy_charge + delta)
+		var charge_rate: float = skills.value(&"ares_charge") if skills != null and skills.ultimate == &"ares" else 1.0
+		heavy_charge = minf(heavy_charge_max, heavy_charge + delta * charge_rate)
 		var ratio: float = clampf(heavy_charge / heavy_charge_max, 0.0, 1.0)
 		if not heavy_charge_pose_started and (not fast_heavy_candidate or heavy_charge >= 0.12):
 			if animation_driver != null:
@@ -969,6 +1000,8 @@ func _process(delta: float) -> void:
 		if animation_driver.is_attack_active() and not animation_driver.is_heavy_charging() and sword_tip != null and sword_trail != null:
 			sword_trail.push_point(sword_tip.global_position, animation_driver.current_attack_is_heavy())
 	_update_shield_guard_visual()
+	if skills != null:
+		skills.presentation()
 	debug_text_time_left -= delta
 	if debug_text_time_left <= 0.0:
 		var debug_hz := clampf(float(ProjectSettings.get_setting("hoplite/performance/debug_refresh_hz", 6.0)), 1.0, 20.0)
@@ -996,6 +1029,7 @@ func _configure_combat_queries() -> void:
 	attack_assist_los_query.collide_with_bodies = true
 
 func _unhandled_input(event: InputEvent) -> void:
+	if skills != null and skills.controls.wheel.visible: return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion
 		var camera_guidance_active: bool = _epic_wall_run_camera_guidance_active()
@@ -1006,10 +1040,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			camera_pitch.rotation.x = camera_pitch_value
 		return
 	if parkour_active:
-		return
-	if event.is_action_pressed(&"interact"):
-		if _collect_nearest_equipment_pickup():
-			get_viewport().set_input_as_handled()
 		return
 
 	# Combat actions are handled in _process() so fast clicks cannot be swallowed
@@ -1043,6 +1073,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					animation_driver.preview_play()
 
 func _update_gamepad_camera(delta: float) -> void:
+	if skills != null and skills.controls.wheel.visible: return
 	if camera_yaw == null or camera_pitch == null:
 		return
 	if not InputMap.has_action(&"camera_left"):
@@ -1058,7 +1089,26 @@ func _update_gamepad_camera(delta: float) -> void:
 	if not camera_guidance_active:
 		camera_pitch.rotation.x = camera_pitch_value
 
+func reconcile_combat_holds() -> void:
+	var primary_down := Input.is_action_pressed("attack_primary")
+	var heavy_down := Input.is_action_pressed("attack_heavy")
+	if heavy_charging and not primary_down and not heavy_down and not Input.is_action_just_released("attack_primary") and not Input.is_action_just_released("attack_heavy"):
+		_cancel_heavy_charge()
+	# Skills can own a held pose; every other orphaned driver hold must release.
+	var skill_charge: bool = skills != null and (skills.cast_remaining > 0.0 or skills.ultimate == &"thunder")
+	if animation_driver != null and animation_driver.is_heavy_charging() and not heavy_charging and not skill_charge:
+		animation_driver.cancel_heavy_charge()
+	if animation_driver != null and animation_driver.is_block_active() and not shield_blocking:
+		animation_driver.end_block()
+	if primary_attack_held and not Input.is_action_pressed("attack_primary") and not Input.is_action_just_released("attack_primary"):
+		_reset_primary_attack_input()
+		_cancel_heavy_charge()
+
 func _update_primary_attack_input(delta: float) -> void:
+	if skills != null and skills.ultimate == &"thunder":
+		_reset_primary_attack_input()
+		return
+	reconcile_combat_holds()
 	if Input.is_action_just_pressed("attack_primary"):
 		if _perfect_response_available() and _do_perfect_counter_light():
 			_reset_primary_attack_input()
@@ -1090,6 +1140,9 @@ func _reset_primary_attack_input() -> void:
 	primary_heavy_started = false
 
 func _update_shield_block_input() -> void:
+	if skills != null and (not skills.active(&"block") or skills.ranged_active or skills.cast_remaining > 0.0):
+		_set_shield_blocking(false)
+		return
 	var combat_busy: bool = heavy_charging or primary_attack_held
 	if animation_driver != null:
 		combat_busy = combat_busy or animation_driver.is_attack_active()
@@ -1112,6 +1165,7 @@ func _set_shield_blocking(enabled: bool) -> void:
 	_set_shield_guard_visual_enabled(shield_blocking)
 
 func _start_regular_dash() -> void:
+	if skills != null and (not skills.active(&"dash") or skills.plunge_active): return
 	if dash_charges <= 0:
 		return
 	_consume_dash_charge()
@@ -1134,9 +1188,11 @@ func _start_regular_dash() -> void:
 		animation_driver.play_full_body(&"dash")
 
 func _perfect_response_available() -> bool:
+	if skills != null and not skills.active(&"perfect"): return false
 	return combat_feedback != null and combat_feedback.is_perfect_response_active()
 
 func _start_perfect_response(kind: StringName, attacker: Node) -> void:
+	if skills != null and not skills.active(&"perfect"): return
 	perfect_response_source = attacker as Node3D if attacker is Node3D else null
 	_reset_primary_attack_input()
 	_restore_all_mobility_charges()
@@ -1147,6 +1203,7 @@ func _start_perfect_response(kind: StringName, attacker: Node) -> void:
 	perfect_response_started.emit(kind)
 
 func _do_perfect_counter_dash() -> bool:
+	if skills != null and not skills.active(&"dash"): return false
 	if animation_driver == null:
 		return false
 	var target: Node3D = _find_perfect_counter_target()
@@ -1279,10 +1336,22 @@ func _flat_direction_to(target: Node3D) -> Vector3:
 	direction.y = 0.0
 	return direction.normalized() if direction.length() > 0.01 else Vector3.ZERO
 
+func _log_combat_refusal(reason: StringName) -> void:
+	var now := Time.get_ticks_msec()
+	if now - combat_refusal_log_msec < 2000: return
+	combat_refusal_log_msec = now
+	print("[COMBAT INPUT REFUSED] reason=", reason, " context=", _combat_context(), " heavy=", heavy_charging, " primary=", primary_attack_held, " block=", shield_blocking, " spiral=", spiral_active_request_id, " spiral_impact=", spiral_down_air_impact_pending, " driver_slot=", animation_driver.current_attack_slot_name() if animation_driver != null else &"none", " driver_charge=", animation_driver.is_heavy_charging() if animation_driver != null else false, " ultimate=", skills.ultimate if skills != null else &"none", " plunge=", skills.plunge_active if skills != null else false)
+
 func _do_light_attack() -> void:
+	if skills != null:
+		if not skills.attack_allowed(&"light", _combat_context()):
+			_log_combat_refusal(&"light_skill_gate")
+			return
+		if skills.request_ranged(): return
 	if not wall_run_active and _perfect_response_available() and _do_perfect_counter_light():
 		return
 	if animation_driver == null or heavy_charging or shield_blocking:
+		_log_combat_refusal(&"light_combat_gate")
 		return
 	attack_facing_direction = _attack_input_facing_direction()
 
@@ -1345,6 +1414,7 @@ func _do_light_attack() -> void:
 			slide_slash_contacts.clear()
 
 func _begin_heavy_input(initial_charge: float = 0.0) -> void:
+	if skills != null and not skills.attack_allowed(&"heavy", _combat_context()): return
 	if animation_driver == null or heavy_charging or shield_blocking:
 		return
 	attack_facing_direction = _attack_input_facing_direction()
@@ -1360,6 +1430,13 @@ func _begin_heavy_input(initial_charge: float = 0.0) -> void:
 		heavy_charge_pose_started = animation_driver.begin_heavy_charge(heavy_charge_context)
 
 func _release_heavy_attack() -> void:
+	if skills != null:
+		if not skills.attack_allowed(&"heavy", _combat_context()):
+			_cancel_heavy_charge()
+			return
+		if skills.request_ranged(lerpf(1.0, 2.0, clampf(heavy_charge / heavy_charge_max, 0.0, 1.0))):
+			_cancel_heavy_charge()
+			return
 	if animation_driver == null:
 		_cancel_heavy_charge()
 		return
@@ -1416,6 +1493,7 @@ func _cancel_heavy_charge() -> void:
 	_set_sword_charge_visual(0.0)
 
 func _do_spin_attack(vertical_direction: int = 1) -> void:
+	if skills != null and (not skills.active(&"spin_up" if vertical_direction > 0 else &"spin_down") or skills.ranged_active or skills.plunge_active or skills.cast_remaining > 0.0 or skills.ultimate == &"thunder"): return
 	if animation_driver == null or heavy_charging or shield_blocking or spin_input_cooldown_timer > 0.0:
 		return
 	if spiral_stamina + 0.001 < spiral_stamina_cost:
@@ -1483,6 +1561,7 @@ func _sync_spiral_attack_state() -> void:
 
 
 func _on_combat_action_started(action: Dictionary) -> void:
+	if skills != null: skills.on_combat_action_started(action)
 	if StringName(action.get(&"slot", StringName())) == &"spin360":
 		_start_spiral_action(action)
 
@@ -1697,6 +1776,7 @@ func _slide_duration() -> float:
 	return (_dash_nominal_distance() * slide_distance_ratio) / maxf(_slide_speed(), 0.001)
 
 func _request_slide() -> void:
+	if skills != null and (not skills.active(&"slide") or skills.plunge_active): return
 	if parkour_active or slide_time > 0.0 or slide_armed or slide_charges <= 0:
 		return
 
@@ -1719,6 +1799,7 @@ func _request_slide() -> void:
 		slide_armed = true
 
 func _start_slide(from_air: bool) -> void:
+	if skills != null and not skills.active(&"slide"): return
 	if slide_charges <= 0:
 		slide_armed = false
 		return
@@ -1786,7 +1867,10 @@ func _update_free_movement(move_dir: Vector3, move_multiplier: float, delta: flo
 	var current_speed: float = flat_velocity.length()
 
 	if move_dir.length() > 0.05:
-		var target_speed: float = max_speed * move_multiplier
+		# Direction stays normalized for parkour/dashes; ordinary locomotion
+		# also respects the stick magnitude after InputMap's radial deadzone.
+		var input_strength := Input.get_vector("move_left", "move_right", "move_forward", "move_back").length()
+		var target_speed: float = max_speed * move_multiplier * input_strength
 		var speed_rate: float = acceleration if is_on_floor() else air_acceleration
 		var next_speed: float = current_speed
 
@@ -1934,6 +2018,8 @@ func _update_weapon_hit_detection(delta: float) -> void:
 
 	var attack_active: bool = animation_driver.is_attack_active() and not animation_driver.is_heavy_charging()
 	var slot: StringName = animation_driver.current_attack_slot_name()
+	if slot in [&"aura", &"javelin", &"skill_plunge"] or (skills != null and (skills.ranged_active or skills.ultimate == &"aura")):
+		attack_active = false
 	var progress: float = animation_driver.current_attack_progress()
 
 	if not attack_active or slot == StringName() or slot == &"charge":
@@ -2170,7 +2256,7 @@ func _attack_aim_direction(preferred_direction: Vector3, attack_slot: StringName
 		preferred.y = 0.0
 	preferred = preferred.normalized()
 
-	if not aim_assist_enabled or get_tree() == null or slide_time > 0.0:
+	if not aim_assist_enabled or get_tree() == null:
 		return preferred
 	var result: Dictionary = _find_attack_assist_target(preferred, attack_slot)
 	if result.is_empty():
@@ -2316,6 +2402,11 @@ func _find_attack_assist_target(preferred: Vector3, attack_slot: StringName) -> 
 			correction_degrees = 54.0
 			angle_score_weight = 0.90
 	var max_angle: float = deg_to_rad(cone_degrees)
+	if skills != null:
+		var assist: float = skills.aim_multiplier(_combat_context())
+		if assist <= 0.0: return {}
+		max_angle = minf(PI, max_angle * assist)
+		correction_degrees = minf(180.0, correction_degrees * assist)
 	var move_direction: Vector3 = _desired_move_direction()
 
 	for node: Node in get_tree().get_nodes_in_group("enemy"):
@@ -2566,6 +2657,8 @@ func _make_weapon_hit_event(slot: StringName, context: StringName, hit_position:
 	event.guard_damage *= weapon_damage_multiplier
 
 	event.impulse = direction * clampf(2.5 + event.sever_damage * 0.045, 3.0, 10.0)
+	if skills != null:
+		skills.modify_hit(event)
 	return event
 
 func _apply_zone_specific_hit_bonus(event: Variant, slot: StringName, zone: StringName) -> void:
@@ -2601,6 +2694,7 @@ func _make_slide_contact_hit() -> Variant:
 	event.guard_damage = 44.0
 	event.blade_speed = _slide_speed()
 	event.impulse = event.direction * 5.5
+	if skills != null: skills.modify_hit(event)
 	return event
 
 func _resolve_slide_slash_target(collider: Node) -> Node:
@@ -2785,6 +2879,7 @@ func _has_giant_traversal_floor_collision() -> bool:
 	return false
 
 func _try_start_wall_run() -> bool:
+	if skills != null and not skills.active(&"wall"): return false
 	if wall_run_active or not wall_run_attach_available or wall_run_attach_cooldown > 0.0 or wall_run_runs_used >= wall_run_max_chain_runs:
 		return _reject_wall_run("availability/cooldown/chain limit")
 	# The first contact is free. Any following contact in the same airborne
@@ -2825,6 +2920,7 @@ func _try_start_wall_run() -> bool:
 	if tangent_input.length() < 0.22 and velocity.y <= 0.35:
 		return _reject_wall_run("vertical attach requires upward velocity")
 
+	if skills != null and not skills.wall_allowed(_wall_run_hit_kind(hit)): return false
 	_begin_wall_run(normal, desired, _wall_run_hit_kind(hit))
 	return true
 
@@ -2994,6 +3090,8 @@ func _perform_wall_jump() -> void:
 	wall_run_just_started = false
 	jumps_used = 1
 	wall_run_corner_follow_active = false
+	if skills != null:
+		skills.on_wall_jump(released_surface_kind)
 	wall_run_debug_reason = "wall jump -> %s (%d/%d)" % ["chain armed" if wall_run_attach_available else "chain spent", wall_run_runs_used, wall_run_max_chain_runs]
 	_sync_wall_run_feedback()
 	movement_sfx_requested.emit(&"jump")
@@ -3479,6 +3577,7 @@ func _append_wall_probe(probes: Array[Vector3], direction: Vector3) -> void:
 	probes.append(flat)
 
 func _try_start_parkour(direction_override: Vector3 = Vector3.ZERO, force_climb: bool = false) -> bool:
+	if skills != null and not skills.active(&"parkour"): return false
 	if get_world_3d() == null:
 		parkour_debug_reason = "no world"
 		return false
@@ -3778,6 +3877,7 @@ func _set_sword_charge_visual(ratio: float) -> void:
 	sword_blade_material.emission = charged_color * emission_strength
 
 func _desired_move_direction() -> Vector3:
+	if skills != null and skills.controls.wheel.visible: return Vector3.ZERO
 	var input_vec: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var forward: Vector3 = _camera_forward_flat()
 	var right: Vector3 = _camera_right_flat()
@@ -3815,7 +3915,7 @@ func _face_direction(direction: Vector3, delta_or_amount: float) -> void:
 	if flat.length() < 0.001:
 		return
 	var target_yaw: float = atan2(-flat.x, -flat.z)
-	var amount: float = clampf(turn_speed * delta_or_amount, 0.0, 1.0)
+	var amount: float = 1.0 - exp(-turn_speed * maxf(delta_or_amount, 0.0))
 	rotation.y = lerp_angle(rotation.y, target_yaw, amount)
 
 func _update_camera(delta: float) -> void:
@@ -3887,6 +3987,7 @@ func _update_camera(delta: float) -> void:
 	camera.position.y = lerpf(camera.position.y, 0.0, 1.0 - exp(-13.0 * camera_delta))
 	spring_arm.spring_length = lerpf(spring_arm.spring_length, focused_camera_distance, 1.0 - exp(-epic_camera_response * camera_delta))
 	spring_arm.position.x = lerpf(spring_arm.position.x, camera_shoulder_offset, 1.0 - exp(-9.0 * camera_delta))
+	if skills != null and skills.cinema != null: skills.cinema.apply_rig()
 
 func _sync_wall_run_feedback() -> void:
 	if combat_feedback == null:

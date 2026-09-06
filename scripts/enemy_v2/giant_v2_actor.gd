@@ -91,6 +91,7 @@ func _advance_formation(delta: float, _use_physics: bool) -> void:
 	velocity.x = move_toward(velocity.x, desired_velocity.x, delta * 5.5)
 	velocity.z = move_toward(velocity.z, desired_velocity.z, delta * 5.5)
 	velocity.y = -0.5 if is_on_floor() else velocity.y - gravity * delta
+	velocity = preload("res://scripts/abilities/flame_wall.gd").avoid(self, velocity, delta)
 	move_and_slide()
 
 func set_phalanx_intent(target_position: Vector3, facing_direction: Vector3, moving_to_slot: bool, attack_authorized: bool, decision_delta: float) -> void:
